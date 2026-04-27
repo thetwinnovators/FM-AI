@@ -18,7 +18,7 @@ export default function App() {
         <div className="flex flex-col flex-1 min-w-0">
           <TopBar />
           <main className="flex-1 overflow-auto m-3 mt-3">
-            <div className="glass-panel min-h-full overflow-hidden">
+            <div className="glass-panel min-h-full overflow-clip">
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/discover" element={<Discover />} />

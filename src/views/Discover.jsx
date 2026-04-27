@@ -119,29 +119,31 @@ export default function Discover() {
           Nothing matches. Loosen your filters.
         </p>
       ) : (
-        <div className="space-y-3 max-w-[760px] mx-auto">
-          {visible.map((it) => (
-            <div key={it.id} className="relative group">
-              <button
-                onClick={() => dismiss(it.id)}
-                className="absolute top-3 right-3 p-1.5 rounded-md bg-black/40 border border-white/10 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                aria-label="Dismiss"
-              >
-                <X size={12} />
-              </button>
-              {it.type === 'video' ? <VideoCard item={it} onOpen={open} /> :
-               it.type === 'article' ? <ArticleCard item={it} onOpen={open} /> :
-               <SocialPostCard item={it} onOpen={open} />}
-            </div>
-          ))}
-          {hasMore ? (
-            <div className="text-center pt-4">
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {visible.map((it) => (
+              <div key={it.id} className="relative group">
+                <button
+                  onClick={(e) => { e.stopPropagation(); dismiss(it.id) }}
+                  className="absolute top-3 right-3 p-1.5 rounded-md bg-black/40 border border-white/10 text-white/60 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                  aria-label="Dismiss"
+                >
+                  <X size={12} />
+                </button>
+                {it.type === 'video' ? <VideoCard item={it} onOpen={open} /> :
+                 it.type === 'article' ? <ArticleCard item={it} onOpen={open} /> :
+                 <SocialPostCard item={it} onOpen={open} />}
+              </div>
+            ))}
+          </div>
+          <div className="text-center pt-6">
+            {hasMore ? (
               <button onClick={() => setPage(page + 1)} className="btn">Load more</button>
-            </div>
-          ) : (
-            <p className="text-center text-[11px] text-[color:var(--color-text-tertiary)] pt-4">End of feed.</p>
-          )}
-        </div>
+            ) : (
+              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">End of feed.</p>
+            )}
+          </div>
+        </>
       )}
 
       <VideoPlayerModal item={openVideo} onClose={() => setOpenVideo(null)} />

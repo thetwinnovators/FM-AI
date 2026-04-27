@@ -8,7 +8,7 @@ const EMPTY = {
   dismisses: {},
   collections: {},
   views: {},      // contentId -> { count, lastAt }
-  searches: {},   // normalized query -> { count, lastAt }
+  searches: {},   // normalized query -> { count, lastAt, order }
   memoryEntries: {},
 }
 
@@ -60,41 +60,51 @@ export function useStore() {
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
+  // Actions are stable (empty deps) — they read the latest module-scope state at call time.
+  // This is critical: if these depended on `state`, every state update would create new
+  // function identities, and any consumer that includes them in a useEffect dep array
+  // would loop infinitely (e.g. recordView in modal mount effects).
   const toggleSave = useCallback((id) => {
-    const saves = { ...state.saves }
+    const cur = memoryState
+    const saves = { ...cur.saves }
     if (saves[id]) delete saves[id]
     else saves[id] = { savedAt: new Date().toISOString() }
-    persist({ ...state, saves })
-  }, [state])
+    persist({ ...cur, saves })
+  }, [])
 
   const toggleFollow = useCallback((id) => {
-    const follows = { ...state.follows }
+    const cur = memoryState
+    const follows = { ...cur.follows }
     if (follows[id]) delete follows[id]
     else follows[id] = { followedAt: new Date().toISOString() }
-    persist({ ...state, follows })
-  }, [state])
+    persist({ ...cur, follows })
+  }, [])
 
   const dismiss = useCallback((id) => {
-    persist({ ...state, dismisses: { ...state.dismisses, [id]: true } })
-  }, [state])
+    const cur = memoryState
+    persist({ ...cur, dismisses: { ...cur.dismisses, [id]: true } })
+  }, [])
 
   const recordView = useCallback((id) => {
-    const prev = state.views[id]
+    const cur = memoryState
+    const prev = cur.views[id]
     const now = new Date().toISOString()
-    const views = { ...state.views, [id]: { count: (prev?.count ?? 0) + 1, lastAt: now } }
-    persist({ ...state, views })
-  }, [state])
+    const views = { ...cur.views, [id]: { count: (prev?.count ?? 0) + 1, lastAt: now } }
+    persist({ ...cur, views })
+  }, [])
 
   const recordSearch = useCallback((query) => {
     const norm = normalizeQuery(query)
     if (!norm) return
-    const prev = state.searches[norm]
+    const cur = memoryState
+    const prev = cur.searches[norm]
     const now = new Date().toISOString()
-    const searches = { ...state.searches, [norm]: { count: (prev?.count ?? 0) + 1, lastAt: now, order: searchCounter++ } }
-    persist({ ...state, searches })
-  }, [state])
+    const searches = { ...cur.searches, [norm]: { count: (prev?.count ?? 0) + 1, lastAt: now, order: searchCounter++ } }
+    persist({ ...cur, searches })
+  }, [])
 
   const addMemory = useCallback((data) => {
+    const cur = memoryState
     const id = `mem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
     const entry = {
       id,
@@ -105,24 +115,28 @@ export function useStore() {
       addedAt: new Date().toISOString().slice(0, 10),
       source: data.source || 'manual',
     }
-    persist({ ...state, memoryEntries: { ...state.memoryEntries, [id]: entry } })
+    persist({ ...cur, memoryEntries: { ...cur.memoryEntries, [id]: entry } })
     return id
-  }, [state])
+  }, [])
 
   const updateMemory = useCallback((id, patch) => {
-    const cur = state.memoryEntries[id]
-    if (!cur) return
-    persist({ ...state, memoryEntries: { ...state.memoryEntries, [id]: { ...cur, ...patch } } })
-  }, [state])
+    const cur = memoryState
+    const existing = cur.memoryEntries[id]
+    if (!existing) return
+    persist({ ...cur, memoryEntries: { ...cur.memoryEntries, [id]: { ...existing, ...patch } } })
+  }, [])
 
   const deleteMemory = useCallback((id) => {
-    const next = { ...state.memoryEntries }
+    const cur = memoryState
+    const next = { ...cur.memoryEntries }
     delete next[id]
-    persist({ ...state, memoryEntries: next })
-  }, [state])
+    persist({ ...cur, memoryEntries: next })
+  }, [])
 
+  // Selectors — stable too. They read memoryState; since useSyncExternalStore re-renders
+  // the consumer on state change, callers see fresh values during render.
   const recentSearches = useCallback((n = 8) => {
-    return Object.entries(state.searches)
+    return Object.entries(memoryState.searches)
       .map(([query, info]) => ({ query, ...info }))
       .sort((a, b) => {
         const aTime = new Date(a.lastAt || '').getTime()
@@ -131,12 +145,12 @@ export function useStore() {
         return (b.order ?? 0) - (a.order ?? 0)
       })
       .slice(0, n)
-  }, [state])
+  }, [])
 
-  const isSaved = useCallback((id) => Boolean(state.saves[id]), [state])
-  const isFollowing = useCallback((id) => Boolean(state.follows[id]), [state])
-  const isDismissed = useCallback((id) => Boolean(state.dismisses[id]), [state])
-  const viewCount = useCallback((id) => state.views[id]?.count ?? 0, [state])
+  const isSaved = useCallback((id) => Boolean(memoryState.saves[id]), [])
+  const isFollowing = useCallback((id) => Boolean(memoryState.follows[id]), [])
+  const isDismissed = useCallback((id) => Boolean(memoryState.dismisses[id]), [])
+  const viewCount = useCallback((id) => memoryState.views[id]?.count ?? 0, [])
 
   return {
     ...state,
