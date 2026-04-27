@@ -193,11 +193,11 @@ export default function FlowGraph({
       function waveAmp(u, edgeSigs) {
         let total = 0
         for (const s of edgeSigs) {
-          const peak = Math.exp(-((u - s.progress) ** 2) / 0.025)
-          const oscillation = Math.sin(u * 22 + t * 11) + Math.sin(u * 9 + t * 5) * 0.7
+          const peak = Math.exp(-((u - s.progress) ** 2) / 0.04)
+          const oscillation = Math.sin(u * 18 + t * 9) + Math.sin(u * 7.5 + t * 4.5) * 0.55
           total += peak * oscillation
         }
-        return total * 52 * dpr
+        return total * 22 * dpr
       }
 
       const SAMPLES = 40
@@ -221,7 +221,7 @@ export default function FlowGraph({
         grad.addColorStop(0, `rgba(${fromRgb[0]},${fromRgb[1]},${fromRgb[2]},${lineAlpha})`)
         grad.addColorStop(1, `rgba(${toRgb[0]},${toRgb[1]},${toRgb[2]},${lineAlpha})`)
         ctx.strokeStyle = grad
-        ctx.lineWidth = (e.weight ?? 0.5) * (isActive ? 2.6 : 1.4) * dpr
+        ctx.lineWidth = (e.weight ?? 0.5) * (isActive ? 1.9 : 1.4) * dpr
         ctx.beginPath()
 
         if (isActive) {
