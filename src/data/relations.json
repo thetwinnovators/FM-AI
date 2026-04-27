@@ -1,0 +1,15 @@
+[
+  { "from": "topic_claude",      "to": "topic_mcp",     "kind": "related",    "weight": 0.85, "evidence": ["vid_003", "art_002"],          "lastReinforced": "2024-11-25" },
+  { "from": "topic_claude",      "to": "topic_agents",  "kind": "related",    "weight": 0.80, "evidence": ["vid_001", "art_001", "vid_005"], "lastReinforced": "2025-02-24" },
+  { "from": "topic_mcp",         "to": "topic_agents",  "kind": "related",    "weight": 0.65, "evidence": ["vid_003"],                     "lastReinforced": "2024-11-25" },
+  { "from": "company_anthropic", "to": "topic_claude",  "kind": "owns",       "weight": 1.00, "evidence": ["art_012"],                     "lastReinforced": "2023-05-09" },
+  { "from": "company_anthropic", "to": "topic_mcp",     "kind": "owns",       "weight": 1.00, "evidence": ["art_002", "art_003"],          "lastReinforced": "2024-11-25" },
+  { "from": "tool_claude_code",  "to": "topic_claude",  "kind": "implements", "weight": 1.00, "evidence": ["vid_005", "art_004", "art_008"], "lastReinforced": "2025-04-18" },
+  { "from": "tool_claude_api",   "to": "topic_claude",  "kind": "implements", "weight": 1.00, "evidence": ["art_005", "vid_007"],          "lastReinforced": "2024-08-12" },
+  { "from": "tool_mcp_server",   "to": "topic_mcp",     "kind": "implements", "weight": 1.00, "evidence": ["vid_004", "art_010"],          "lastReinforced": "2025-01-15" },
+  { "from": "concept_tool_use",  "to": "topic_claude",  "kind": "applies_to", "weight": 0.90, "evidence": ["vid_007", "art_005"],          "lastReinforced": "2024-08-12" },
+  { "from": "concept_tool_use",  "to": "topic_mcp",     "kind": "applies_to", "weight": 0.95, "evidence": ["vid_003", "art_003"],          "lastReinforced": "2024-11-25" },
+  { "from": "concept_tool_use",  "to": "topic_agents",  "kind": "applies_to", "weight": 0.85, "evidence": ["vid_001", "art_001"],          "lastReinforced": "2024-12-19" },
+  { "from": "concept_evals",     "to": "topic_agents",  "kind": "applies_to", "weight": 0.80, "evidence": ["vid_006", "vid_008", "art_011"], "lastReinforced": "2025-03-08" },
+  { "from": "concept_rag",       "to": "topic_agents",  "kind": "applies_to", "weight": 0.70, "evidence": [],                              "lastReinforced": "2024-01-01" }
+]
