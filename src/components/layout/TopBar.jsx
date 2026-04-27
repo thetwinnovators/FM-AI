@@ -13,7 +13,7 @@ export default function TopBar() {
     const trimmed = q.trim()
     if (trimmed) {
       recordSearch(trimmed)
-      navigate(`/discover?q=${encodeURIComponent(trimmed)}`)
+      navigate(`/search?q=${encodeURIComponent(trimmed)}`)
     }
   }
 
