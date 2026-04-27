@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle, Plus, Check } from 'lucide-react'
+import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle, Plus, Check, Bookmark, BookmarkCheck, Play } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { fetchAll, groupByCategory, sortCategoryGroups } from '../lib/search/aggregate.js'
@@ -9,9 +9,17 @@ import { searchEntities } from '../lib/searchEntities.js'
 import { getOgImage } from '../lib/search/ogImage.js'
 import { Link } from 'react-router-dom'
 
+function iconAndAccentFor(item) {
+  if (item.type === 'video')       return { Icon: Play,          accent: 'var(--color-video)' }
+  if (item.type === 'social_post') return { Icon: MessageCircle, accent: 'var(--color-social-post)' }
+  if (item.type === 'article')     return { Icon: FileText,      accent: 'var(--color-article)' }
+  return { Icon: Globe, accent: 'var(--color-article)' }
+}
+
 function ResultCard({ item }) {
-  const Icon = item.type === 'social_post' ? MessageCircle : item.type === 'article' ? FileText : Globe
-  const accent = item.type === 'social_post' ? 'var(--color-social-post)' : 'var(--color-article)'
+  const { Icon, accent } = iconAndAccentFor(item)
+  const { isSaved, toggleSave } = useStore()
+  const saved = isSaved(item.id)
   const [imageUrl, setImageUrl] = useState(item.thumbnail || null)
   const [imageFailed, setImageFailed] = useState(false)
 
@@ -25,6 +33,12 @@ function ResultCard({ item }) {
   }, [item.url, imageUrl])
 
   const showImage = imageUrl && !imageFailed
+
+  function handleSave(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    toggleSave(item.id, item)
+  }
 
   return (
     <a
@@ -61,9 +75,19 @@ function ResultCard({ item }) {
         {item.summary ? (
           <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] line-clamp-3">{item.summary}</p>
         ) : null}
-        {item.publishedAt ? (
-          <div className="mt-3 text-[11px] text-[color:var(--color-text-tertiary)]">{item.publishedAt}</div>
-        ) : null}
+        <div className="mt-auto pt-3 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
+          <span>{item.publishedAt || ''}</span>
+          <button
+            onClick={handleSave}
+            className="p-1 rounded hover:bg-white/10"
+            aria-label={saved ? 'Unsave' : 'Save to memory'}
+            title={saved ? 'Saved' : 'Save to memory'}
+          >
+            {saved
+              ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" />
+              : <Bookmark size={14} />}
+          </button>
+        </div>
       </div>
     </a>
   )
