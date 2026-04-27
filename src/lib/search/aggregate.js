@@ -49,27 +49,20 @@ export async function fetchAll(query, signal) {
     return true
   })
 
-  // Recency filter — past 9 months only (items without a date stay; we can't verify)
-  const cutoff = Date.now() - RECENCY_WINDOW_MS
-  const recent = deduped.filter((it) => {
-    if (!it.publishedAt) return true
-    const t = Date.parse(it.publishedAt)
-    if (Number.isNaN(t)) return true
-    return t >= cutoff
-  })
+  // Recency filter — anything published 2024-01-01 or later (items without a date stay)
+  const recent = deduped.filter(isRecent)
 
   const result = { items: recent, errors }
   if (recent.length > 0) setCached(cacheKey, result)
   return result
 }
 
-export const RECENCY_WINDOW_MS = 9 * 30 * 24 * 60 * 60 * 1000  // ~9 months
+export const RECENCY_CUTOFF_DATE = '2024-01-01'
 
 export function isRecent(item) {
   if (!item?.publishedAt) return true
-  const t = Date.parse(item.publishedAt)
-  if (Number.isNaN(t)) return true
-  return t >= Date.now() - RECENCY_WINDOW_MS
+  // publishedAt is YYYY-MM-DD or ISO; lexical compare on the first 10 chars works for both.
+  return String(item.publishedAt).slice(0, 10) >= RECENCY_CUTOFF_DATE
 }
 
 export function groupByCategory(items) {
