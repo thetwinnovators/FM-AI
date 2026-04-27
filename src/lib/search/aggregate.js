@@ -1,6 +1,5 @@
 import { searchHackerNews } from './hackerNews.js'
 import { searchReddit } from './reddit.js'
-import { searchDailymotion } from './dailymotion.js'
 import { searchYouTube } from './youtube.js'
 import { searchWeb } from './web.js'
 import { searchWikipedia } from './wikipedia.js'
@@ -26,8 +25,7 @@ async function fetchOneQuery(q, intent, signal) {
     tasks.push(['Wikipedia',   searchWikipedia(q, 2, signal)])
   }
   if (wantsVideo) {
-    tasks.push(['YouTube',     searchYouTube(q, 8, signal)])
-    tasks.push(['Dailymotion', searchDailymotion(q, 6, signal)])
+    tasks.push(['YouTube', searchYouTube(q, 12, signal)])
   }
 
   const results = await Promise.allSettled(tasks.map(([, p]) => p))
