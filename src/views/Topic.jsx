@@ -16,12 +16,13 @@ const TABS = [
   { id: 'video',       label: 'Videos'   },
   { id: 'article',     label: 'Articles' },
   { id: 'social_post', label: 'Posts'    },
+  { id: 'saved',       label: 'Saved'    },
 ]
 
 export default function Topic() {
   const { slug } = useParams()
   const { topicBySlug, contentByTopic, toolById, conceptById, topicById } = useSeed()
-  const { isFollowing, toggleFollow, userTopicBySlug, removeUserTopic } = useStore()
+  const { isFollowing, toggleFollow, userTopicBySlug, removeUserTopic, isSaved } = useStore()
 
   const seedTopic = topicBySlug(slug)
   const userTopic = !seedTopic ? userTopicBySlug(slug) : null
@@ -78,7 +79,10 @@ export default function Topic() {
   } else {
     sourceItems = contentByTopic(topic.id)
   }
-  const items = tab === 'all' ? sourceItems : sourceItems.filter((c) => c.type === tab)
+  const items =
+    tab === 'all'   ? sourceItems
+    : tab === 'saved' ? sourceItems.filter((c) => isSaved(c.id))
+    : sourceItems.filter((c) => c.type === tab)
   const followed = isUser ? true : isFollowing(topic.id)
 
   function open(item) {
@@ -139,7 +143,10 @@ export default function Topic() {
           {/* Tabs */}
           <div className="flex gap-1 mb-4 border-b border-[color:var(--color-border-subtle)] flex-wrap">
             {TABS.map((t) => {
-              const count = t.id === 'all' ? sourceItems.length : sourceItems.filter((c) => c.type === t.id).length
+              const count =
+                t.id === 'all'   ? sourceItems.length
+                : t.id === 'saved' ? sourceItems.filter((c) => isSaved(c.id)).length
+                : sourceItems.filter((c) => c.type === t.id).length
               return (
                 <button
                   key={t.id}

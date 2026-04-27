@@ -1,6 +1,7 @@
 import { searchHackerNews } from './hackerNews.js'
 import { searchReddit } from './reddit.js'
 import { searchDailymotion } from './dailymotion.js'
+import { searchYouTube } from './youtube.js'
 import { classify, CATEGORIES, CATEGORY_LABELS } from './classify.js'
 import { getCached, setCached } from './cache.js'
 
@@ -14,10 +15,11 @@ export async function fetchAll(query, signal) {
   const cached = getCached(cacheKey, TTL_MS)
   if (cached) return cached
 
-  const [hnResult, redditResult, dmResult] = await Promise.allSettled([
+  const [hnResult, redditResult, dmResult, ytResult] = await Promise.allSettled([
     searchHackerNews(q, 12, signal),
     searchReddit(q, {}, signal),
     searchDailymotion(q, 8, signal),
+    searchYouTube(q, 12, signal),
   ])
 
   const items = []
@@ -28,6 +30,8 @@ export async function fetchAll(query, signal) {
   else errors.push({ source: 'Reddit', error: redditResult.reason?.message || String(redditResult.reason) })
   if (dmResult.status === 'fulfilled') items.push(...dmResult.value)
   else errors.push({ source: 'Dailymotion', error: dmResult.reason?.message || String(dmResult.reason) })
+  if (ytResult.status === 'fulfilled') items.push(...ytResult.value)
+  else errors.push({ source: 'YouTube', error: ytResult.reason?.message || String(ytResult.reason) })
 
   const result = { items, errors }
   if (items.length > 0) setCached(cacheKey, result)
