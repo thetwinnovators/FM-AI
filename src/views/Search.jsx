@@ -1,0 +1,179 @@
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle } from 'lucide-react'
+import { useSeed } from '../store/useSeed.js'
+import { fetchAll, groupByCategory, sortCategoryGroups } from '../lib/search/aggregate.js'
+import { searchEntities } from '../lib/searchEntities.js'
+import { Link } from 'react-router-dom'
+
+function ResultCard({ item }) {
+  const Icon = item.type === 'social_post' ? MessageCircle : item.type === 'article' ? FileText : Globe
+  const accent = item.type === 'social_post' ? 'var(--color-social-post)' : 'var(--color-article)'
+  return (
+    <a
+      href={item.url}
+      target="_blank"
+      rel="noreferrer"
+      className="block rounded-2xl overflow-hidden border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] hover:bg-[color:var(--color-bg-glass-strong)] hover:border-[color:var(--color-border-default)] transition-colors p-4 group"
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span
+          className="w-6 h-6 rounded-md flex items-center justify-center"
+          style={{ background: `color-mix(in srgb, ${accent} 18%, transparent)`, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, color: accent }}
+        >
+          <Icon size={12} />
+        </span>
+        <span className="text-[11px] uppercase tracking-wide font-medium" style={{ color: accent }}>
+          {item.source}
+        </span>
+        <ExternalLink size={11} className="ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+      </div>
+      <h3 className="text-[15px] font-semibold leading-snug line-clamp-3">{item.title}</h3>
+      {item.summary ? (
+        <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] line-clamp-3">{item.summary}</p>
+      ) : null}
+      {item.publishedAt ? (
+        <div className="mt-3 text-[11px] text-[color:var(--color-text-tertiary)]">{item.publishedAt}</div>
+      ) : null}
+    </a>
+  )
+}
+
+function SeedResultRow({ kind, item }) {
+  const href = kind === 'topics' ? `/topic/${item.slug}` : item.url
+  const external = kind !== 'topics'
+  const Tag = external ? 'a' : Link
+  const props = external ? { href, target: '_blank', rel: 'noreferrer' } : { to: href }
+  return (
+    <Tag
+      {...props}
+      className="glass-panel p-4 hover:brightness-125 transition-all block"
+    >
+      <div className="text-[10px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] mb-1">{kind}</div>
+      <h4 className="text-sm font-semibold">{item.name || item.title}</h4>
+      {item.summary ? <p className="text-xs text-[color:var(--color-text-secondary)] mt-1 line-clamp-2">{item.summary}</p> : null}
+    </Tag>
+  )
+}
+
+export default function Search() {
+  const [params] = useSearchParams()
+  const query = params.get('q') || ''
+  const seed = useSeed()
+  const [state, setState] = useState({ status: 'idle', items: [], errors: [] })
+  const abortRef = useRef(null)
+
+  useEffect(() => {
+    if (!query.trim()) {
+      setState({ status: 'idle', items: [], errors: [] })
+      return
+    }
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setState((s) => ({ ...s, status: 'loading' }))
+    fetchAll(query, ctrl.signal)
+      .then((res) => {
+        if (ctrl.signal.aborted) return
+        setState({ status: 'done', items: res.items, errors: res.errors })
+      })
+      .catch((err) => {
+        if (ctrl.signal.aborted) return
+        setState({ status: 'done', items: [], errors: [{ source: 'all', error: err?.message || String(err) }] })
+      })
+    return () => ctrl.abort()
+  }, [query])
+
+  const seedHits = query ? searchEntities(query, seed) : null
+  const seedTotal = seedHits
+    ? Object.values(seedHits).reduce((sum, arr) => sum + arr.length, 0)
+    : 0
+
+  const grouped = groupByCategory(state.items)
+  const groups = sortCategoryGroups(grouped)
+  const liveTotal = state.items.length
+
+  return (
+    <div className="p-6 max-w-[1200px] mx-auto">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Search</h1>
+        <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
+          {query ? <>Results for "<span className="text-white">{query}</span>"</> : 'Type a query to search across your library and the live web.'}
+        </p>
+      </header>
+
+      {!query ? (
+        <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">
+          Use the top bar to search topics, tools, creators, and live web content (Hacker News + Reddit).
+        </p>
+      ) : (
+        <div className="space-y-10">
+          {seedTotal > 0 ? (
+            <section>
+              <h2 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
+                In your library ({seedTotal})
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {seedHits.topics.map((x)    => <SeedResultRow key={x.id} kind="topics"    item={x} />)}
+                {seedHits.tools.map((x)     => <SeedResultRow key={x.id} kind="tools"     item={x} />)}
+                {seedHits.creators.map((x)  => <SeedResultRow key={x.id} kind="creators"  item={x} />)}
+                {seedHits.companies.map((x) => <SeedResultRow key={x.id} kind="companies" item={x} />)}
+                {seedHits.concepts.map((x)  => <SeedResultRow key={x.id} kind="concepts"  item={x} />)}
+              </div>
+            </section>
+          ) : null}
+
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium">
+                Live web — Hacker News + Reddit ({liveTotal})
+              </h2>
+              {state.status === 'loading' ? (
+                <span className="text-[11px] text-[color:var(--color-text-tertiary)] inline-flex items-center gap-1.5">
+                  <Loader2 size={12} className="animate-spin" /> fetching…
+                </span>
+              ) : null}
+            </div>
+
+            {state.errors.length > 0 ? (
+              <div className="mb-4 space-y-1">
+                {state.errors.map((err, i) => (
+                  <div key={i} className="text-[11px] text-amber-300/80 inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 mr-2">
+                    <AlertCircle size={11} /> {err.source}: {err.error}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {state.status === 'loading' && state.items.length === 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] p-4 h-32 animate-pulse" />
+                ))}
+              </div>
+            ) : groups.length === 0 ? (
+              state.status === 'done' ? (
+                <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">
+                  No live results. The seed library above may still have matches.
+                </p>
+              ) : null
+            ) : (
+              <div className="space-y-8">
+                {groups.map(({ category, label, items }) => (
+                  <div key={category}>
+                    <h3 className="text-[11px] uppercase tracking-wide text-white/50 font-semibold mb-3">
+                      {label} <span className="text-[10px] text-[color:var(--color-text-tertiary)] ml-1">{items.length}</span>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {items.map((it) => <ResultCard key={it.id} item={it} />)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
+      )}
+    </div>
+  )
+}
