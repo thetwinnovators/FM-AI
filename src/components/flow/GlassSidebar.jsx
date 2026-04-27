@@ -1,6 +1,20 @@
 import { useState } from 'react'
-import { Search, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Search, ChevronRight, ArrowRight } from 'lucide-react'
 import { NODE_TYPES, getTypeMeta } from '../../lib/graph/nodeTaxonomy.js'
+
+const CONTENT_TYPES = new Set(['video', 'article', 'social_post'])
+const NO_BROWSE_TYPES = new Set(['memory', 'signal'])
+
+function browseHrefFor(node) {
+  if (!node || NO_BROWSE_TYPES.has(node.type)) return null
+  if (CONTENT_TYPES.has(node.type)) return null
+  if (node.type === 'topic') {
+    const slug = node.id.startsWith('topic_') ? node.id.slice('topic_'.length) : node.id
+    return `/topic/${slug}`
+  }
+  return `/discover?node=${encodeURIComponent(node.id)}`
+}
 
 export default function GlassSidebar({
   nodes,
@@ -81,6 +95,26 @@ export default function GlassSidebar({
               </div>
             </div>
           ) : null}
+
+          {(() => {
+            const href = browseHrefFor(selectedNode)
+            if (!href) return null
+            return (
+              <Link
+                to={href}
+                onClick={() => setSelectedNodeId(null)}
+                className="mt-5 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-colors"
+                style={{
+                  borderColor: `${meta.color}66`,
+                  background: `${meta.color}1f`,
+                  color: meta.color,
+                }}
+              >
+                Browse content related to {selectedNode.label}
+                <ArrowRight size={11} />
+              </Link>
+            )
+          })()}
         </div>
       </aside>
     )

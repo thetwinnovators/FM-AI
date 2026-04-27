@@ -23,8 +23,15 @@ const PAGE_SIZE = 20
 export default function Discover() {
   const [params] = useSearchParams()
   const initialQuery = params.get('q') || ''
-  const { topics, content } = useSeed()
+  const relatedToNodeId = params.get('node') || null
+  const { topics, content, topicById, toolById, creatorById, conceptById, companyById, tagById } = useSeed()
   const { isDismissed, dismiss } = useStore()
+
+  const focusNode = relatedToNodeId
+    ? (topicById(relatedToNodeId) || toolById(relatedToNodeId) || creatorById(relatedToNodeId) ||
+       conceptById(relatedToNodeId) || companyById(relatedToNodeId) || tagById(relatedToNodeId))
+    : null
+  const focusLabel = focusNode?.name || focusNode?.title || relatedToNodeId
 
   const [query, setQuery] = useState(initialQuery)
   const [type, setType] = useState('')
@@ -34,9 +41,9 @@ export default function Discover() {
   const [openArticle, setOpenArticle] = useState(null)
 
   const filtered = useMemo(
-    () => filterContent(content, { query, type, topicIds, sort: 'newest' })
+    () => filterContent(content, { query, type, topicIds, relatedToNodeId, sort: 'newest' })
       .filter((it) => !isDismissed(it.id)),
-    [content, query, type, topicIds, isDismissed]
+    [content, query, type, topicIds, relatedToNodeId, isDismissed]
   )
 
   const visible = filtered.slice(0, page * PAGE_SIZE)
@@ -57,7 +64,9 @@ export default function Discover() {
       <header className="mb-4">
         <h1 className="text-2xl font-semibold tracking-tight">Discover</h1>
         <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
-          {filtered.length} items {query ? `matching "${query}"` : ''}
+          {filtered.length} items{' '}
+          {focusLabel ? <>related to <span className="text-white">{focusLabel}</span></> : null}
+          {query ? <> matching "<span className="text-white">{query}</span>"</> : null}
         </p>
       </header>
 
@@ -94,7 +103,7 @@ export default function Discover() {
             return (
               <Chip
                 key={t.id}
-                color={on ? '#f97316' : undefined}
+                color={on ? '#d946ef' : undefined}
                 onClick={() => toggleTopic(t.id)}
               >
                 {t.name}

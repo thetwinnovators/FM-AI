@@ -2,10 +2,10 @@ import { Trash2 } from 'lucide-react'
 import Pill from '../ui/Pill.jsx'
 
 const CATEGORY = {
-  topic_rule:     { label: 'Topic Rule',     color: '#f59e0b' },
+  topic_rule:     { label: 'Topic Rule',     color: '#6366f1' },
   source_pref:    { label: 'Source Pref',    color: '#14b8a6' },
   research_focus: { label: 'Research Focus', color: '#3b82f6' },
-  personal_stack: { label: 'Personal Stack', color: '#f97316' },
+  personal_stack: { label: 'Personal Stack', color: '#d946ef' },
 }
 
 const STATUS_TONE = {

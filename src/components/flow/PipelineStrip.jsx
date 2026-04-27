@@ -2,7 +2,7 @@ import { Compass, Filter, Tags, Brain } from 'lucide-react'
 
 const STAGES = [
   { icon: Compass, color: '#14b8a6', title: 'Discover',  sub: 'Sources · Searches · Triggers' },
-  { icon: Filter,  color: '#f59e0b', title: 'Parse',     sub: 'Metadata · Transcripts · Entities' },
+  { icon: Filter,  color: '#6366f1', title: 'Parse',     sub: 'Metadata · Transcripts · Entities' },
   { icon: Tags,    color: '#8b5cf6', title: 'Classify',  sub: 'Topics · Concepts · Relations' },
   { icon: Brain,   color: '#10b981', title: 'Retain',    sub: 'Memory · Patterns · Suggestions' },
 ]

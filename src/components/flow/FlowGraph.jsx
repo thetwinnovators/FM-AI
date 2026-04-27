@@ -52,6 +52,11 @@ export default function FlowGraph({
     let lastSigSpawn = 0
     let focalZ = 0
 
+    // User-drag offsets per node, in CSS pixels. Spring-back via per-frame physics.
+    const nodeOffsets = new Map()
+    let nodeDragId = null
+    let nodeDragStart = null
+
     function project(x, y, z) {
       const cx = (W / 2) * dpr
       const cy = (H / 2) * dpr
@@ -125,6 +130,21 @@ export default function FlowGraph({
       bounce.set(fromId, f)
     }
 
+    function computeHitProj() {
+      const t = performance.now() / 1000
+      const proj = []
+      for (const n of propsRef.current.nodes) {
+        const r3 = rotate3D(n.bx, n.by, n.bz, t)
+        const p = project(r3.x, r3.y, r3.z)
+        const baseR = 7.5 * dpr * Math.max(0.65, 1 + r3.z * 0.13)
+        let sx = p.sx, sy = p.sy
+        const off = nodeOffsets.get(n.id)
+        if (off) { sx += off.ox * dpr; sy += off.oy * dpr }
+        proj.push({ id: n.id, sx, sy, r: baseR })
+      }
+      return proj
+    }
+
     let raf
     let lastT = performance.now()
     function frame(now) {
@@ -150,6 +170,21 @@ export default function FlowGraph({
       const actSet = new Set(actIds)
       const neighbors = selId ? neighborsOf(selId) : null
 
+      // Spring-back any released node-drag offsets toward (0, 0).
+      for (const [id, o] of nodeOffsets) {
+        if (id === nodeDragId) continue
+        o.vx += -SPRING_K * o.ox * dt
+        o.vy += -SPRING_K * o.oy * dt
+        o.vx *= Math.exp(-DAMP * dt)
+        o.vy *= Math.exp(-DAMP * dt)
+        o.ox += o.vx * dt
+        o.oy += o.vy * dt
+        if (Math.abs(o.ox) < 0.05 && Math.abs(o.oy) < 0.05 &&
+            Math.abs(o.vx) < 0.05 && Math.abs(o.vy) < 0.05) {
+          nodeOffsets.delete(id)
+        }
+      }
+
       const projected = nodes_.map((n) => {
         const r = rotate3D(n.bx, n.by, n.bz, t + (n.phase || 0))
         const p = project(r.x, r.y, r.z)
@@ -160,8 +195,11 @@ export default function FlowGraph({
         bounce.set(n.id, b)
         const baseR = 7.5 * dpr * Math.max(0.65, 1 + r.z * 0.13)
         const r_ = baseR * (1 + b.amp * 0.45)
-        const sx = p.sx + (p.sx - (W / 2) * dpr) * b.amp * 0.12
-        return { ...n, sx, sy: p.sy, depth: r.z, r: r_, projZ: r.z }
+        let sx = p.sx + (p.sx - (W / 2) * dpr) * b.amp * 0.12
+        let sy = p.sy
+        const off = nodeOffsets.get(n.id)
+        if (off) { sx += off.ox * dpr; sy += off.oy * dpr }
+        return { ...n, sx, sy, depth: r.z, r: r_, projZ: r.z }
       }).sort((a, b) => a.depth - b.depth)
 
       const hovered = projected.find((p) => p.id === hoverId)
@@ -339,19 +377,44 @@ export default function FlowGraph({
     raf = requestAnimationFrame(frame)
 
     function onDown(e) {
+      const rect = canvas.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const proj = computeHitProj()
+      const hit = hitTest(mx, my, proj)
+
       dragging = true
       didDrag = false
-      dragStart = { x: e.clientX, y: e.clientY, rotX, rotY, panX, panY }
-      dragMode = e.shiftKey ? 'pan' : 'rotate'
       lastInteract = performance.now()
+
+      if (hit) {
+        nodeDragId = hit.id
+        const cur = nodeOffsets.get(hit.id) || { ox: 0, oy: 0, vx: 0, vy: 0 }
+        nodeDragStart = { mouseX: e.clientX, mouseY: e.clientY, baseOx: cur.ox, baseOy: cur.oy }
+        canvas.style.cursor = 'grabbing'
+        return
+      }
+
+      dragMode = e.shiftKey ? 'pan' : 'rotate'
+      dragStart = { x: e.clientX, y: e.clientY, rotX, rotY, panX, panY }
       canvas.style.cursor = 'grabbing'
     }
+
     function onMove(e) {
       lastInteract = performance.now()
-      const r = canvas.getBoundingClientRect()
-      const mx = e.clientX - r.left
-      const my = e.clientY - r.top
       if (dragging) {
+        if (nodeDragId) {
+          const dx = e.clientX - nodeDragStart.mouseX
+          const dy = e.clientY - nodeDragStart.mouseY
+          if (Math.abs(dx) + Math.abs(dy) > 2) didDrag = true
+          nodeOffsets.set(nodeDragId, {
+            ox: nodeDragStart.baseOx + dx,
+            oy: nodeDragStart.baseOy + dy,
+            vx: 0,
+            vy: 0,
+          })
+          return
+        }
         const dx = e.clientX - dragStart.x
         const dy = e.clientY - dragStart.y
         if (Math.abs(dx) + Math.abs(dy) > 2) didDrag = true
@@ -362,43 +425,44 @@ export default function FlowGraph({
           rotY = dragStart.rotY + dx * 0.005
           rotX = Math.max(-0.55, Math.min(0.55, dragStart.rotX - dy * 0.005))
         }
-      } else {
-        const proj = []
-        for (const n of propsRef.current.nodes) {
-          const r3 = rotate3D(n.bx, n.by, n.bz, performance.now() / 1000)
-          const p = project(r3.x, r3.y, r3.z)
-          const baseR = 7.5 * dpr * Math.max(0.65, 1 + r3.z * 0.13)
-          proj.push({ id: n.id, sx: p.sx, sy: p.sy, r: baseR })
-        }
-        const hit = hitTest(mx, my, proj)
-        const newHover = hit?.id || null
-        if (newHover !== hoverId) {
-          hoverId = newHover
-          propsRef.current.onNodeHover?.(newHover)
-          canvas.style.cursor = newHover ? 'pointer' : (dragging ? 'grabbing' : 'grab')
-        }
+        return
+      }
+      const rect = canvas.getBoundingClientRect()
+      const mx = e.clientX - rect.left
+      const my = e.clientY - rect.top
+      const proj = computeHitProj()
+      const hit = hitTest(mx, my, proj)
+      const newHover = hit?.id || null
+      if (newHover !== hoverId) {
+        hoverId = newHover
+        propsRef.current.onNodeHover?.(newHover)
+        canvas.style.cursor = newHover ? 'pointer' : 'grab'
       }
     }
+
     function onUp(e) {
       if (dragging) {
-        if (!didDrag) {
-          const r = canvas.getBoundingClientRect()
-          const mx = e.clientX - r.left
-          const my = e.clientY - r.top
-          const proj = []
-          for (const n of propsRef.current.nodes) {
-            const r3 = rotate3D(n.bx, n.by, n.bz, performance.now() / 1000)
-            const p = project(r3.x, r3.y, r3.z)
-            const baseR = 7.5 * dpr * Math.max(0.65, 1 + r3.z * 0.13)
-            proj.push({ id: n.id, sx: p.sx, sy: p.sy, r: baseR })
+        if (nodeDragId) {
+          if (!didDrag) {
+            propsRef.current.onNodeClick?.(nodeDragId)
           }
-          const hit = hitTest(mx, my, proj)
-          propsRef.current.onNodeClick?.(hit?.id || null)
+          // Whether dragged or not, leave the offset — per-frame physics will spring it back.
+          nodeDragId = null
+          nodeDragStart = null
         } else {
-          const dx = (e.clientX - dragStart.x) * 0.005
-          const dy = (e.clientY - dragStart.y) * 0.005
-          rotYVel = dx * 4
-          rotXVel = -dy * 4
+          if (!didDrag) {
+            const rect = canvas.getBoundingClientRect()
+            const mx = e.clientX - rect.left
+            const my = e.clientY - rect.top
+            const proj = computeHitProj()
+            const hit = hitTest(mx, my, proj)
+            propsRef.current.onNodeClick?.(hit?.id || null)
+          } else {
+            const dx = (e.clientX - dragStart.x) * 0.005
+            const dy = (e.clientY - dragStart.y) * 0.005
+            rotYVel = dx * 4
+            rotXVel = -dy * 4
+          }
         }
       }
       dragging = false

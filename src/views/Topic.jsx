@@ -122,7 +122,7 @@ export default function Topic() {
               <div className="flex flex-wrap gap-2">
                 {topic.relatedTopicIds.map((id) => {
                   const t = topicById(id)
-                  return t ? <Link key={id} to={`/topic/${t.slug}`}><Chip color="#f97316">{t.name}</Chip></Link> : null
+                  return t ? <Link key={id} to={`/topic/${t.slug}`}><Chip color="#d946ef">{t.name}</Chip></Link> : null
                 })}
               </div>
             </div>

@@ -1,11 +1,11 @@
 export const NODE_TYPES = [
-  { id: 'topic',         label: 'Topic',        color: '#f97316' },
+  { id: 'topic',         label: 'Topic',        color: '#d946ef' },
   { id: 'concept',       label: 'Concept',      color: '#94a3b8' },
   { id: 'tool',          label: 'Tool',         color: '#06b6d4' },
   { id: 'company',       label: 'Company',      color: '#3b82f6' },
   { id: 'creator',       label: 'Creator',      color: '#14b8a6' },
   { id: 'video',         label: 'Video',        color: '#ec4899' },
-  { id: 'article',       label: 'Article',      color: '#f59e0b' },
+  { id: 'article',       label: 'Article',      color: '#6366f1' },
   { id: 'social_post',   label: 'Social Post',  color: '#8b5cf6' },
   { id: 'tag',           label: 'Tag',          color: '#64748b' },
   { id: 'learning_path', label: 'Learning',     color: '#10b981' },
