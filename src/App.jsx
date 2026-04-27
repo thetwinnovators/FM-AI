@@ -1,83 +1,36 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Search, Compass, Network, BookOpen, Brain, Map } from 'lucide-react';
-import Home from './views/Home';
-import Discover from './views/Discover';
-import Topic from './views/Topic';
-import GraphMap from './views/GraphMap';
-import Education from './views/Education';
-import Memory from './views/Memory';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import LeftRail from './components/layout/LeftRail.jsx'
+import TopBar from './components/layout/TopBar.jsx'
+import Home from './views/Home.jsx'
+import Discover from './views/Discover.jsx'
+import Topics from './views/Topics.jsx'
+import Topic from './views/Topic.jsx'
+import FlowMap from './views/FlowMap.jsx'
+import Education from './views/Education.jsx'
+import Memory from './views/Memory.jsx'
 
-function Sidebar() {
-  const navItems = [
-    { path: '/search', label: 'Home / Search', icon: Search },
-    { path: '/discover', label: 'Discover', icon: Compass },
-    { path: '/topic/t1', label: 'Topic Pages', icon: BookOpen }, // default to t1 for demo
-    { path: '/graph', label: 'Flow Map', icon: Network },
-    { path: '/education', label: 'Education', icon: Brain },
-    { path: '/memory', label: 'Memory', icon: Map },
-  ];
-
+export default function App() {
   return (
-    <aside className="sidebar">
-      <div className="p-6">
-        <h1 className="text-xl text-gradient font-bold tracking-tight">FlowMap</h1>
-        <p className="text-xs text-secondary mt-1">Topic Intelligence Workspace</p>
-      </div>
-      
-      <nav className="flex-1 px-4 flex flex-col gap-2 mt-4">
-        {navItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors ${
-                isActive 
-                  ? 'bg-[rgba(255,255,255,0.08)] text-white font-medium' 
-                  : 'text-secondary hover:bg-[rgba(255,255,255,0.04)] hover:text-white'
-              }`
-            }
-          >
-            <item.icon size={18} />
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="p-4 mt-auto border-t border-[rgba(255,255,255,0.08)]">
-        <div className="flex items-center gap-3 px-2 py-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center text-xs font-bold">
-            JU
-          </div>
-          <div>
-            <p className="text-sm font-medium">JenoU</p>
-            <p className="text-xs text-secondary">Researcher</p>
-          </div>
+    <BrowserRouter>
+      <div className="flex h-full">
+        <LeftRail />
+        <div className="flex flex-col flex-1 min-w-0">
+          <TopBar />
+          <main className="flex-1 overflow-auto m-3 mt-3">
+            <div className="glass-panel min-h-full overflow-hidden">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/discover" element={<Discover />} />
+                <Route path="/topics" element={<Topics />} />
+                <Route path="/topic/:slug" element={<Topic />} />
+                <Route path="/flow" element={<FlowMap />} />
+                <Route path="/education" element={<Education />} />
+                <Route path="/memory" element={<Memory />} />
+              </Routes>
+            </div>
+          </main>
         </div>
       </div>
-    </aside>
-  );
+    </BrowserRouter>
+  )
 }
-
-function App() {
-  return (
-    <Router>
-      <div className="app-container">
-        <Sidebar />
-        <main className="main-content">
-          <Routes>
-            <Route path="/" element={<Navigate to="/search" replace />} />
-            <Route path="/search" element={<Home />} />
-            <Route path="/discover" element={<Discover />} />
-            <Route path="/topic/:id" element={<Topic />} />
-            <Route path="/graph" element={<GraphMap />} />
-            <Route path="/education" element={<Education />} />
-            <Route path="/memory" element={<Memory />} />
-          </Routes>
-        </main>
-      </div>
-    </Router>
-  );
-}
-
-export default App;
