@@ -4,37 +4,65 @@ import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle } fr
 import { useSeed } from '../store/useSeed.js'
 import { fetchAll, groupByCategory, sortCategoryGroups } from '../lib/search/aggregate.js'
 import { searchEntities } from '../lib/searchEntities.js'
+import { getOgImage } from '../lib/search/ogImage.js'
 import { Link } from 'react-router-dom'
 
 function ResultCard({ item }) {
   const Icon = item.type === 'social_post' ? MessageCircle : item.type === 'article' ? FileText : Globe
   const accent = item.type === 'social_post' ? 'var(--color-social-post)' : 'var(--color-article)'
+  const [imageUrl, setImageUrl] = useState(item.thumbnail || null)
+  const [imageFailed, setImageFailed] = useState(false)
+
+  useEffect(() => {
+    if (imageUrl || !item.url) return
+    let cancelled = false
+    getOgImage(item.url).then((url) => {
+      if (!cancelled && url) setImageUrl(url)
+    })
+    return () => { cancelled = true }
+  }, [item.url, imageUrl])
+
+  const showImage = imageUrl && !imageFailed
+
   return (
     <a
       href={item.url}
       target="_blank"
       rel="noreferrer"
-      className="block rounded-2xl overflow-hidden border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] hover:bg-[color:var(--color-bg-glass-strong)] hover:border-[color:var(--color-border-default)] transition-colors p-4 group"
+      className="block rounded-2xl overflow-hidden border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] hover:bg-[color:var(--color-bg-glass-strong)] hover:border-[color:var(--color-border-default)] transition-colors group flex flex-col"
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span
-          className="w-6 h-6 rounded-md flex items-center justify-center"
-          style={{ background: `color-mix(in srgb, ${accent} 18%, transparent)`, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, color: accent }}
-        >
-          <Icon size={12} />
-        </span>
-        <span className="text-[11px] uppercase tracking-wide font-medium" style={{ color: accent }}>
-          {item.source}
-        </span>
-        <ExternalLink size={11} className="ml-auto opacity-0 group-hover:opacity-60 transition-opacity" />
+      {showImage ? (
+        <div className="aspect-[1.91/1] bg-black/40 overflow-hidden">
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            onError={() => setImageFailed(true)}
+          />
+        </div>
+      ) : null}
+      <div className="p-4 flex flex-col flex-1">
+        <div className="flex items-center gap-2 mb-2">
+          <span
+            className="w-6 h-6 rounded-md flex items-center justify-center"
+            style={{ background: `color-mix(in srgb, ${accent} 18%, transparent)`, border: `1px solid color-mix(in srgb, ${accent} 35%, transparent)`, color: accent }}
+          >
+            <Icon size={12} />
+          </span>
+          <span className="text-[11px] uppercase tracking-wide font-medium truncate" style={{ color: accent }}>
+            {item.source}
+          </span>
+          <ExternalLink size={11} className="ml-auto flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+        </div>
+        <h3 className="text-[15px] font-semibold leading-snug line-clamp-3">{item.title}</h3>
+        {item.summary ? (
+          <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] line-clamp-3">{item.summary}</p>
+        ) : null}
+        {item.publishedAt ? (
+          <div className="mt-3 text-[11px] text-[color:var(--color-text-tertiary)]">{item.publishedAt}</div>
+        ) : null}
       </div>
-      <h3 className="text-[15px] font-semibold leading-snug line-clamp-3">{item.title}</h3>
-      {item.summary ? (
-        <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] line-clamp-3">{item.summary}</p>
-      ) : null}
-      {item.publishedAt ? (
-        <div className="mt-3 text-[11px] text-[color:var(--color-text-tertiary)]">{item.publishedAt}</div>
-      ) : null}
     </a>
   )
 }
