@@ -10,6 +10,7 @@ const EMPTY = {
   views: {},      // contentId -> { count, lastAt }
   searches: {},   // normalized query -> { count, lastAt, order }
   memoryEntries: {},
+  memoryDismisses: {},  // seed memory ids the user has dismissed
   userTopics: {},
 }
 
@@ -138,12 +139,24 @@ export function useStore() {
     persist({ ...cur, memoryEntries: { ...cur.memoryEntries, [id]: { ...existing, ...patch } } })
   }, [])
 
+  // Seed memory entries (id starts with `mem_seed_`) live in JSON and can't be
+  // mutated. Treat delete on those as a "dismiss" — track in localStorage and
+  // filter at render time. User-added entries get fully removed.
   const deleteMemory = useCallback((id) => {
     const cur = memoryState
+    if (String(id).startsWith('mem_seed_')) {
+      persist({ ...cur, memoryDismisses: { ...cur.memoryDismisses, [id]: true } })
+      return
+    }
     const next = { ...cur.memoryEntries }
     delete next[id]
     persist({ ...cur, memoryEntries: next })
   }, [])
+
+  const isMemoryDismissed = useCallback(
+    (id) => Boolean(memoryState.memoryDismisses?.[id]),
+    []
+  )
 
   // Selectors — stable too. They read memoryState; since useSyncExternalStore re-renders
   // the consumer on state change, callers see fresh values during render.
@@ -207,7 +220,7 @@ export function useStore() {
     ...state,
     toggleSave, toggleFollow, dismiss,
     recordView, recordSearch,
-    addMemory, updateMemory, deleteMemory,
+    addMemory, updateMemory, deleteMemory, isMemoryDismissed,
     addUserTopic, removeUserTopic, userTopicBySlug,
     isSaved, isFollowing, isDismissed, viewCount, recentSearches,
   }

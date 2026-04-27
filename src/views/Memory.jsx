@@ -25,7 +25,7 @@ const CATEGORY_FILTERS = [
 export default function Memory() {
   const { topics, seedMemory } = useSeed()
   const {
-    saves, follows, toggleFollow, memoryEntries, addMemory, deleteMemory,
+    saves, follows, toggleFollow, memoryEntries, addMemory, deleteMemory, isMemoryDismissed,
     userTopics, removeUserTopic,
   } = useStore()
 
@@ -35,17 +35,13 @@ export default function Memory() {
 
   const followedSeed = topics.filter((t) => follows[t.id])
   const userTopicList = Object.values(userTopics)
-  const allMemory = [...(seedMemory || []), ...Object.values(memoryEntries)]
+  const visibleSeedMemory = (seedMemory || []).filter((m) => !isMemoryDismissed(m.id))
+  const allMemory = [...visibleSeedMemory, ...Object.values(memoryEntries)]
   const filteredMemory = catFilter === 'all' ? allMemory : allMemory.filter((m) => m.category === catFilter)
 
   function onAddSubmit(data) {
     addMemory(data)
     setShowAdd(false)
-  }
-
-  function onDeleteMemory(id) {
-    if (id.startsWith('mem_seed_')) return
-    deleteMemory(id)
   }
 
   const savedCount = Object.keys(saves).length
@@ -180,7 +176,7 @@ export default function Memory() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {filteredMemory.map((entry) => (
-                <MemoryEntryCard key={entry.id} entry={entry} onDelete={onDeleteMemory} />
+                <MemoryEntryCard key={entry.id} entry={entry} onDelete={deleteMemory} />
               ))}
             </div>
           )}
