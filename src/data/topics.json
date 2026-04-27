@@ -1,0 +1,41 @@
+[
+  {
+    "id": "topic_claude",
+    "slug": "claude",
+    "name": "Claude",
+    "summary": "Anthropic's AI assistant family — Sonnet, Opus, Haiku — with strong reasoning, tool use, and a developer-first SDK.",
+    "whyItMatters": "Frontier model with the cleanest tool-use API and the strongest reasoning under load. Powers Claude Code, MCP, and Computer Use.",
+    "relatedTopicIds": ["topic_mcp", "topic_agents"],
+    "toolIds": ["tool_claude_code", "tool_claude_api"],
+    "companyIds": ["company_anthropic"],
+    "creatorIds": ["creator_anthropic"],
+    "conceptIds": ["concept_tool_use", "concept_evals"],
+    "followedByDefault": true
+  },
+  {
+    "id": "topic_mcp",
+    "slug": "mcp",
+    "name": "MCP — Model Context Protocol",
+    "summary": "Open protocol for connecting LLMs to tools, data sources, and services through a uniform server interface.",
+    "whyItMatters": "Standardizes how agents connect to external systems. Replaces brittle bespoke tool-use code with composable servers.",
+    "relatedTopicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_mcp_server"],
+    "companyIds": ["company_anthropic"],
+    "creatorIds": ["creator_anthropic"],
+    "conceptIds": ["concept_tool_use"],
+    "followedByDefault": true
+  },
+  {
+    "id": "topic_agents",
+    "slug": "agents",
+    "name": "AI Agents",
+    "summary": "LLM-powered systems that loop reasoning + tool use + memory to accomplish multi-step goals autonomously.",
+    "whyItMatters": "The dominant paradigm for non-trivial AI work. Understanding agent loops, tool design, and eval is foundational.",
+    "relatedTopicIds": ["topic_claude", "topic_mcp"],
+    "toolIds": ["tool_claude_code", "tool_cursor"],
+    "companyIds": ["company_anthropic", "company_openai"],
+    "creatorIds": ["creator_anthropic", "creator_lex_fridman"],
+    "conceptIds": ["concept_tool_use", "concept_evals", "concept_rag"],
+    "followedByDefault": true
+  }
+]
