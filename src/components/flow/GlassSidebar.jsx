@@ -1,19 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, ChevronRight, ArrowRight } from 'lucide-react'
+import { Search, ChevronRight, ArrowRight, Play, BookOpen, MessageCircle, ExternalLink } from 'lucide-react'
 import { NODE_TYPES, getTypeMeta } from '../../lib/graph/nodeTaxonomy.js'
 
-const CONTENT_TYPES = new Set(['video', 'article', 'social_post'])
-const NO_BROWSE_TYPES = new Set(['memory', 'signal'])
-
-function browseHrefFor(node) {
-  if (!node || NO_BROWSE_TYPES.has(node.type)) return null
-  if (CONTENT_TYPES.has(node.type)) return null
+function getNodeCta(node) {
+  if (!node) return null
+  if (node.type === 'memory' || node.type === 'signal') return null
+  if (node.type === 'video')       return { kind: 'action', label: 'Watch video',  Icon: Play          }
+  if (node.type === 'article')     return { kind: 'action', label: 'Read article', Icon: BookOpen      }
+  if (node.type === 'social_post') return { kind: 'action', label: 'Open post',    Icon: ExternalLink  }
   if (node.type === 'topic') {
     const slug = node.id.startsWith('topic_') ? node.id.slice('topic_'.length) : node.id
-    return `/topic/${slug}`
+    return { kind: 'link', label: 'Open topic page', href: `/topic/${slug}`, Icon: ArrowRight }
   }
-  return `/discover?node=${encodeURIComponent(node.id)}`
+  return { kind: 'link', label: `Browse content related to ${node.label}`, href: `/discover?node=${encodeURIComponent(node.id)}`, Icon: ArrowRight }
 }
 
 export default function GlassSidebar({
@@ -23,6 +23,7 @@ export default function GlassSidebar({
   setSearchQuery,
   selectedNodeId,
   setSelectedNodeId,
+  onPrimaryAction,
 }) {
   const [openGroups, setOpenGroups] = useState(new Set())
 
@@ -97,22 +98,31 @@ export default function GlassSidebar({
           ) : null}
 
           {(() => {
-            const href = browseHrefFor(selectedNode)
-            if (!href) return null
+            const cta = getNodeCta(selectedNode)
+            if (!cta) return null
+            const className = "mt-5 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-colors hover:brightness-125"
+            const style = {
+              borderColor: `${meta.color}66`,
+              background: `${meta.color}1f`,
+              color: meta.color,
+            }
+            if (cta.kind === 'link') {
+              return (
+                <Link to={cta.href} onClick={() => setSelectedNodeId(null)} className={className} style={style}>
+                  {cta.label}
+                  <cta.Icon size={11} />
+                </Link>
+              )
+            }
             return (
-              <Link
-                to={href}
-                onClick={() => setSelectedNodeId(null)}
-                className="mt-5 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-colors"
-                style={{
-                  borderColor: `${meta.color}66`,
-                  background: `${meta.color}1f`,
-                  color: meta.color,
-                }}
+              <button
+                onClick={() => { onPrimaryAction?.(selectedNode); setSelectedNodeId(null) }}
+                className={className}
+                style={style}
               >
-                Browse content related to {selectedNode.label}
-                <ArrowRight size={11} />
-              </Link>
+                <cta.Icon size={11} />
+                {cta.label}
+              </button>
             )
           })()}
         </div>

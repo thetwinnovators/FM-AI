@@ -98,22 +98,23 @@ export default function FlowMap() {
       }
 
   function onNodeClick(id) {
-    if (!id) { setSelectedNodeId(null); return }
-    const node = nodes.find((n) => n.id === id)
+    setSelectedNodeId(id || null)
+  }
+
+  function onPrimaryAction(node) {
     if (!node) return
     if (node.type === 'video') {
-      setOpenVideo(contentById(id))
+      setOpenVideo(contentById(node.id))
       return
     }
     if (node.type === 'article') {
-      setOpenArticle(contentById(id))
+      setOpenArticle(contentById(node.id))
       return
     }
-    if (node.type === 'topic') {
-      navigate(`/topic/${id.replace('topic_', '')}`)
-      return
+    if (node.type === 'social_post') {
+      const item = contentById(node.id)
+      if (item?.url) window.open(item.url, '_blank', 'noopener,noreferrer')
     }
-    setSelectedNodeId(id)
   }
 
   const followedCount = Object.keys(follows).length
@@ -162,6 +163,7 @@ export default function FlowMap() {
             setSearchQuery={setSearchQuery}
             selectedNodeId={selectedNodeId}
             setSelectedNodeId={setSelectedNodeId}
+            onPrimaryAction={onPrimaryAction}
           />
           <div className="px-6 h-12 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
             <h2 className="text-[13px] font-semibold text-white/70 tracking-wide">Network</h2>
