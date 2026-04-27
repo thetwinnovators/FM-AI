@@ -111,7 +111,7 @@ export default function FlowGraph({
         fromId: e.from,
         toId: e.to,
         progress: 0,
-        speed: 3.5 + Math.random() * 1.5,
+        speed: 5.5 + Math.random() * 2.0,
         rgb,
       })
     }
@@ -178,7 +178,7 @@ export default function FlowGraph({
         const s = sigs[i]
         const a = projById[s.fromId], b = projById[s.toId]
         if (!a || !b) { sigs.splice(i, 1); continue }
-        s.progress += dt * s.speed * 0.42
+        s.progress += dt * s.speed * 0.6
         if (s.progress >= 0.92 && !s.bounced) {
           s.bounced = true
           impactBounce(s.toId, s.fromId)
