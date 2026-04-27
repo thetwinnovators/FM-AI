@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import FlowGraph from '../components/flow/FlowGraph.jsx'
 import PipelineStrip from '../components/flow/PipelineStrip.jsx'
 import GlassSidebar from '../components/flow/GlassSidebar.jsx'
@@ -25,6 +26,76 @@ export default function FlowMap() {
   const [searchQuery, setSearchQuery] = useState('')
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
+
+  // Fullscreen state machine: idle → expanding → full → shrinking → idle
+  const FS_DURATION = 420
+  const networkRef = useRef(null)
+  const [fsPhase, setFsPhase] = useState('idle')
+  const [capturedRect, setCapturedRect] = useState(null)
+  const isFs = fsPhase !== 'idle'
+
+  function enterFullscreen() {
+    if (fsPhase !== 'idle') return
+    const el = networkRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setCapturedRect({
+      top: r.top,
+      left: r.left,
+      right: window.innerWidth - r.right,
+      bottom: window.innerHeight - r.bottom,
+    })
+    setFsPhase('expanding')
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setFsPhase('full'))
+    })
+  }
+
+  function exitFullscreen() {
+    if (fsPhase !== 'full') return
+    setFsPhase('shrinking')
+    setTimeout(() => {
+      setFsPhase('idle')
+      setCapturedRect(null)
+    }, FS_DURATION)
+  }
+
+  useEffect(() => {
+    if (fsPhase !== 'full') return
+    function onKey(e) { if (e.key === 'Escape') exitFullscreen() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [fsPhase])
+
+  const fsTransition = `top ${FS_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), left ${FS_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), right ${FS_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), bottom ${FS_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1), border-radius ${FS_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`
+
+  const networkStyle = !isFs
+    ? {
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        background: '#05070f',
+        borderColor: 'rgba(255,255,255,0.07)',
+        borderRadius: '1rem',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+      }
+    : {
+        position: 'fixed',
+        zIndex: 100,
+        background: '#05070f',
+        borderColor: 'rgba(255,255,255,0.07)',
+        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+        transition: fsTransition,
+        ...(fsPhase === 'full'
+          ? { top: 0, left: 0, right: 0, bottom: 0, borderRadius: 0 }
+          : {
+              top: capturedRect?.top ?? 0,
+              left: capturedRect?.left ?? 0,
+              right: capturedRect?.right ?? 0,
+              bottom: capturedRect?.bottom ?? 0,
+              borderRadius: '1rem',
+            }),
+      }
 
   function onNodeClick(id) {
     if (!id) { setSelectedNodeId(null); return }
@@ -78,27 +149,32 @@ export default function FlowMap() {
 
       <PipelineStrip counts={{ discover: 1, parse: content.length, classify: edges.length, retain: savedCount }} />
 
-      <div className="relative">
-        <GlassSidebar
-          nodes={nodes}
-          edges={edges}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          selectedNodeId={selectedNodeId}
-          setSelectedNodeId={setSelectedNodeId}
-        />
+      <div className="relative" style={{ height: 640 }}>
         <div
-          className="flex flex-col overflow-hidden rounded-2xl border"
-          style={{
-            background: '#05070f',
-            borderColor: 'rgba(255,255,255,0.07)',
-            height: 640,
-            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-          }}
+          ref={networkRef}
+          className="flex flex-col overflow-hidden border"
+          style={networkStyle}
         >
+          <GlassSidebar
+            nodes={nodes}
+            edges={edges}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            selectedNodeId={selectedNodeId}
+            setSelectedNodeId={setSelectedNodeId}
+          />
           <div className="px-6 h-12 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
             <h2 className="text-[13px] font-semibold text-white/70 tracking-wide">Network</h2>
-            <span className="text-[10px] text-white/30">Drag to rotate · Shift+drag to pan · Click a node to inspect</span>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-white/30">Drag to rotate · Shift+drag to pan · Click a node to inspect</span>
+              <button
+                onClick={isFs ? exitFullscreen : enterFullscreen}
+                className="text-white/40 hover:text-white/80 transition-colors p-1 rounded hover:bg-white/5"
+                aria-label={isFs ? 'Exit fullscreen' : 'Enter fullscreen'}
+              >
+                {fsPhase === 'full' ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              </button>
+            </div>
           </div>
           <div className="flex-1 min-h-0">
             <FlowGraph
