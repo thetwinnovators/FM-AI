@@ -193,14 +193,14 @@ export default function FlowGraph({
       function waveAmp(u, edgeSigs) {
         let total = 0
         for (const s of edgeSigs) {
-          const peak = Math.exp(-((u - s.progress) ** 2) / 0.045)
-          const oscillation = Math.sin(u * 18 + t * 9) + Math.sin(u * 7.5 + t * 4.5) * 0.55
+          const peak = Math.exp(-((u - s.progress) ** 2) / 0.025)
+          const oscillation = Math.sin(u * 22 + t * 11) + Math.sin(u * 9 + t * 5) * 0.7
           total += peak * oscillation
         }
-        return total * 24 * dpr
+        return total * 52 * dpr
       }
 
-      const SAMPLES = 32
+      const SAMPLES = 40
 
       for (const e of edges_) {
         const a = projById[e.from], b = projById[e.to]
@@ -208,14 +208,23 @@ export default function FlowGraph({
         const dimA = selId && !(neighbors.has(a.id) || a.id === selId)
         const dimB = selId && !(neighbors.has(b.id) || b.id === selId)
         const muted = dimA || dimB
-        const colorA = muted ? MUTED : (RGB[a.type] || MUTED)
+        const fromRgb = muted ? MUTED : (RGB[a.type] || MUTED)
+        const toRgb   = muted ? MUTED : (RGB[b.type] || MUTED)
         const alpha = (a.depth + b.depth) / 2
-        ctx.strokeStyle = `rgba(${colorA[0]},${colorA[1]},${colorA[2]},${(muted ? 0.06 : 0.18) * Math.max(0.4, 1 + alpha * 0.2)})`
-        ctx.lineWidth = (e.weight ?? 0.5) * 1.4 * dpr
-        ctx.beginPath()
+        const baseAlpha = (muted ? 0.06 : 0.22) * Math.max(0.4, 1 + alpha * 0.2)
 
         const edgeSigs = sigsByEdge.get(`${e.from}__${e.to}`)
-        if (edgeSigs && edgeSigs.length > 0) {
+        const isActive = edgeSigs && edgeSigs.length > 0
+        const lineAlpha = isActive ? Math.min(1, baseAlpha * 2.2) : baseAlpha
+
+        const grad = ctx.createLinearGradient(a.sx, a.sy, b.sx, b.sy)
+        grad.addColorStop(0, `rgba(${fromRgb[0]},${fromRgb[1]},${fromRgb[2]},${lineAlpha})`)
+        grad.addColorStop(1, `rgba(${toRgb[0]},${toRgb[1]},${toRgb[2]},${lineAlpha})`)
+        ctx.strokeStyle = grad
+        ctx.lineWidth = (e.weight ?? 0.5) * (isActive ? 2.6 : 1.4) * dpr
+        ctx.beginPath()
+
+        if (isActive) {
           const dx = b.sx - a.sx, dy = b.sy - a.sy
           const len = Math.sqrt(dx * dx + dy * dy) || 1
           const nx = -dy / len, ny = dx / len

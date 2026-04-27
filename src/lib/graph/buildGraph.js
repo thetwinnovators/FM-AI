@@ -7,6 +7,17 @@ function nodeFromEntity(entity, type) {
   }
 }
 
+function nodeFromMemory(entry) {
+  const text = entry.content || ''
+  const label = text.length > 36 ? text.slice(0, 33).trim() + '…' : text
+  return {
+    id: entry.id,
+    label,
+    type: 'memory',
+    summary: text,
+  }
+}
+
 function pushImplicit(map, from, to, contentId, kind = 'derived', weight = 0.5, lastReinforced = null) {
   const k1 = `${from}__${to}`
   const k2 = `${to}__${from}`
@@ -31,6 +42,7 @@ export function buildGraph(seed) {
     ...seed.concepts.map((x)  => nodeFromEntity(x, 'concept')),
     ...seed.tags.map((x)      => nodeFromEntity(x, 'tag')),
     ...seed.content.map((x)   => nodeFromEntity(x, x.type)),
+    ...(seed.seedMemory || []).map(nodeFromMemory),
   ]
 
   const explicit = (seed.relations || []).map((r) => ({
