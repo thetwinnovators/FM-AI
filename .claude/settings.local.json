@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\nTime: %{time_total}s\\\\n\" http://localhost:54354/ --max-time 10)",
+      "Read(//c/Users/JenoU/.claude/projects/C--Users-JenoU-Desktop-FlowMap/memory/**)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
