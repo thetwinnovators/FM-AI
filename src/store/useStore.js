@@ -10,6 +10,7 @@ const EMPTY = {
   views: {},      // contentId -> { count, lastAt }
   searches: {},   // normalized query -> { count, lastAt, order }
   memoryEntries: {},
+  userTopics: {},
 }
 
 let memoryState = EMPTY
@@ -50,6 +51,15 @@ function getSnapshot() {
 
 function normalizeQuery(q) {
   return String(q || '').trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function slugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 export function useStore() {
@@ -152,11 +162,51 @@ export function useStore() {
   const isDismissed = useCallback((id) => Boolean(memoryState.dismisses[id]), [])
   const viewCount = useCallback((id) => memoryState.views[id]?.count ?? 0, [])
 
+  const addUserTopic = useCallback((data) => {
+    const cur = memoryState
+    const slug = slugify(data.slug || data.name)
+    if (!slug) return null
+    // Dedupe by slug
+    const existingId = Object.keys(cur.userTopics).find((id) => cur.userTopics[id].slug === slug)
+    if (existingId) return cur.userTopics[existingId]
+    const id = `utopic_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+    const summary = data.summary
+      || (data.source === 'category'
+        ? `Saved from the "${data.name}" category on the search results page.`
+        : `Saved from your search for "${data.query || data.name}".`)
+    const entry = {
+      id,
+      slug,
+      name: data.name,
+      summary,
+      source: data.source || 'query',
+      query: data.query || data.name,
+      category: data.category || null,
+      followed: true,
+      addedAt: new Date().toISOString().slice(0, 10),
+    }
+    persist({ ...cur, userTopics: { ...cur.userTopics, [id]: entry } })
+    return entry
+  }, [])
+
+  const removeUserTopic = useCallback((id) => {
+    const cur = memoryState
+    const next = { ...cur.userTopics }
+    delete next[id]
+    persist({ ...cur, userTopics: next })
+  }, [])
+
+  const userTopicBySlug = useCallback((slug) => {
+    const target = slugify(slug)
+    return Object.values(memoryState.userTopics).find((t) => t.slug === target)
+  }, [])
+
   return {
     ...state,
     toggleSave, toggleFollow, dismiss,
     recordView, recordSearch,
     addMemory, updateMemory, deleteMemory,
+    addUserTopic, removeUserTopic, userTopicBySlug,
     isSaved, isFollowing, isDismissed, viewCount, recentSearches,
   }
 }

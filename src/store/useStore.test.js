@@ -130,3 +130,43 @@ describe('recentSearches selector', () => {
     expect(recent[1].query).toBe('mcp')
   })
 })
+
+describe('user topics', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('addUserTopic creates a topic with id, slug, addedAt and returns it', () => {
+    const { result } = renderHook(() => useStore())
+    let added
+    act(() => { added = result.current.addUserTopic({ name: 'Vibe Coding', source: 'category', category: 'vibe_coding', query: 'vibecoding' }) })
+    expect(added.id).toMatch(/^utopic_/)
+    expect(added.slug).toBe('vibe-coding')
+    expect(added.name).toBe('Vibe Coding')
+    expect(added.followed).toBe(true)
+    expect(added.addedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(result.current.userTopics[added.id]).toEqual(added)
+  })
+
+  it('addUserTopic dedupes by slug', () => {
+    const { result } = renderHook(() => useStore())
+    let first, second
+    act(() => { first  = result.current.addUserTopic({ name: 'Antigravity', source: 'query', query: 'antigravity' }) })
+    act(() => { second = result.current.addUserTopic({ name: 'antigravity', source: 'query', query: 'antigravity' }) })
+    expect(first.id).toBe(second.id)
+    expect(Object.keys(result.current.userTopics).length).toBe(1)
+  })
+
+  it('removeUserTopic deletes a topic by id', () => {
+    const { result } = renderHook(() => useStore())
+    let added
+    act(() => { added = result.current.addUserTopic({ name: 'X', source: 'query', query: 'x' }) })
+    act(() => { result.current.removeUserTopic(added.id) })
+    expect(result.current.userTopics[added.id]).toBeUndefined()
+  })
+
+  it('userTopicBySlug looks up by slug', () => {
+    const { result } = renderHook(() => useStore())
+    act(() => { result.current.addUserTopic({ name: 'AI Agents Lab', source: 'query', query: 'agents' }) })
+    expect(result.current.userTopicBySlug('ai-agents-lab').name).toBe('AI Agents Lab')
+    expect(result.current.userTopicBySlug('does-not-exist')).toBeUndefined()
+  })
+})
