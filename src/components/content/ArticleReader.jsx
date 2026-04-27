@@ -18,7 +18,7 @@ const LIQUID_GLASS = {
 
 export default function ArticleReader({ item, onClose }) {
   const { isSaved, toggleSave, recordView } = useStore()
-  const [imageUrl, setImageUrl] = useState(item?.thumbnail || null)
+  const [imageUrl, setImageUrl] = useState(null)
   const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {
@@ -30,6 +30,14 @@ export default function ArticleReader({ item, onClose }) {
   useEffect(() => {
     if (item) recordView(item.id)
   }, [item, recordView])
+
+  // Reset image state whenever the article being shown changes — fixes the bug where
+  // a previously-fetched OG image stays sticky when a new article opens.
+  useEffect(() => {
+    if (!item) return
+    setImageUrl(item.thumbnail || null)
+    setImageFailed(false)
+  }, [item?.id])
 
   useEffect(() => {
     if (!item || imageUrl || !item.url) return

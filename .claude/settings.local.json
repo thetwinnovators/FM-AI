@@ -13,7 +13,17 @@
       "Bash(node -e \"console.log\\(JSON.parse\\(require\\('fs'\\).readFileSync\\('src/data/topics.json','utf8'\\)\\).length\\)\")",
       "Bash(node -e 'JSON.parse\\(require\\('\\\\''fs'\\\\''\\).readFileSync\\('\\\\''__TRACKED_VAR__'\\\\'','\\\\''utf8'\\\\''\\)\\)')",
       "Bash(node -e \"console.log\\(JSON.parse\\(require\\('fs'\\).readFileSync\\('src/data/relations.json','utf8'\\)\\).length\\)\")",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(npm test *)",
+      "Bash(cat)",
+      "Bash(node /tmp/test_debug.js)",
+      "Bash(curl -s http://localhost:5173/search?q=claude)",
+      "Bash(node /tmp/test-imports.mjs)",
+      "Bash(node --check /c/Users/JenoU/Desktop/FlowMap/src/lib/searchEntities.js)",
+      "Bash(node --check /c/Users/JenoU/Desktop/FlowMap/src/views/Search.jsx)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/search?q=codex --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/flow --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/discover --max-time 5)"
     ]
   }
 }

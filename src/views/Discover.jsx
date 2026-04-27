@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, X } from 'lucide-react'
+import { Filter, X, Loader2, Inbox, RefreshCw } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { filterContent } from '../lib/filter.js'
+import { fetchAll } from '../lib/search/aggregate.js'
+import { clearCache } from '../lib/search/cache.js'
 import VideoCard from '../components/content/VideoCard.jsx'
 import ArticleCard from '../components/content/ArticleCard.jsx'
 import SocialPostCard from '../components/content/SocialPostCard.jsx'
@@ -18,14 +20,14 @@ const TYPE_OPTS = [
   { id: 'social_post',  label: 'Posts' },
 ]
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 24
 
 export default function Discover() {
   const [params] = useSearchParams()
   const initialQuery = params.get('q') || ''
   const relatedToNodeId = params.get('node') || null
   const { topics, content, topicById, toolById, creatorById, conceptById, companyById, tagById } = useSeed()
-  const { isDismissed, dismiss } = useStore()
+  const { isDismissed, dismiss, viewCount, userTopics, recentSearches } = useStore()
 
   const focusNode = relatedToNodeId
     ? (topicById(relatedToNodeId) || toolById(relatedToNodeId) || creatorById(relatedToNodeId) ||
@@ -39,15 +41,98 @@ export default function Discover() {
   const [page, setPage] = useState(1)
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
+  const [showRead, setShowRead] = useState(false)
 
-  const filtered = useMemo(
-    () => filterContent(content, { query, type, topicIds, relatedToNodeId, sort: 'newest' })
-      .filter((it) => !isDismissed(it.id)),
-    [content, query, type, topicIds, relatedToNodeId, isDismissed]
-  )
+  // Live items pulled from user topics + recent searches
+  const [liveItems, setLiveItems] = useState([])
+  const [liveStatus, setLiveStatus] = useState('idle')
+  const [refreshTick, setRefreshTick] = useState(0)
 
-  const visible = filtered.slice(0, page * PAGE_SIZE)
-  const hasMore = visible.length < filtered.length
+  // Stable string key — re-fetch only when the set of queries actually changes
+  const queriesKey = useMemo(() => {
+    const set = new Set()
+    Object.values(userTopics).forEach((t) => { if (t.query) set.add(t.query) })
+    recentSearches(5).forEach((r) => { if (r.query) set.add(r.query) })
+    return [...set].sort().join('|')
+  }, [userTopics, recentSearches])
+
+  useEffect(() => {
+    if (!queriesKey) {
+      setLiveItems([])
+      setLiveStatus('idle')
+      return
+    }
+    let cancelled = false
+    setLiveStatus('loading')
+    const queries = queriesKey.split('|').filter(Boolean)
+    Promise.allSettled(queries.map((q) => fetchAll(q))).then((results) => {
+      if (cancelled) return
+      const out = []
+      const seen = new Set()
+      for (const r of results) {
+        if (r.status !== 'fulfilled') continue
+        for (const item of (r.value.items || [])) {
+          if (seen.has(item.id)) continue
+          seen.add(item.id)
+          out.push(item)
+        }
+      }
+      setLiveItems(out)
+      setLiveStatus('done')
+    })
+    return () => { cancelled = true }
+  }, [queriesKey, refreshTick])
+
+  function handleRefresh() {
+    clearCache()
+    setRefreshTick((n) => n + 1)
+  }
+
+  // Inbox: combine seed + live, exclude viewed and dismissed
+  const inbox = useMemo(() => {
+    const seedFiltered = filterContent(content, { query, type, topicIds, relatedToNodeId, sort: 'newest' })
+    // Live items don't have topicIds — we apply only query/type/dismiss/view filters to them
+    const liveFiltered = liveItems.filter((it) => {
+      if (type && it.type !== type) return false
+      if (relatedToNodeId) return false  // node-filter only applies to seed
+      if (query) {
+        const q = query.toLowerCase()
+        const hay = `${it.title || ''} ${it.summary || ''}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+
+    // De-dupe by id, then apply inbox filter
+    const merged = [...seedFiltered, ...liveFiltered]
+    const seen = new Set()
+    const deduped = []
+    for (const it of merged) {
+      if (seen.has(it.id)) continue
+      seen.add(it.id)
+      deduped.push(it)
+    }
+    const filtered = showRead
+      ? deduped.filter((it) => !isDismissed(it.id))
+      : deduped.filter((it) => !isDismissed(it.id) && viewCount(it.id) === 0)
+    filtered.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''))
+    return filtered
+  }, [content, liveItems, query, type, topicIds, relatedToNodeId, isDismissed, viewCount, showRead])
+
+  const totalUnread = useMemo(() => {
+    const merged = [...content, ...liveItems]
+    const seen = new Set()
+    let count = 0
+    for (const it of merged) {
+      if (seen.has(it.id)) continue
+      seen.add(it.id)
+      if (!isDismissed(it.id) && viewCount(it.id) === 0) count += 1
+    }
+    return count
+  }, [content, liveItems, isDismissed, viewCount])
+
+  const visible = inbox.slice(0, page * PAGE_SIZE)
+  const hasMore = visible.length < inbox.length
 
   function toggleTopic(id) {
     setTopicIds((cur) => cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
@@ -61,17 +146,51 @@ export default function Discover() {
 
   return (
     <div className="p-6">
-      <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Discover</h1>
-        <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
-          {filtered.length} items{' '}
-          {focusLabel ? <>related to <span className="text-white">{focusLabel}</span></> : null}
-          {query ? <> matching "<span className="text-white">{query}</span>"</> : null}
-        </p>
+      <header className="mb-4 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+            <Inbox size={20} className="text-[color:var(--color-topic)]" /> Discover
+          </h1>
+          <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
+            {showRead
+              ? <>{inbox.length} {inbox.length === 1 ? 'item' : 'items'}</>
+              : <>{totalUnread} unread {totalUnread === 1 ? 'item' : 'items'}</>}
+            {focusLabel ? <> related to <span className="text-white">{focusLabel}</span></> : null}
+            {query ? <> matching "<span className="text-white">{query}</span>"</> : null}
+            {liveStatus === 'loading' ? (
+              <span className="ml-2 inline-flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-tertiary)]">
+                <Loader2 size={11} className="animate-spin" /> fetching live
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowRead((v) => !v)}
+            className="btn text-xs"
+          >
+            {showRead ? 'Show only unread' : 'Show read items too'}
+          </button>
+          <button
+            onClick={handleRefresh}
+            className="btn text-xs"
+            disabled={liveStatus === 'loading'}
+          >
+            <RefreshCw size={12} className={liveStatus === 'loading' ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
       </header>
 
-      {/* Filter bar */}
-      <div className="glass-panel p-3 mb-6 flex items-center gap-3 flex-wrap sticky top-3 z-10">
+      {/* Filter bar — opaque-ish frosted glass that fully overlays scrolling content */}
+      <div
+        className="p-3 mb-6 flex items-center gap-3 flex-wrap sticky top-3 z-20 rounded-2xl border border-white/10"
+        style={{
+          background: 'linear-gradient(160deg, rgba(11,13,24,0.88) 0%, rgba(5,7,15,0.92) 100%)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          boxShadow: '0 16px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.10)',
+        }}
+      >
         <Filter size={14} className="text-[color:var(--color-text-tertiary)]" />
 
         <input
@@ -115,9 +234,16 @@ export default function Discover() {
 
       {/* Stream */}
       {visible.length === 0 ? (
-        <p className="text-sm text-[color:var(--color-text-tertiary)] py-16 text-center">
-          Nothing matches. Loosen your filters.
-        </p>
+        <div className="text-sm text-[color:var(--color-text-tertiary)] py-16 text-center">
+          {totalUnread === 0 && !query && type === '' && topicIds.length === 0 ? (
+            <>
+              <Inbox size={28} className="mx-auto mb-3 opacity-50" />
+              <p>You're all caught up. Save more topics from <a href="/search" className="underline text-white">Search</a> to grow your inbox.</p>
+            </>
+          ) : (
+            <p>Nothing matches. Loosen your filters or toggle "Show read items too".</p>
+          )}
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">

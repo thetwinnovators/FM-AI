@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Play, Bookmark, BookmarkCheck } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
+import { cachedYouTubeAvailability, isYouTubeAvailable, AVAIL_UNKNOWN, AVAIL_NO } from '../../lib/youtubeAvailability.js'
 
 function formatDuration(sec) {
   if (!sec) return ''
@@ -12,8 +14,27 @@ function formatDuration(sec) {
 export default function VideoCard({ item, onOpen }) {
   const { isSaved, toggleSave } = useStore()
   const { creatorById } = useSeed()
-  const creator = creatorById(item.creatorId)
+  const creator = creatorById?.(item.creatorId)
   const saved = isSaved(item.id)
+
+  // YouTube-specific availability check. Non-YouTube videos (Dailymotion etc.) skip this.
+  const isYouTube = Boolean(item.youtubeId)
+  const [available, setAvailable] = useState(() => {
+    if (!isYouTube) return true
+    return cachedYouTubeAvailability(item.youtubeId) // returns true | false | null
+  })
+
+  useEffect(() => {
+    if (!isYouTube) return
+    if (available !== AVAIL_UNKNOWN) return
+    let cancelled = false
+    isYouTubeAvailable(item.youtubeId).then((ok) => {
+      if (!cancelled) setAvailable(ok)
+    })
+    return () => { cancelled = true }
+  }, [isYouTube, item.youtubeId, available])
+
+  if (available === AVAIL_NO) return null
 
   return (
     <article
@@ -38,10 +59,10 @@ export default function VideoCard({ item, onOpen }) {
       <div className="p-3">
         <h3 className="text-sm font-medium leading-snug line-clamp-2">{item.title}</h3>
         <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
-          <span>{creator?.name ?? item.source}</span>
+          <span className="truncate">{creator?.name ?? item.source}</span>
           <button
             onClick={(e) => { e.stopPropagation(); toggleSave(item.id) }}
-            className="p-1 rounded hover:bg-white/5"
+            className="p-1 rounded hover:bg-white/5 flex-shrink-0"
             aria-label={saved ? 'Unsave' : 'Save'}
           >
             {saved ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" /> : <Bookmark size={14} />}
