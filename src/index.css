@@ -39,7 +39,11 @@
 @layer base {
   html, body, #root {
     height: 100%;
-    background: linear-gradient(180deg, var(--color-bg-canvas) 0%, var(--color-bg-deep) 100%);
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 0%, rgba(99, 102, 241, 0.10) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 60% at 85% 100%, rgba(217, 70, 239, 0.08) 0%, transparent 55%),
+      radial-gradient(ellipse 100% 80% at 50% 50%, rgba(20, 184, 166, 0.04) 0%, transparent 60%),
+      linear-gradient(160deg, var(--color-bg-canvas) 0%, var(--color-bg-deep) 100%);
     background-attachment: fixed;
     color: var(--color-text-primary);
     font-family: var(--font-sans);

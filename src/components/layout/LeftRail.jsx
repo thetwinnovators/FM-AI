@@ -32,10 +32,14 @@ export default function LeftRail() {
               [
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                 isActive
-                  ? 'bg-[color:var(--color-bg-glass-strong)] text-[color:var(--color-text-primary)] border-l-2 border-[color:var(--color-topic)]'
+                  ? 'text-[color:var(--color-text-primary)]'
                   : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-bg-glass)] hover:text-[color:var(--color-text-primary)]',
               ].join(' ')
             }
+            style={({ isActive }) => isActive ? {
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(217,70,239,0.22) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            } : undefined}
           >
             <Icon size={17} />
             <span>{label}</span>

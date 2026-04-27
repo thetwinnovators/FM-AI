@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ExternalLink, Bookmark, BookmarkCheck, FileText } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
+import { getOgImage } from '../../lib/search/ogImage.js'
 
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.07) 100%)',
@@ -17,6 +18,8 @@ const LIQUID_GLASS = {
 
 export default function ArticleReader({ item, onClose }) {
   const { isSaved, toggleSave, recordView } = useStore()
+  const [imageUrl, setImageUrl] = useState(item?.thumbnail || null)
+  const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -28,8 +31,18 @@ export default function ArticleReader({ item, onClose }) {
     if (item) recordView(item.id)
   }, [item, recordView])
 
+  useEffect(() => {
+    if (!item || imageUrl || !item.url) return
+    let cancelled = false
+    getOgImage(item.url).then((url) => {
+      if (!cancelled && url) setImageUrl(url)
+    })
+    return () => { cancelled = true }
+  }, [item, imageUrl])
+
   if (!item) return null
   const saved = isSaved(item.id)
+  const showImage = imageUrl && !imageFailed
 
   return createPortal(
     <div
@@ -43,7 +56,19 @@ export default function ArticleReader({ item, onClose }) {
         className="relative w-full max-w-[760px] max-h-[90vh] flex flex-col rounded-3xl overflow-hidden"
         style={LIQUID_GLASS}
       >
-        <div className="absolute top-0 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none" />
+        <div className="absolute top-0 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-white/40 to-transparent pointer-events-none z-10" />
+
+        {showImage ? (
+          <div className="aspect-[1.91/1] bg-black/40 overflow-hidden flex-shrink-0">
+            <img
+              src={imageUrl}
+              alt=""
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={() => setImageFailed(true)}
+            />
+          </div>
+        ) : null}
 
         <header className="flex items-start justify-between gap-4 px-6 py-5 border-b border-white/10 flex-shrink-0">
           <div className="min-w-0">
