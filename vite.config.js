@@ -7,6 +7,18 @@ export default defineConfig({
   server: {
     port: process.env.PORT ? Number(process.env.PORT) : 5173,
     strictPort: true,
+    proxy: {
+      '/api/reddit': {
+        target: 'https://www.reddit.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/reddit/, ''),
+      },
+      '/api/hn': {
+        target: 'https://hn.algolia.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/hn/, ''),
+      },
+    },
   },
   preview: {
     port: process.env.PORT ? Number(process.env.PORT) : 4173,
