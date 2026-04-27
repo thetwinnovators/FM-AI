@@ -7,6 +7,7 @@ import companies from '../data/companies.json'
 import concepts from '../data/concepts.json'
 import tags from '../data/tags.json'
 import relations from '../data/relations.json'
+import seedMemory from '../data/seed-memory.json'
 
 export function useSeed() {
   return useMemo(() => {
@@ -23,7 +24,7 @@ export function useSeed() {
     const contentById = byId(content)
 
     return {
-      topics, content, creators, tools, companies, concepts, tags, relations,
+      topics, content, creators, tools, companies, concepts, tags, relations, seedMemory,
       topicById: (id) => topicsById[id],
       topicBySlug: (slug) => topicsBySlug[slug],
       creatorById: (id) => creatorsById[id],
