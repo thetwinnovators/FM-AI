@@ -2,6 +2,18 @@ import { Link } from 'react-router-dom'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { Bookmark, BookmarkCheck, Sparkles, Trash2 } from 'lucide-react'
+import TopicCover from '../components/topic/TopicCover.jsx'
+
+// Pick the first content item with a thumbnail as the topic's cover image.
+// Falls back to the procedural gradient when nothing's available (user topics, etc.).
+function coverImageForTopic(topic, contentByTopic) {
+  if (!contentByTopic || topic.isUserAdded) return null
+  const items = contentByTopic(topic.id) || []
+  for (const it of items) {
+    if (it.thumbnail) return it.thumbnail
+  }
+  return null
+}
 
 export default function Topics() {
   const { topics, contentByTopic } = useSeed()
@@ -34,7 +46,15 @@ export default function Topics() {
           const followed = t.isUserAdded ? t.followed : isFollowing(t.id)
           const count = t.isUserAdded ? null : contentByTopic(t.id).length
           return (
-            <article key={t.id} className="glass-panel p-5 flex flex-col gap-3">
+            <article key={t.id} className="glass-panel p-4 flex flex-col gap-3">
+              <Link to={`/topic/${t.slug}`} className="block">
+                <TopicCover
+                  slug={t.slug}
+                  name={t.name}
+                  image={coverImageForTopic(t, contentByTopic)}
+                />
+              </Link>
+
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[color:var(--color-topic)]" />
