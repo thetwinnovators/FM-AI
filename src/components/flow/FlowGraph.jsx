@@ -111,7 +111,7 @@ export default function FlowGraph({
         fromId: e.from,
         toId: e.to,
         progress: 0,
-        speed: 2.5 + Math.random(),
+        speed: 3.5 + Math.random() * 1.5,
         rgb,
       })
     }
@@ -171,6 +171,37 @@ export default function FlowGraph({
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       const projById = Object.fromEntries(projected.map((p) => [p.id, p]))
+
+      // Advance signal progress + group active signals by edge for wave rendering
+      const sigsByEdge = new Map()
+      for (let i = sigs.length - 1; i >= 0; i--) {
+        const s = sigs[i]
+        const a = projById[s.fromId], b = projById[s.toId]
+        if (!a || !b) { sigs.splice(i, 1); continue }
+        s.progress += dt * s.speed * 0.42
+        if (s.progress >= 0.92 && !s.bounced) {
+          s.bounced = true
+          impactBounce(s.toId, s.fromId)
+        }
+        if (s.progress >= 1) { sigs.splice(i, 1); continue }
+        const key = `${s.fromId}__${s.toId}`
+        const list = sigsByEdge.get(key) || []
+        list.push(s)
+        sigsByEdge.set(key, list)
+      }
+
+      function waveAmp(u, edgeSigs) {
+        let total = 0
+        for (const s of edgeSigs) {
+          const peak = Math.exp(-((u - s.progress) ** 2) / 0.045)
+          const oscillation = Math.sin(u * 18 + t * 9) + Math.sin(u * 7.5 + t * 4.5) * 0.55
+          total += peak * oscillation
+        }
+        return total * 24 * dpr
+      }
+
+      const SAMPLES = 32
+
       for (const e of edges_) {
         const a = projById[e.from], b = projById[e.to]
         if (!a || !b) continue
@@ -182,23 +213,38 @@ export default function FlowGraph({
         ctx.strokeStyle = `rgba(${colorA[0]},${colorA[1]},${colorA[2]},${(muted ? 0.06 : 0.18) * Math.max(0.4, 1 + alpha * 0.2)})`
         ctx.lineWidth = (e.weight ?? 0.5) * 1.4 * dpr
         ctx.beginPath()
-        ctx.moveTo(a.sx, a.sy)
-        ctx.lineTo(b.sx, b.sy)
+
+        const edgeSigs = sigsByEdge.get(`${e.from}__${e.to}`)
+        if (edgeSigs && edgeSigs.length > 0) {
+          const dx = b.sx - a.sx, dy = b.sy - a.sy
+          const len = Math.sqrt(dx * dx + dy * dy) || 1
+          const nx = -dy / len, ny = dx / len
+          for (let i = 0; i <= SAMPLES; i++) {
+            const u = i / SAMPLES
+            const amp = waveAmp(u, edgeSigs)
+            const x = a.sx + dx * u + nx * amp
+            const y = a.sy + dy * u + ny * amp
+            if (i === 0) ctx.moveTo(x, y)
+            else ctx.lineTo(x, y)
+          }
+        } else {
+          ctx.moveTo(a.sx, a.sy)
+          ctx.lineTo(b.sx, b.sy)
+        }
         ctx.stroke()
       }
 
-      for (let i = sigs.length - 1; i >= 0; i--) {
-        const s = sigs[i]
+      // Draw signal orbs riding the wave
+      for (const s of sigs) {
         const a = projById[s.fromId], b = projById[s.toId]
-        if (!a || !b) { sigs.splice(i, 1); continue }
-        s.progress += dt * s.speed * 0.25
-        if (s.progress >= 0.92 && !s.bounced) {
-          s.bounced = true
-          impactBounce(s.toId, s.fromId)
-        }
-        if (s.progress >= 1) { sigs.splice(i, 1); continue }
-        const x = a.sx + (b.sx - a.sx) * s.progress
-        const y = a.sy + (b.sy - a.sy) * s.progress
+        if (!a || !b) continue
+        const dx = b.sx - a.sx, dy = b.sy - a.sy
+        const len = Math.sqrt(dx * dx + dy * dy) || 1
+        const nx = -dy / len, ny = dx / len
+        const edgeSigs = sigsByEdge.get(`${s.fromId}__${s.toId}`) || [s]
+        const amp = waveAmp(s.progress, edgeSigs)
+        const x = a.sx + dx * s.progress + nx * amp
+        const y = a.sy + dy * s.progress + ny * amp
         ctx.fillStyle = `rgba(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]},0.95)`
         ctx.beginPath()
         ctx.arc(x, y, 2.2 * dpr, 0, Math.PI * 2)
