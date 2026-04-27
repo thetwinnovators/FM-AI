@@ -21,7 +21,8 @@ const TABS = [
 
 export default function Topic() {
   const { slug } = useParams()
-  const { topicBySlug, contentByTopic, toolById, conceptById, topicById } = useSeed()
+  const seed = useSeed()
+  const { topicBySlug, contentByTopic, toolById, conceptById, topicById } = seed
   const { isFollowing, toggleFollow, userTopicBySlug, removeUserTopic, isSaved } = useStore()
 
   const seedTopic = topicBySlug(slug)
@@ -43,7 +44,7 @@ export default function Topic() {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setLive({ status: 'loading', items: [], errors: [] })
-    fetchAll(userTopic.query, ctrl.signal)
+    fetchAll(userTopic.query, ctrl.signal, { seed })
       .then((res) => {
         if (ctrl.signal.aborted) return
         setLive({ status: 'done', items: res.items, errors: res.errors })

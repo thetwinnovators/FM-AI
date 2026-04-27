@@ -6,43 +6,74 @@ import { searchWeb } from './web.js'
 import { searchWikipedia } from './wikipedia.js'
 import { classify, CATEGORIES, CATEGORY_LABELS } from './classify.js'
 import { getCached, setCached } from './cache.js'
+import { interpretQuery, buildQueries } from './intent.js'
 
 const TTL_MS = 30 * 60 * 1000 // 30 minutes
 
-export async function fetchAll(query, signal) {
-  const q = (query || '').trim()
-  if (!q) return { items: [], errors: [] }
+async function fetchOneQuery(q, intent, signal) {
+  const wantsArticle = intent.sourceTypes.includes('article')
+  const wantsVideo = intent.sourceTypes.includes('video')
 
-  const cacheKey = `all:${q.toLowerCase()}`
+  const tasks = []
+  if (wantsArticle) {
+    tasks.push(['Hacker News', searchHackerNews(q, 8, signal)])
+    tasks.push(['Reddit',      searchReddit(q, {}, signal)])
+    tasks.push(['Web',         searchWeb(q, 8, signal)])
+    tasks.push(['Wikipedia',   searchWikipedia(q, 4, signal)])
+  }
+  if (wantsVideo) {
+    tasks.push(['YouTube',     searchYouTube(q, 8, signal)])
+    tasks.push(['Dailymotion', searchDailymotion(q, 6, signal)])
+  }
+
+  const results = await Promise.allSettled(tasks.map(([, p]) => p))
+  const items = []
+  const errors = []
+  results.forEach((r, i) => {
+    const name = tasks[i][0]
+    if (r.status === 'fulfilled') items.push(...r.value)
+    else errors.push({ source: name, error: r.reason?.message || String(r.reason) })
+  })
+  return { items, errors }
+}
+
+// fetchAll(query, signal, opts?) — opts.seed enables topic-aware expansion.
+export async function fetchAll(query, signal, opts = {}) {
+  const q = (query || '').trim()
+  if (!q) return { items: [], errors: [], intent: null, queries: [] }
+
+  const intent = interpretQuery(q)
+  const queries = buildQueries(intent, opts.seed || null, 3)
+
+  const cacheKey = `all:${queries.join('|').toLowerCase()}`
   const cached = getCached(cacheKey, TTL_MS)
   if (cached) return cached
 
-  const [hnResult, redditResult, dmResult, ytResult, webResult, wikiResult] = await Promise.allSettled([
-    searchHackerNews(q, 12, signal),
-    searchReddit(q, {}, signal),
-    searchDailymotion(q, 8, signal),
-    searchYouTube(q, 12, signal),
-    searchWeb(q, 12, signal),
-    searchWikipedia(q, 6, signal),
-  ])
+  // Run each query against all matching sources in parallel, then merge.
+  const perQueryResults = await Promise.all(
+    queries.map((qq) => fetchOneQuery(qq, intent, signal))
+  )
 
   const items = []
   const errors = []
-  function collect(name, r) {
-    if (r.status === 'fulfilled') items.push(...r.value)
-    else errors.push({ source: name, error: r.reason?.message || String(r.reason) })
+  for (const r of perQueryResults) {
+    items.push(...r.items)
+    errors.push(...r.errors)
   }
-  collect('Hacker News', hnResult)
-  collect('Reddit', redditResult)
-  collect('Dailymotion', dmResult)
-  collect('YouTube', ytResult)
-  collect('Web', webResult)
-  collect('Wikipedia', wikiResult)
 
-  // De-dupe across sources by URL — the same article often shows up in multiple feeds
+  // Stage 6 — minimum validation: drop items missing title or URL (the things every
+  // card needs to render). Image validation is best-effort on the card itself.
+  const validated = items.filter((it) => Boolean(it?.title) && Boolean(it?.url))
+
+  // Stage 7 — De-dupe across sources by URL (canonical-ish — we'd canonicalize
+  // server-side in a real pipeline; here we lowercase + strip trailing slash).
+  function urlKey(u) {
+    if (!u) return ''
+    return String(u).toLowerCase().replace(/\/+$/, '').replace(/[?#].*$/, '')
+  }
   const seenUrls = new Set()
-  const deduped = items.filter((it) => {
-    const key = (it.url || '').toLowerCase()
+  const deduped = validated.filter((it) => {
+    const key = urlKey(it.url)
     if (!key) return true
     if (seenUrls.has(key)) return false
     seenUrls.add(key)
@@ -52,7 +83,7 @@ export async function fetchAll(query, signal) {
   // Recency filter — anything published 2024-01-01 or later (items without a date stay)
   const recent = deduped.filter(isRecent)
 
-  const result = { items: recent, errors }
+  const result = { items: recent, errors, intent, queries }
   if (recent.length > 0) setCached(cacheKey, result)
   return result
 }

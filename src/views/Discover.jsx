@@ -65,7 +65,7 @@ export default function Discover() {
     let cancelled = false
     setLiveStatus('loading')
     const queries = queriesKey.split('|').filter(Boolean)
-    Promise.allSettled(queries.map((q) => fetchAll(q))).then((results) => {
+    Promise.allSettled(queries.map((q) => fetchAll(q, undefined, { seed: { topics, topicById } }))).then((results) => {
       if (cancelled) return
       const out = []
       const seen = new Set()

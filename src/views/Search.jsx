@@ -119,7 +119,7 @@ export default function Search() {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setState((s) => ({ ...s, status: 'loading' }))
-    fetchAll(query, ctrl.signal)
+    fetchAll(query, ctrl.signal, { seed })
       .then((res) => {
         if (ctrl.signal.aborted) return
         setState({ status: 'done', items: res.items, errors: res.errors })
