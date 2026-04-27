@@ -4,6 +4,7 @@ import { searchDailymotion } from './dailymotion.js'
 import { searchYouTube } from './youtube.js'
 import { searchWeb } from './web.js'
 import { searchWikipedia } from './wikipedia.js'
+import { searchNews } from './news.js'
 import { classify, CATEGORIES, CATEGORY_LABELS } from './classify.js'
 import { getCached, setCached } from './cache.js'
 import { interpretQuery, buildQueries } from './intent.js'
@@ -16,10 +17,13 @@ async function fetchOneQuery(q, intent, signal) {
 
   const tasks = []
   if (wantsArticle) {
+    // Tech news first (TechCrunch, The Verge, Ars, Wired, etc.) — biggest weight.
+    tasks.push(['Tech News',   searchNews(q, 12, signal)])
     tasks.push(['Hacker News', searchHackerNews(q, 8, signal)])
-    tasks.push(['Reddit',      searchReddit(q, {}, signal)])
     tasks.push(['Web',         searchWeb(q, 8, signal)])
-    tasks.push(['Wikipedia',   searchWikipedia(q, 4, signal)])
+    // Reddit + Wikipedia kept but trimmed — secondary signal, not primary.
+    tasks.push(['Reddit',      searchReddit(q, { limit: 6 }, signal)])
+    tasks.push(['Wikipedia',   searchWikipedia(q, 2, signal)])
   }
   if (wantsVideo) {
     tasks.push(['YouTube',     searchYouTube(q, 8, signal)])
