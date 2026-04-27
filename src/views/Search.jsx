@@ -115,7 +115,7 @@ export default function Search() {
   const query = params.get('q') || ''
   const navigate = useNavigate()
   const seed = useSeed()
-  const { addUserTopic, userTopics } = useStore()
+  const { addUserTopic, userTopics, saves, views, dismisses } = useStore()
   const userTopicSlugs = new Set(Object.values(userTopics).map((t) => t.slug))
   const slugForName = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/[\s-]+/g, '-').replace(/^-+|-+$/g, '')
 
@@ -143,7 +143,7 @@ export default function Search() {
     const ctrl = new AbortController()
     abortRef.current = ctrl
     setState((s) => ({ ...s, status: 'loading' }))
-    fetchAll(query, ctrl.signal, { seed })
+    fetchAll(query, ctrl.signal, { seed, signals: { saves, views, dismisses } })
       .then((res) => {
         if (ctrl.signal.aborted) return
         setState({ status: 'done', items: res.items, errors: res.errors })

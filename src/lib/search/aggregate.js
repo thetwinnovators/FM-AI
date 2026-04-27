@@ -7,6 +7,7 @@ import { searchNews } from './news.js'
 import { classify, CATEGORIES, CATEGORY_LABELS } from './classify.js'
 import { getCached, setCached } from './cache.js'
 import { interpretQuery, buildQueries } from './intent.js'
+import { rankItems, diversify } from './rank.js'
 
 const TTL_MS = 30 * 60 * 1000 // 30 minutes
 
@@ -39,28 +40,48 @@ async function fetchOneQuery(q, intent, signal) {
   return { items, errors }
 }
 
-// fetchAll(query, signal, opts?) — opts.seed enables topic-aware expansion.
+// fetchAll(query, signal, opts?) — multi-lane retrieval with gated expansion.
+//   opts.seed     — seed object (for topic-aware expansion)
+//   opts.signals  — { saves, views, dismisses } from useStore (for feedback ranking)
+//
+// Lane 1 (exact query) always runs. Lane 2 (expansions) only runs if Lane 1
+// returned fewer than EXACT_LANE_THRESHOLD results — this preserves query
+// distinctness when the original query is strong, and falls back to broader
+// retrieval only when needed. Final results are scored, ranked, and diversified
+// per the relevance-fixes spec.
+const EXACT_LANE_THRESHOLD = 12
+
 export async function fetchAll(query, signal, opts = {}) {
   const q = (query || '').trim()
   if (!q) return { items: [], errors: [], intent: null, queries: [] }
 
   const intent = interpretQuery(q)
-  const queries = buildQueries(intent, opts.seed || null, 3)
 
-  const cacheKey = `all:${queries.join('|').toLowerCase()}`
+  // Cache by ORIGINAL query — different queries that happen to share expansions
+  // no longer collapse to the same cached result set.
+  const cacheKey = `all:${intent.normalizedQuery.toLowerCase()}`
   const cached = getCached(cacheKey, TTL_MS)
   if (cached) return cached
 
-  // Run each query against all matching sources in parallel, then merge.
-  const perQueryResults = await Promise.all(
-    queries.map((qq) => fetchOneQuery(qq, intent, signal))
-  )
+  // Lane 1 — exact query, all matching sources.
+  const lane1 = await fetchOneQuery(intent.normalizedQuery, intent, signal)
+  const items = [...lane1.items]
+  const errors = [...lane1.errors]
+  const queries = [intent.normalizedQuery]
 
-  const items = []
-  const errors = []
-  for (const r of perQueryResults) {
-    items.push(...r.items)
-    errors.push(...r.errors)
+  // Lane 2 — gated expansion. Only fan out when Lane 1 didn't already provide enough.
+  if (items.length < EXACT_LANE_THRESHOLD) {
+    const expansions = buildQueries(intent, opts.seed || null, 3).slice(1)
+    if (expansions.length > 0) {
+      const expansionResults = await Promise.all(
+        expansions.map((qq) => fetchOneQuery(qq, intent, signal))
+      )
+      for (const r of expansionResults) {
+        items.push(...r.items)
+        errors.push(...r.errors)
+      }
+      queries.push(...expansions)
+    }
   }
 
   // Stage 6 — minimum validation: drop items missing title or URL (the things every
@@ -85,8 +106,12 @@ export async function fetchAll(query, signal, opts = {}) {
   // Recency filter — anything published 2024-01-01 or later (items without a date stay)
   const recent = deduped.filter(isRecent)
 
-  const result = { items: recent, errors, intent, queries }
-  if (recent.length > 0) setCached(cacheKey, result)
+  // Score by query-specific relevance, then enforce per-domain diversity in the top
+  const ranked = rankItems(recent, intent, opts.signals || null)
+  const final = diversify(ranked, 2, 30)
+
+  const result = { items: final, errors, intent, queries }
+  if (final.length > 0) setCached(cacheKey, result)
   return result
 }
 
