@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle } from 'lucide-react'
+import { useSearchParams, useNavigate } from 'react-router-dom'
+import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle, Plus, Check } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
+import { useStore } from '../store/useStore.js'
 import { fetchAll, groupByCategory, sortCategoryGroups } from '../lib/search/aggregate.js'
+import { CATEGORY_LABELS } from '../lib/search/classify.js'
 import { searchEntities } from '../lib/searchEntities.js'
 import { getOgImage } from '../lib/search/ogImage.js'
 import { Link } from 'react-router-dom'
@@ -87,7 +89,24 @@ function SeedResultRow({ kind, item }) {
 export default function Search() {
   const [params] = useSearchParams()
   const query = params.get('q') || ''
+  const navigate = useNavigate()
   const seed = useSeed()
+  const { addUserTopic, userTopics } = useStore()
+  const userTopicSlugs = new Set(Object.values(userTopics).map((t) => t.slug))
+  const slugForName = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/[\s-]+/g, '-').replace(/^-+|-+$/g, '')
+
+  function handleSaveSearchAsTopic() {
+    if (!query.trim()) return
+    const created = addUserTopic({ name: query.trim(), source: 'query', query: query.trim() })
+    if (created) navigate(`/topic/${created.slug}`)
+  }
+
+  function handleFollowCategory(categoryId) {
+    const label = CATEGORY_LABELS[categoryId] || categoryId
+    const created = addUserTopic({ name: label, source: 'category', category: categoryId, query: query.trim() || label })
+    if (created) navigate(`/topic/${created.slug}`)
+  }
+
   const [state, setState] = useState({ status: 'idle', items: [], errors: [] })
   const abortRef = useRef(null)
 
@@ -129,6 +148,23 @@ export default function Search() {
           {query ? <>Results for "<span className="text-white">{query}</span>"</> : 'Type a query to search across your library and the live web.'}
         </p>
       </header>
+
+      {query ? (
+        <div className="mb-6 glass-panel px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-[12px] text-[color:var(--color-text-secondary)]">
+            Track this search? Save it as a topic to follow it on the Topics page.
+          </div>
+          <button
+            onClick={handleSaveSearchAsTopic}
+            disabled={userTopicSlugs.has(slugForName(query))}
+            className={`btn ${userTopicSlugs.has(slugForName(query)) ? '' : 'btn-primary'} text-xs`}
+          >
+            {userTopicSlugs.has(slugForName(query))
+              ? <><Check size={13} /> Saved as topic</>
+              : <><Plus size={13} /> Save "{query.trim()}" as topic</>}
+          </button>
+        </div>
+      ) : null}
 
       {!query ? (
         <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">
@@ -189,9 +225,22 @@ export default function Search() {
               <div className="space-y-8">
                 {groups.map(({ category, label, items }) => (
                   <div key={category}>
-                    <h3 className="text-[11px] uppercase tracking-wide text-white/50 font-semibold mb-3">
-                      {label} <span className="text-[10px] text-[color:var(--color-text-tertiary)] ml-1">{items.length}</span>
-                    </h3>
+                    <div className="flex items-center justify-between mb-3 gap-3">
+                      <h3 className="text-[11px] uppercase tracking-wide text-white/50 font-semibold">
+                        {label} <span className="text-[10px] text-[color:var(--color-text-tertiary)] ml-1">{items.length}</span>
+                      </h3>
+                      {category !== 'uncategorized' ? (
+                        <button
+                          onClick={() => handleFollowCategory(category)}
+                          disabled={userTopicSlugs.has(slugForName(label))}
+                          className="btn text-[11px] py-1 px-2"
+                        >
+                          {userTopicSlugs.has(slugForName(label))
+                            ? <><Check size={11} /> Following</>
+                            : <><Plus size={11} /> Follow as topic</>}
+                        </button>
+                      ) : null}
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                       {items.map((it) => <ResultCard key={it.id} item={it} />)}
                     </div>
