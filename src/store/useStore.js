@@ -74,11 +74,13 @@ export function useStore() {
   // This is critical: if these depended on `state`, every state update would create new
   // function identities, and any consumer that includes them in a useEffect dep array
   // would loop infinitely (e.g. recordView in modal mount effects).
-  const toggleSave = useCallback((id) => {
+  // toggleSave(id, item?) — store full item snapshot so live HN/Reddit/Dailymotion
+  // results can be rendered later from localStorage alone, without a live re-fetch.
+  const toggleSave = useCallback((id, item) => {
     const cur = memoryState
     const saves = { ...cur.saves }
     if (saves[id]) delete saves[id]
-    else saves[id] = { savedAt: new Date().toISOString() }
+    else saves[id] = { savedAt: new Date().toISOString(), item: item || null }
     persist({ ...cur, saves })
   }, [])
 

@@ -54,7 +54,7 @@ export default function ArticleCard({ item, onOpen }) {
         <div className="mt-auto pt-3 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
           <span>{item.publishedAt}</span>
           <button
-            onClick={(e) => { e.stopPropagation(); toggleSave(item.id) }}
+            onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
             className="p-1 rounded hover:bg-white/5"
             aria-label={saved ? 'Unsave' : 'Save'}
           >

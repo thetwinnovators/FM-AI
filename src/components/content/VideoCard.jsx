@@ -61,7 +61,7 @@ export default function VideoCard({ item, onOpen }) {
         <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
           <span className="truncate">{creator?.name ?? item.source}</span>
           <button
-            onClick={(e) => { e.stopPropagation(); toggleSave(item.id) }}
+            onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
             className="p-1 rounded hover:bg-white/5 flex-shrink-0"
             aria-label={saved ? 'Unsave' : 'Save'}
           >

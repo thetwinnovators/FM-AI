@@ -99,7 +99,7 @@ export default function ArticleReader({ item, onClose }) {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => toggleSave(item.id)}
+              onClick={() => toggleSave(item.id, item)}
               className="btn p-2"
               aria-label={saved ? 'Unsave' : 'Save'}
             >
