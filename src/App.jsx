@@ -3,6 +3,7 @@ import LeftRail from './components/layout/LeftRail.jsx'
 import TopBar from './components/layout/TopBar.jsx'
 import Home from './views/Home.jsx'
 import Discover from './views/Discover.jsx'
+import Search from './views/Search.jsx'
 import Topics from './views/Topics.jsx'
 import Topic from './views/Topic.jsx'
 import FlowMap from './views/FlowMap.jsx'
@@ -21,6 +22,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/discover" element={<Discover />} />
+                <Route path="/search" element={<Search />} />
                 <Route path="/topics" element={<Topics />} />
                 <Route path="/topic/:slug" element={<Topic />} />
                 <Route path="/flow" element={<FlowMap />} />
