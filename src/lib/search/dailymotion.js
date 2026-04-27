@@ -6,9 +6,11 @@ export async function searchDailymotion(query, limit = 10, signal) {
   if (!query || !query.trim()) return []
   const fields = 'id,title,description,thumbnail_360_url,thumbnail_720_url,owner.username,created_time,duration,url'
   const url = `${DM_BASE}/videos?search=${encodeURIComponent(query.trim())}&fields=${encodeURIComponent(fields)}&limit=${limit}&sort=relevance`
-  const res = await fetch(url, { signal })
-  if (!res.ok) throw new Error(`Dailymotion search failed: ${res.status}`)
-  const json = await res.json()
+  const res = await fetch(url, { signal, headers: { 'Accept': 'application/json' } })
+  if (!res.ok) return []  // Dailymotion sometimes returns 4xx HTML pages — fail silently
+  const text = await res.text()
+  let json
+  try { json = JSON.parse(text) } catch { return [] }
   return (json.list || []).map(toItem)
 }
 

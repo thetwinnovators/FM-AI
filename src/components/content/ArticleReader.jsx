@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Bookmark, BookmarkCheck, FileText } from 'lucide-react'
+import { X, ExternalLink, Bookmark, BookmarkCheck, FileText, Loader2 } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
-import { getOgImage } from '../../lib/search/ogImage.js'
+import { getMeta } from '../../lib/search/ogImage.js'
 
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.07) 100%)',
@@ -18,7 +18,8 @@ const LIQUID_GLASS = {
 
 export default function ArticleReader({ item, onClose }) {
   const { isSaved, toggleSave, recordView } = useStore()
-  const [imageUrl, setImageUrl] = useState(null)
+  const [meta, setMeta] = useState(null)
+  const [metaStatus, setMetaStatus] = useState('idle')
   const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {
@@ -31,25 +32,33 @@ export default function ArticleReader({ item, onClose }) {
     if (item) recordView(item.id)
   }, [item, recordView])
 
-  // Reset image state whenever the article being shown changes — fixes the bug where
-  // a previously-fetched OG image stays sticky when a new article opens.
+  // Reset state whenever the article being shown changes — fixes stale meta sticking around.
   useEffect(() => {
     if (!item) return
-    setImageUrl(item.thumbnail || null)
+    setMeta(null)
+    setMetaStatus('idle')
     setImageFailed(false)
   }, [item?.id])
 
+  // Lazy-fetch full article metadata (description + image) for richer modal content.
   useEffect(() => {
-    if (!item || imageUrl || !item.url) return
+    if (!item || !item.url) return
     let cancelled = false
-    getOgImage(item.url).then((url) => {
-      if (!cancelled && url) setImageUrl(url)
+    setMetaStatus('loading')
+    getMeta(item.url).then((m) => {
+      if (cancelled) return
+      setMeta(m)
+      setMetaStatus('done')
     })
     return () => { cancelled = true }
-  }, [item, imageUrl])
+  }, [item?.id])
 
   if (!item) return null
   const saved = isSaved(item.id)
+  const imageUrl = meta?.image || item.thumbnail || null
+  const description = meta?.description || item.summary
+  const author = meta?.author || null
+  const publisher = meta?.publisher || null
   const showImage = imageUrl && !imageFailed
 
   return createPortal(
@@ -103,23 +112,45 @@ export default function ArticleReader({ item, onClose }) {
         </header>
 
         <div className="flex-1 overflow-auto px-6 py-5 text-[15px] leading-relaxed">
-          <p className="text-[color:var(--color-text-secondary)]">{item.summary}</p>
-
-          {item.keyPoints?.length ? (
+          {metaStatus === 'loading' && !description ? (
+            <div className="flex items-center gap-2 text-[12px] text-[color:var(--color-text-tertiary)]">
+              <Loader2 size={12} className="animate-spin" /> Fetching article metadata…
+            </div>
+          ) : (
             <>
-              <h3 className="mt-6 mb-3 text-[11px] uppercase tracking-wide text-white/50 font-semibold">
-                Key points
-              </h3>
-              <ul className="space-y-2.5">
-                {item.keyPoints.map((p, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="w-1 h-1 rounded-full bg-[color:var(--color-article)] mt-2.5 flex-shrink-0" />
-                    <span className="text-white/85">{p}</span>
-                  </li>
-                ))}
-              </ul>
+              {description ? (
+                <p className="text-[color:var(--color-text-secondary)] whitespace-pre-line">{description}</p>
+              ) : (
+                <p className="text-[color:var(--color-text-tertiary)] italic">
+                  No preview text available for this link. Open the original to read the full article.
+                </p>
+              )}
+
+              {(author || publisher) ? (
+                <div className="mt-4 text-[12px] text-[color:var(--color-text-tertiary)]">
+                  {author ? <span>By {author}</span> : null}
+                  {author && publisher ? <span> · </span> : null}
+                  {publisher ? <span>{publisher}</span> : null}
+                </div>
+              ) : null}
+
+              {item.keyPoints?.length ? (
+                <>
+                  <h3 className="mt-6 mb-3 text-[11px] uppercase tracking-wide text-white/50 font-semibold">
+                    Key points
+                  </h3>
+                  <ul className="space-y-2.5">
+                    {item.keyPoints.map((p, i) => (
+                      <li key={i} className="flex gap-3">
+                        <span className="w-1 h-1 rounded-full bg-[color:var(--color-article)] mt-2.5 flex-shrink-0" />
+                        <span className="text-white/85">{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
             </>
-          ) : null}
+          )}
         </div>
 
         <footer className="px-6 py-4 border-t border-white/10 flex items-center justify-between flex-shrink-0">

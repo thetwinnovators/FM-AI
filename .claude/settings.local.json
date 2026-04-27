@@ -23,7 +23,9 @@
       "Bash(node --check /c/Users/JenoU/Desktop/FlowMap/src/views/Search.jsx)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/search?q=codex --max-time 5)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/flow --max-time 5)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/discover --max-time 5)"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:63529/discover --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"/ %{http_code}\\\\n\" http://localhost:62163/ --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"/flow %{http_code}\\\\n\" http://localhost:62163/flow --max-time 5)"
     ]
   }
 }
