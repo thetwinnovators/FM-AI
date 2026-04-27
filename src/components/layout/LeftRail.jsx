@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Compass, BookOpen, Network, GraduationCap, Brain } from 'lucide-react'
+import { Compass, BookOpen, Network, GraduationCap, Brain } from 'lucide-react'
 
 const NAV = [
-  { to: '/',          label: 'Home',       icon: Home          },
+  { to: '/',          label: 'Flow Map',   icon: Network       },
   { to: '/discover',  label: 'Discover',   icon: Compass       },
   { to: '/topics',    label: 'Topics',     icon: BookOpen      },
-  { to: '/flow',      label: 'Flow Map',   icon: Network       },
   { to: '/education', label: 'Education',  icon: GraduationCap },
   { to: '/memory',    label: 'Memory',     icon: Brain         },
 ]

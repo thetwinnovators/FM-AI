@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import LeftRail from './components/layout/LeftRail.jsx'
 import TopBar from './components/layout/TopBar.jsx'
-import Home from './views/Home.jsx'
 import Discover from './views/Discover.jsx'
 import Search from './views/Search.jsx'
 import Topics from './views/Topics.jsx'
@@ -20,12 +19,12 @@ export default function App() {
           <main className="flex-1 overflow-auto m-3 mt-3">
             <div className="glass-panel min-h-full overflow-clip">
               <Routes>
-                <Route path="/" element={<Home />} />
+                <Route path="/" element={<FlowMap />} />
+                <Route path="/flow" element={<FlowMap />} />
                 <Route path="/discover" element={<Discover />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/topics" element={<Topics />} />
                 <Route path="/topic/:slug" element={<Topic />} />
-                <Route path="/flow" element={<FlowMap />} />
                 <Route path="/education" element={<Education />} />
                 <Route path="/memory" element={<Memory />} />
               </Routes>
