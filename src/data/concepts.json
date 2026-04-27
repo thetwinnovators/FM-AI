@@ -1,0 +1,5 @@
+[
+  { "id": "concept_tool_use", "slug": "tool-use", "name": "Tool Use",                "summary": "Letting an LLM call functions/APIs to extend capability beyond text generation.", "topicIds": ["topic_claude", "topic_mcp", "topic_agents"] },
+  { "id": "concept_evals",    "slug": "evals",    "name": "Evals",                   "summary": "Systematic testing of LLM behavior across cases — the closest thing to unit tests for prompts.", "topicIds": ["topic_claude", "topic_agents"] },
+  { "id": "concept_rag",      "slug": "rag",      "name": "RAG (Retrieval-Augmented Generation)", "summary": "Pulling relevant context from a knowledge store into the prompt at inference time.", "topicIds": ["topic_agents"] }
+]

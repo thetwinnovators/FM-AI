@@ -1,0 +1,4 @@
+[
+  { "id": "company_anthropic", "slug": "anthropic", "name": "Anthropic", "summary": "Maker of Claude.", "url": "https://www.anthropic.com", "topicIds": ["topic_claude", "topic_mcp"] },
+  { "id": "company_openai",    "slug": "openai",    "name": "OpenAI",    "summary": "Maker of ChatGPT and Codex.", "url": "https://openai.com",       "topicIds": ["topic_agents"] }
+]

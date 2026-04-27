@@ -1,0 +1,6 @@
+[
+  { "id": "creator_anthropic",   "slug": "anthropic",        "name": "Anthropic",        "summary": "Anthropic's official YouTube and blog.", "url": "https://www.anthropic.com", "topicIds": ["topic_claude", "topic_mcp", "topic_agents"] },
+  { "id": "creator_lex_fridman", "slug": "lex-fridman",      "name": "Lex Fridman",      "summary": "Long-form AI/tech interviews.",          "url": "https://lexfridman.com",     "topicIds": ["topic_agents"] },
+  { "id": "creator_aiexplained", "slug": "ai-explained",     "name": "AI Explained",     "summary": "Weekly AI research breakdowns.",         "url": "https://www.youtube.com/@aiexplained-official", "topicIds": ["topic_agents"] },
+  { "id": "creator_simon_w",     "slug": "simon-willison",   "name": "Simon Willison",   "summary": "Practical LLM blog and TIL.",            "url": "https://simonwillison.net",  "topicIds": ["topic_claude", "topic_agents"] }
+]

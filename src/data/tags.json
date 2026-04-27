@@ -1,0 +1,7 @@
+[
+  { "id": "tag_walkthrough",    "slug": "walkthrough",    "name": "Walkthrough" },
+  { "id": "tag_implementation", "slug": "implementation", "name": "Implementation" },
+  { "id": "tag_announcement",   "slug": "announcement",   "name": "Announcement" },
+  { "id": "tag_tutorial",       "slug": "tutorial",       "name": "Tutorial" },
+  { "id": "tag_essay",          "slug": "essay",          "name": "Essay" }
+]

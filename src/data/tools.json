@@ -1,0 +1,6 @@
+[
+  { "id": "tool_claude_code", "slug": "claude-code", "name": "Claude Code",    "summary": "Anthropic's official CLI for agentic coding.", "url": "https://claude.com/claude-code",          "topicIds": ["topic_claude"] },
+  { "id": "tool_claude_api",  "slug": "claude-api",  "name": "Claude API",     "summary": "Anthropic's developer API.",                   "url": "https://docs.anthropic.com",              "topicIds": ["topic_claude"] },
+  { "id": "tool_mcp_server",  "slug": "mcp-server",  "name": "MCP Server SDK", "summary": "Build MCP servers in Python or TypeScript.",   "url": "https://modelcontextprotocol.io",         "topicIds": ["topic_mcp"] },
+  { "id": "tool_cursor",      "slug": "cursor",      "name": "Cursor",         "summary": "AI-first code editor with agent mode.",        "url": "https://cursor.com",                      "topicIds": ["topic_agents"] }
+]
