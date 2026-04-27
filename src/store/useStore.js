@@ -9,10 +9,12 @@ const EMPTY = {
   collections: {},
   views: {},      // contentId -> { count, lastAt }
   searches: {},   // normalized query -> { count, lastAt }
+  memoryEntries: {},
 }
 
 let memoryState = EMPTY
 let initialized = false
+let searchCounter = 0
 const listeners = new Set()
 
 function loadState() {
@@ -88,8 +90,47 @@ export function useStore() {
     if (!norm) return
     const prev = state.searches[norm]
     const now = new Date().toISOString()
-    const searches = { ...state.searches, [norm]: { count: (prev?.count ?? 0) + 1, lastAt: now } }
+    const searches = { ...state.searches, [norm]: { count: (prev?.count ?? 0) + 1, lastAt: now, order: searchCounter++ } }
     persist({ ...state, searches })
+  }, [state])
+
+  const addMemory = useCallback((data) => {
+    const id = `mem_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+    const entry = {
+      id,
+      category: data.category || 'research_focus',
+      content: data.content || '',
+      confidence: data.confidence ?? 1.0,
+      status: data.status || 'active',
+      addedAt: new Date().toISOString().slice(0, 10),
+      source: data.source || 'manual',
+    }
+    persist({ ...state, memoryEntries: { ...state.memoryEntries, [id]: entry } })
+    return id
+  }, [state])
+
+  const updateMemory = useCallback((id, patch) => {
+    const cur = state.memoryEntries[id]
+    if (!cur) return
+    persist({ ...state, memoryEntries: { ...state.memoryEntries, [id]: { ...cur, ...patch } } })
+  }, [state])
+
+  const deleteMemory = useCallback((id) => {
+    const next = { ...state.memoryEntries }
+    delete next[id]
+    persist({ ...state, memoryEntries: next })
+  }, [state])
+
+  const recentSearches = useCallback((n = 8) => {
+    return Object.entries(state.searches)
+      .map(([query, info]) => ({ query, ...info }))
+      .sort((a, b) => {
+        const aTime = new Date(a.lastAt || '').getTime()
+        const bTime = new Date(b.lastAt || '').getTime()
+        if (aTime !== bTime) return bTime - aTime
+        return (b.order ?? 0) - (a.order ?? 0)
+      })
+      .slice(0, n)
   }, [state])
 
   const isSaved = useCallback((id) => Boolean(state.saves[id]), [state])
@@ -101,6 +142,7 @@ export function useStore() {
     ...state,
     toggleSave, toggleFollow, dismiss,
     recordView, recordSearch,
-    isSaved, isFollowing, isDismissed, viewCount,
+    addMemory, updateMemory, deleteMemory,
+    isSaved, isFollowing, isDismissed, viewCount, recentSearches,
   }
 }
