@@ -49,9 +49,27 @@ export async function fetchAll(query, signal) {
     return true
   })
 
-  const result = { items: deduped, errors }
-  if (deduped.length > 0) setCached(cacheKey, result)
+  // Recency filter — past 9 months only (items without a date stay; we can't verify)
+  const cutoff = Date.now() - RECENCY_WINDOW_MS
+  const recent = deduped.filter((it) => {
+    if (!it.publishedAt) return true
+    const t = Date.parse(it.publishedAt)
+    if (Number.isNaN(t)) return true
+    return t >= cutoff
+  })
+
+  const result = { items: recent, errors }
+  if (recent.length > 0) setCached(cacheKey, result)
   return result
+}
+
+export const RECENCY_WINDOW_MS = 9 * 30 * 24 * 60 * 60 * 1000  // ~9 months
+
+export function isRecent(item) {
+  if (!item?.publishedAt) return true
+  const t = Date.parse(item.publishedAt)
+  if (Number.isNaN(t)) return true
+  return t >= Date.now() - RECENCY_WINDOW_MS
 }
 
 export function groupByCategory(items) {

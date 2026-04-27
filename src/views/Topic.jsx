@@ -9,7 +9,7 @@ import SocialPostCard from '../components/content/SocialPostCard.jsx'
 import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
 import ArticleReader from '../components/content/ArticleReader.jsx'
 import Chip from '../components/ui/Chip.jsx'
-import { fetchAll, groupByCategory } from '../lib/search/aggregate.js'
+import { fetchAll, groupByCategory, isRecent } from '../lib/search/aggregate.js'
 
 const TABS = [
   { id: 'all',         label: 'All'      },
@@ -66,11 +66,12 @@ export default function Topic() {
     )
   }
 
-  // Source items for filtering — seed content for seed topics, live items for user topics
+  // Source items for filtering — seed content for seed topics, live items for user topics.
+  // Past-9-months recency filter applies to all tabs except 'saved' (saved items are
+  // intentional — user explicitly bookmarked them, regardless of age).
   let sourceItems
   if (isUser) {
     if (userTopic.source === 'category' && userTopic.category) {
-      // Filter to the specific category
       const grouped = groupByCategory(live.items)
       sourceItems = grouped[userTopic.category] || []
     } else {
@@ -79,6 +80,7 @@ export default function Topic() {
   } else {
     sourceItems = contentByTopic(topic.id)
   }
+  if (tab !== 'saved') sourceItems = sourceItems.filter(isRecent)
   const items =
     tab === 'all'   ? sourceItems
     : tab === 'saved' ? sourceItems.filter((c) => isSaved(c.id))

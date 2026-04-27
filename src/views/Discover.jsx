@@ -4,7 +4,7 @@ import { Filter, X, Loader2, Inbox, RefreshCw } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { filterContent } from '../lib/filter.js'
-import { fetchAll } from '../lib/search/aggregate.js'
+import { fetchAll, isRecent } from '../lib/search/aggregate.js'
 import { clearCache } from '../lib/search/cache.js'
 import VideoCard from '../components/content/VideoCard.jsx'
 import ArticleCard from '../components/content/ArticleCard.jsx'
@@ -88,9 +88,10 @@ export default function Discover() {
     setRefreshTick((n) => n + 1)
   }
 
-  // Inbox: combine seed + live, exclude viewed and dismissed
+  // Inbox: combine seed + live, exclude viewed and dismissed, past 9 months only
   const inbox = useMemo(() => {
     const seedFiltered = filterContent(content, { query, type, topicIds, relatedToNodeId, sort: 'newest' })
+      .filter(isRecent)
     // Live items don't have topicIds — we apply only query/type/dismiss/view filters to them
     const liveFiltered = liveItems.filter((it) => {
       if (type && it.type !== type) return false
