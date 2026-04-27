@@ -84,9 +84,15 @@ export async function fetchAll(query, signal, opts = {}) {
     }
   }
 
-  // Stage 6 — minimum validation: drop items missing title or URL (the things every
-  // card needs to render). Image validation is best-effort on the card itself.
-  const validated = items.filter((it) => Boolean(it?.title) && Boolean(it?.url))
+  // Stage 6 — minimum validation: drop items missing title or URL, plus a defensive
+  // filter scrubbing any Dailymotion items that might surface from older state.
+  const validated = items.filter((it) => {
+    if (!it?.title || !it?.url) return false
+    if (it.id?.startsWith('dm_')) return false
+    if (it.dailymotionId) return false
+    if ((it.source || '').toLowerCase().startsWith('dailymotion')) return false
+    return true
+  })
 
   // Stage 7 — De-dupe across sources by URL (canonical-ish — we'd canonicalize
   // server-side in a real pipeline; here we lowercase + strip trailing slash).

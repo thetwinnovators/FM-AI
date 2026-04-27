@@ -31,7 +31,8 @@
       "Bash(curl -s -w \"DM API: %{http_code}\\\\n\" -o /tmp/dm.json \"https://api.dailymotion.com/videos?search=ux&fields=id,title&limit=3\" --max-time 8)",
       "Read(//tmp/**)",
       "Bash(curl -s -o /dev/null -w \"/topics %{http_code}\\\\n\" http://localhost:62163/topics --max-time 5)",
-      "Bash(curl -s -o /dev/null -w \"/education %{http_code}\\\\n\" http://localhost:62163/education --max-time 5)"
+      "Bash(curl -s -o /dev/null -w \"/education %{http_code}\\\\n\" http://localhost:62163/education --max-time 5)",
+      "Bash(curl -s -o /dev/null -w \"/discover %{http_code}\\\\n\" http://localhost:62163/discover --max-time 5)"
     ]
   }
 }
