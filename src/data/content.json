@@ -1,0 +1,461 @@
+[
+  {
+    "id": "vid_001",
+    "type": "video",
+    "title": "Building effective agents with Claude",
+    "url": "https://www.youtube.com/watch?v=D7_ipDqhtwk",
+    "youtubeId": "D7_ipDqhtwk",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-12-19",
+    "durationSec": 1140,
+    "summary": "Anthropic walks through agent patterns: prompt chaining, routing, parallelization, orchestrator-workers, and evaluator-optimizer. The most important framing is that 'agent' is a spectrum, not a binary.",
+    "keyPoints": [
+      "Most production systems are workflows, not full agents",
+      "Composability and observability matter more than autonomy",
+      "Evals are the bottleneck; build them first"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "toolIds": ["tool_claude_api"],
+    "conceptIds": ["concept_tool_use", "concept_evals"],
+    "tagIds": ["tag_walkthrough"],
+    "thumbnail": "https://i.ytimg.com/vi/D7_ipDqhtwk/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_002",
+    "type": "video",
+    "title": "Claude's Computer Use, Explained",
+    "url": "https://www.youtube.com/watch?v=ODaHJzOyVCQ",
+    "youtubeId": "ODaHJzOyVCQ",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-10-22",
+    "durationSec": 240,
+    "summary": "Short overview of Claude's screen-grabbing, mouse-and-keyboard control capability — what it does, how it's gated, and where it can fail.",
+    "keyPoints": [
+      "Operates via screenshots + tool calls",
+      "Still beta; brittle for novel UIs",
+      "Sandbox before granting filesystem access"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_claude_api"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_announcement"],
+    "thumbnail": "https://i.ytimg.com/vi/ODaHJzOyVCQ/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_003",
+    "type": "video",
+    "title": "Introducing the Model Context Protocol",
+    "url": "https://www.youtube.com/watch?v=CQywdSdi5iA",
+    "youtubeId": "CQywdSdi5iA",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-11-25",
+    "durationSec": 360,
+    "summary": "Anthropic introduces MCP — a uniform protocol for connecting LLMs to tools, data, and prompts via servers.",
+    "keyPoints": [
+      "Replaces bespoke tool wiring",
+      "Servers are composable across clients",
+      "Tools, resources, prompts are the three primitives"
+    ],
+    "topicIds": ["topic_mcp", "topic_claude"],
+    "toolIds": ["tool_mcp_server"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_announcement"],
+    "thumbnail": "https://i.ytimg.com/vi/CQywdSdi5iA/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_004",
+    "type": "video",
+    "title": "MCP server tutorial — build your first integration",
+    "url": "https://www.youtube.com/watch?v=kQmXtrmQ5Zg",
+    "youtubeId": "kQmXtrmQ5Zg",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2025-01-15",
+    "durationSec": 720,
+    "summary": "Step-by-step build of a small MCP server in TypeScript with three tools and one resource.",
+    "keyPoints": [
+      "Schema-first tool definitions",
+      "stdio transport for local dev",
+      "Logging and error envelope conventions"
+    ],
+    "topicIds": ["topic_mcp"],
+    "toolIds": ["tool_mcp_server"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_tutorial", "tag_implementation"],
+    "thumbnail": "https://i.ytimg.com/vi/kQmXtrmQ5Zg/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_005",
+    "type": "video",
+    "title": "Claude Code — agentic terminal coding",
+    "url": "https://www.youtube.com/watch?v=AJpK3YTTKZ4",
+    "youtubeId": "AJpK3YTTKZ4",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2025-02-24",
+    "durationSec": 480,
+    "summary": "Walkthrough of Claude Code in real codebases: tool permissions, MCP integration, custom slash commands, and hooks.",
+    "keyPoints": [
+      "Permission modes shape what the agent can touch",
+      "Slash commands are reusable workflows",
+      "Hooks turn one-off prompts into automations"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_claude_code"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_walkthrough", "tag_implementation"],
+    "thumbnail": "https://i.ytimg.com/vi/AJpK3YTTKZ4/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_006",
+    "type": "video",
+    "title": "The state of AI agents — survey",
+    "url": "https://www.youtube.com/watch?v=fH-EtSIkEpA",
+    "youtubeId": "fH-EtSIkEpA",
+    "source": "YouTube",
+    "creatorId": "creator_aiexplained",
+    "publishedAt": "2025-03-08",
+    "durationSec": 1080,
+    "summary": "Roundup of major agent benchmarks, framework adoption, and open problems heading into mid-2025.",
+    "keyPoints": [
+      "SWE-bench, GAIA, AgentBench differ wildly",
+      "Tool-use reliability gates production deployment",
+      "Long-horizon planning still mostly research"
+    ],
+    "topicIds": ["topic_agents"],
+    "conceptIds": ["concept_evals"],
+    "tagIds": ["tag_essay"],
+    "thumbnail": "https://i.ytimg.com/vi/fH-EtSIkEpA/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_007",
+    "type": "video",
+    "title": "Tool use — getting Claude to call your APIs",
+    "url": "https://www.youtube.com/watch?v=u7VylJq3kgE",
+    "youtubeId": "u7VylJq3kgE",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-08-12",
+    "durationSec": 600,
+    "summary": "How tool calling works under the hood, schema design tips, and parallel tool use.",
+    "keyPoints": [
+      "Tool descriptions are prompts — write them carefully",
+      "Use enums for constrained inputs",
+      "Parallel tool use cuts latency for independent reads"
+    ],
+    "topicIds": ["topic_claude"],
+    "toolIds": ["tool_claude_api"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_tutorial"],
+    "thumbnail": "https://i.ytimg.com/vi/u7VylJq3kgE/maxresdefault.jpg"
+  },
+  {
+    "id": "vid_008",
+    "type": "video",
+    "title": "Building reliable evals for LLM apps",
+    "url": "https://www.youtube.com/watch?v=lQ7c4pTqDjI",
+    "youtubeId": "lQ7c4pTqDjI",
+    "source": "YouTube",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-09-30",
+    "durationSec": 900,
+    "summary": "Why evals fail and how to design them so a regression actually shows up before production.",
+    "keyPoints": [
+      "Tests-of-tests: validate the eval first",
+      "Mix automated and human-judgment evals",
+      "Track drift across model versions"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "conceptIds": ["concept_evals"],
+    "tagIds": ["tag_essay", "tag_implementation"],
+    "thumbnail": "https://i.ytimg.com/vi/lQ7c4pTqDjI/maxresdefault.jpg"
+  },
+  {
+    "id": "art_001",
+    "type": "article",
+    "title": "Building effective agents",
+    "url": "https://www.anthropic.com/engineering/building-effective-agents",
+    "source": "Anthropic Engineering",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-12-19",
+    "summary": "Anthropic's reference essay on agent patterns — companion to the video. Names five workflows and one true agent pattern, with worked examples.",
+    "keyPoints": [
+      "Patterns: prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer",
+      "Augmented LLM = LLM + retrieval + tools + memory",
+      "Choose the simplest pattern that works"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "toolIds": ["tool_claude_api"],
+    "conceptIds": ["concept_tool_use", "concept_evals"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "art_002",
+    "type": "article",
+    "title": "Introducing the Model Context Protocol",
+    "url": "https://www.anthropic.com/news/model-context-protocol",
+    "source": "Anthropic News",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-11-25",
+    "summary": "Launch announcement for MCP. Frames the M×N integrations problem and shows the reference servers Anthropic shipped on day one.",
+    "keyPoints": [
+      "Open standard, reference SDKs in TS and Python",
+      "Day-one servers: filesystem, GitHub, Slack, Postgres, Puppeteer",
+      "Designed so any client can talk to any server"
+    ],
+    "topicIds": ["topic_mcp"],
+    "toolIds": ["tool_mcp_server"],
+    "tagIds": ["tag_announcement"]
+  },
+  {
+    "id": "art_003",
+    "type": "article",
+    "title": "MCP: an open protocol for AI integrations",
+    "url": "https://modelcontextprotocol.io/introduction",
+    "source": "modelcontextprotocol.io",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-11-25",
+    "summary": "The protocol's official intro: architecture, client/server roles, and the three primitives (tools, resources, prompts).",
+    "keyPoints": [
+      "Clients connect to many servers; servers can be local or remote",
+      "Tools are model-callable; resources are model-readable; prompts are user-callable",
+      "JSON-RPC 2.0 over stdio or HTTP+SSE"
+    ],
+    "topicIds": ["topic_mcp"],
+    "toolIds": ["tool_mcp_server"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "art_004",
+    "type": "article",
+    "title": "Claude Code best practices",
+    "url": "https://www.anthropic.com/engineering/claude-code-best-practices",
+    "source": "Anthropic Engineering",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2025-04-18",
+    "summary": "Practical advice for getting Claude Code to do real work in real codebases — claude.md files, tools, hooks, and permission scopes.",
+    "keyPoints": [
+      "Maintain a CLAUDE.md as project memory",
+      "Scope permissions tightly; iterate from there",
+      "Use TodoWrite + plan mode for non-trivial tasks"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_claude_code"],
+    "tagIds": ["tag_implementation"]
+  },
+  {
+    "id": "art_005",
+    "type": "article",
+    "title": "Tool use with Claude",
+    "url": "https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/overview",
+    "source": "Anthropic Docs",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-08-01",
+    "summary": "Reference docs for tool calling: schema, request/response shape, parallel tool use, and limits.",
+    "keyPoints": [
+      "Define tools with JSON Schema",
+      "Stream tool_use blocks; parallel calls allowed",
+      "Always send tool_result back in the next user turn"
+    ],
+    "topicIds": ["topic_claude"],
+    "toolIds": ["tool_claude_api"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_tutorial"]
+  },
+  {
+    "id": "art_006",
+    "type": "article",
+    "title": "Things we learned about LLMs in 2024",
+    "url": "https://simonwillison.net/2024/Dec/31/llms-in-2024/",
+    "source": "simonwillison.net",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-12-31",
+    "summary": "Year-end roundup from a careful long-time LLM observer: model gains, agent realities, tooling shifts, the fragility of vibes.",
+    "keyPoints": [
+      "Frontier models converged on similar capability bands",
+      "Agents are still mostly demos, not production",
+      "Tool use + structured output became table stakes"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "art_007",
+    "type": "article",
+    "title": "Prompts are programs",
+    "url": "https://simonwillison.net/2024/Mar/22/claude-and-chatgpt-case-study/",
+    "source": "simonwillison.net",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-03-22",
+    "summary": "Case study comparing Claude and ChatGPT on a specific build task; argues prompts deserve the rigor we give to code.",
+    "keyPoints": [
+      "Treat prompts as source artifacts; version-control them",
+      "Diff outputs across models to surface drift",
+      "Tiny wording changes produce real behavior changes"
+    ],
+    "topicIds": ["topic_claude"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "art_008",
+    "type": "article",
+    "title": "An analysis of claude.com/claude-code",
+    "url": "https://simonwillison.net/2024/Oct/22/claude-code/",
+    "source": "simonwillison.net",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-10-22",
+    "summary": "Hands-on review of Claude Code shortly after release. Covers the agent loop, plan mode, and the feel of working with it.",
+    "keyPoints": [
+      "Plan mode is the killer feature for non-trivial tasks",
+      "Tool restriction matters more than people expect",
+      "The agent's self-correction loop saves real time"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_claude_code"],
+    "tagIds": ["tag_essay", "tag_walkthrough"]
+  },
+  {
+    "id": "art_009",
+    "type": "article",
+    "title": "Agentic workflows: orchestrator-workers pattern",
+    "url": "https://www.anthropic.com/engineering/agentic-workflows",
+    "source": "Anthropic Engineering",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2025-02-04",
+    "summary": "Deep dive on one specific pattern from the agents essay — when to break work across delegated subagents and how to coordinate them.",
+    "keyPoints": [
+      "Use when subtasks are independent and parallelizable",
+      "Orchestrator owns the rubric; workers own execution",
+      "Signal failure clearly; let the orchestrator decide retry"
+    ],
+    "topicIds": ["topic_agents"],
+    "conceptIds": ["concept_tool_use"],
+    "tagIds": ["tag_essay", "tag_implementation"]
+  },
+  {
+    "id": "art_010",
+    "type": "article",
+    "title": "MCP best practices",
+    "url": "https://modelcontextprotocol.io/specification/2024-11-05",
+    "source": "modelcontextprotocol.io",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2024-11-05",
+    "summary": "Spec-level guidance: tool naming, error envelopes, transport choices, and resource lifecycle.",
+    "keyPoints": [
+      "Use verb-noun tool names; describe inputs precisely",
+      "Errors are structured, not strings",
+      "stdio for local; HTTP+SSE for remote"
+    ],
+    "topicIds": ["topic_mcp"],
+    "toolIds": ["tool_mcp_server"],
+    "tagIds": ["tag_tutorial"]
+  },
+  {
+    "id": "art_011",
+    "type": "article",
+    "title": "Evaluating LLM applications",
+    "url": "https://hamel.dev/blog/posts/evals/",
+    "source": "hamel.dev",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-04-15",
+    "summary": "Hamel Husain's pragmatic essay on building evals that actually catch regressions. (Linked here under simon_w as a short-list curator stand-in.)",
+    "keyPoints": [
+      "Start with the dumbest possible eval and improve",
+      "Manual review is the foundation; automate later",
+      "Eval data is the real moat"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "conceptIds": ["concept_evals"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "art_012",
+    "type": "article",
+    "title": "Claude's constitution: harmlessness without paternalism",
+    "url": "https://www.anthropic.com/research/claudes-constitution",
+    "source": "Anthropic Research",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2023-05-09",
+    "summary": "Anthropic's published list of principles that shape Claude's behavior, plus how they're operationalized in training.",
+    "keyPoints": [
+      "Constitutional AI = principles + RLAIF",
+      "Principles are explicit and editable",
+      "Aim for honest, harmless, helpful in that order"
+    ],
+    "topicIds": ["topic_claude"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "post_001",
+    "type": "social_post",
+    "title": "Claude can now run a 30-step agent loop without losing the plot",
+    "url": "https://x.com/AnthropicAI/status/1860000000000000000",
+    "source": "X · @AnthropicAI",
+    "creatorId": "creator_anthropic",
+    "publishedAt": "2025-02-22",
+    "summary": "Short Anthropic post showcasing a long-horizon agent task (writeup on what changed since Sonnet 3.5).",
+    "keyPoints": [
+      "Long-horizon coherence improved",
+      "Tool-use accuracy up across benchmarks"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "tagIds": ["tag_announcement"]
+  },
+  {
+    "id": "post_002",
+    "type": "social_post",
+    "title": "Three weeks with MCP — what stuck",
+    "url": "https://x.com/simonw/status/1864000000000000000",
+    "source": "X · @simonw",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-12-15",
+    "summary": "Simon Willison reflecting on actual day-to-day MCP use: which servers earned a place, which didn't.",
+    "keyPoints": [
+      "Filesystem and Git servers used daily",
+      "Custom servers > generic ones for project work",
+      "Latency still rough on remote servers"
+    ],
+    "topicIds": ["topic_mcp"],
+    "toolIds": ["tool_mcp_server"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "post_003",
+    "type": "social_post",
+    "title": "Pair-programming with Claude Code on a brownfield codebase",
+    "url": "https://x.com/_LeoSm/status/1880000000000000000",
+    "source": "X",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2025-01-09",
+    "summary": "Field report from somebody using Claude Code in a 100k-line repo for two weeks. Worth scanning for the 'when not to use it' section.",
+    "keyPoints": [
+      "Best for refactors with clear acceptance tests",
+      "Worst for ambiguous design questions",
+      "CLAUDE.md grows to fit the project"
+    ],
+    "topicIds": ["topic_claude", "topic_agents"],
+    "toolIds": ["tool_claude_code"],
+    "tagIds": ["tag_essay"]
+  },
+  {
+    "id": "post_004",
+    "type": "social_post",
+    "title": "Eval loop or it didn't ship",
+    "url": "https://x.com/HamelHusain/status/1850000000000000000",
+    "source": "X · @HamelHusain",
+    "creatorId": "creator_simon_w",
+    "publishedAt": "2024-10-25",
+    "summary": "Short polemic — if your team can't show the eval that catches the regression, the feature isn't done.",
+    "keyPoints": [
+      "Evals are infra, not afterthought",
+      "Without them, vibes drive decisions"
+    ],
+    "topicIds": ["topic_agents", "topic_claude"],
+    "conceptIds": ["concept_evals"],
+    "tagIds": ["tag_essay"]
+  }
+]
