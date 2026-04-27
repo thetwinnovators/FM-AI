@@ -15,11 +15,12 @@ const FILTERS = [
 
 export default function InterestMemoryPanel() {
   const { seedMemory } = useSeed()
-  const { memoryEntries, addMemory, deleteMemory } = useStore()
+  const { memoryEntries, addMemory, deleteMemory, isMemoryDismissed } = useStore()
   const [filter, setFilter] = useState('all')
   const [showAdd, setShowAdd] = useState(false)
 
-  const all = [...seedMemory, ...Object.values(memoryEntries)]
+  const visibleSeed = (seedMemory || []).filter((m) => !isMemoryDismissed(m.id))
+  const all = [...visibleSeed, ...Object.values(memoryEntries)]
   const filtered = filter === 'all' ? all : all.filter((m) => m.category === filter)
 
   return (
@@ -63,7 +64,7 @@ export default function InterestMemoryPanel() {
               <MemoryEntryCard
                 key={entry.id}
                 entry={entry}
-                onDelete={(id) => { if (!id.startsWith('mem_seed_')) deleteMemory(id) }}
+                onDelete={deleteMemory}
               />
             ))}
           </div>
