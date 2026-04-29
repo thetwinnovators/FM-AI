@@ -161,13 +161,13 @@ export default function FlowMap() {
   const totalContent = content.length + userDocs.length
 
   const kpis = [
-    { label: 'Followed topics', value: followedCount, live: true, sub: `of ${totalTopics}`, spark: followedCount / Math.max(1, totalTopics) },
-    { label: 'Total content',   value: totalContent,  live: userDocs.length > 0, spark: Math.min(1, totalContent / 50) },
-    { label: 'Saved items',     value: savedCount,    live: true, spark: Math.min(1, savedCount / Math.max(1, totalContent)) },
-    { label: 'Sources tracked', value: 1, sub: 'YouTube · v1.1 expands', spark: 0.2 },
-    { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video'),        spark: videos   / Math.max(1, totalContent) },
-    { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article'),      spark: articles / Math.max(1, totalContent) },
-    { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post'),  spark: posts    / Math.max(1, totalContent) },
+    { label: 'Followed topics', value: followedCount, live: true, sub: `of ${totalTopics}`, spark: followedCount / Math.max(1, totalTopics), color: '#d946ef' },
+    { label: 'Total content',   value: totalContent,  live: userDocs.length > 0, spark: Math.min(1, totalContent / 50),                     color: '#14b8a6' },
+    { label: 'Saved items',     value: savedCount,    live: true, spark: Math.min(1, savedCount / Math.max(1, totalContent)),                color: '#a855f7' },
+    { label: 'Sources tracked', value: 1, sub: 'YouTube · v1.1 expands', spark: 0.2,                                                        color: '#06b6d4' },
+    { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video'),        spark: videos   / Math.max(1, totalContent), color: '#ec4899' },
+    { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article'),      spark: articles / Math.max(1, totalContent), color: '#6366f1' },
+    { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post'),  spark: posts    / Math.max(1, totalContent), color: '#8b5cf6' },
   ]
 
   const manualVideos = Object.values(manualContent || {}).filter((e) => e.item?.type === 'video').length
