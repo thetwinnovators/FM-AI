@@ -15,6 +15,7 @@ export default function FolderCard({
   const [draft, setDraft] = useState(folder.name)
   const [isDragOver, setIsDragOver] = useState(false)
   const inputRef = useRef(null)
+  const cancelledRef = useRef(false)
 
   useEffect(() => {
     setDraft(folder.name)
@@ -27,13 +28,13 @@ export default function FolderCard({
   }, [isRenaming, folder.name])
 
   function commit() {
-    const name = draft.trim() || folder.name
-    onRenameCommit?.(folder.id, name)
+    if (cancelledRef.current) { cancelledRef.current = false; return }
+    onRenameCommit?.(folder.id, draft.trim() || folder.name)
   }
 
   function onKey(e) {
     if (e.key === 'Enter') { e.preventDefault(); commit() }
-    if (e.key === 'Escape') { setDraft(folder.name); onRenameCommit?.(null, null) }
+    if (e.key === 'Escape') { cancelledRef.current = true; setDraft(folder.name); onRenameCommit?.(null, null) }
   }
 
   function handleDragOver(e) {
