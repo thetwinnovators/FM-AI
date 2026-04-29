@@ -10,22 +10,30 @@ import DerivedSignals from '../components/flow/DerivedSignals.jsx'
 import InterestMemoryPanel from '../components/flow/InterestMemoryPanel.jsx'
 import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
 import ArticleReader from '../components/content/ArticleReader.jsx'
+import NodeVoicePanel from '../components/flow/NodeVoicePanel.jsx'
+import QuickChatLauncher from '../components/flow/QuickChatLauncher.jsx'
 import { useGraph } from '../store/useGraph.js'
 import { useLearning } from '../store/useLearning.js'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
+import { subscribeVoicePlaying } from '../lib/voice/player.js'
 
 export default function FlowMap() {
   const navigate = useNavigate()
   const { nodes, edges } = useGraph()
   const patterns = useLearning()
   const { topics, content, contentById } = useSeed()
-  const { saves, follows } = useStore()
+  const { saves, follows, documents, userTopics, manualContent, memoryEntries } = useStore()
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
+
+  // True while the assistant's voice is currently speaking — drives the soft
+  // glow / flicker on the graph edges so the network "breathes" with the AI.
+  const [voiceActive, setVoiceActive] = useState(false)
+  useEffect(() => subscribeVoicePlaying(setVoiceActive), [])
 
   // Fullscreen state machine: idle → expanding → full → shrinking → idle
   const FS_DURATION = 420
@@ -119,19 +127,30 @@ export default function FlowMap() {
 
   const followedCount = Object.keys(follows).length
   const savedCount = Object.keys(saves).length
-  const videos   = content.filter((c) => c.type === 'video').length
-  const articles = content.filter((c) => c.type === 'article').length
-  const posts    = content.filter((c) => c.type === 'social_post').length
+  const userDocs = Object.values(documents || {})
+  const userTopicCount = Object.keys(userTopics || {}).length
+  const totalTopics = topics.length + userTopicCount
+  const videos   = content.filter((c) => c.type === 'video').length   + userDocs.filter((d) => d.type === 'video').length
+  const articles = content.filter((c) => c.type === 'article').length + userDocs.filter((d) => d.type === 'article').length
+  const posts    = content.filter((c) => c.type === 'social_post').length + userDocs.filter((d) => d.type === 'social_post').length
+  const totalContent = content.length + userDocs.length
 
   const kpis = [
-    { label: 'Followed topics', value: followedCount, sub: `of ${topics.length}` },
-    { label: 'Items this week', value: content.length, sub: 'in the seed' },
-    { label: 'Saved items',     value: savedCount, live: savedCount > 0 },
+    { label: 'Followed topics', value: followedCount, live: true, sub: `of ${totalTopics}` },
+    { label: 'Total content',   value: totalContent,  live: userDocs.length > 0 },
+    { label: 'Saved items',     value: savedCount,    live: true },
     { label: 'Sources tracked', value: 1, sub: 'YouTube · v1.1 expands' },
-    { label: 'Videos',          value: videos },
-    { label: 'Articles',        value: articles },
-    { label: 'Posts',           value: posts },
+    { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video') },
+    { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article') },
+    { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post') },
   ]
+
+  const manualVideos = Object.values(manualContent || {}).filter((e) => e.item?.type === 'video').length
+  const hnContentCount = Object.values(manualContent || {}).filter(
+    (e) => (e.item?.url || '').includes('news.ycombinator.com')
+  ).length
+  const documentCount = Object.keys(documents || {}).length
+  const totalVideoCount = videos + manualVideos
 
   return (
     <div className="p-6 space-y-6">
@@ -148,9 +167,9 @@ export default function FlowMap() {
         </span>
       </header>
 
-      <PipelineStrip counts={{ discover: 1, parse: content.length, classify: edges.length, retain: savedCount }} />
+      <PipelineStrip counts={{ discover: followedCount || 1, parse: totalContent, classify: edges.length, retain: savedCount }} />
 
-      <div className="relative" style={{ height: 640 }}>
+      <div className="relative" style={{ height: '55vh', minHeight: 380 }}>
         <div
           ref={networkRef}
           className="flex flex-col overflow-hidden border"
@@ -178,13 +197,25 @@ export default function FlowMap() {
               </button>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 relative">
             <FlowGraph
               nodes={nodes}
               edges={edges}
               selectedNodeId={selectedNodeId}
               onNodeClick={onNodeClick}
+              voiceActive={voiceActive}
             />
+            {/* Voice + closed-captions panel — appears on the right whenever
+                a node is selected. Auto-speaks if Voice responses are enabled. */}
+            <NodeVoicePanel
+              node={selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null}
+              autoplay
+              onClose={() => setSelectedNodeId(null)}
+            />
+            {/* "Talk to FlowMap" launcher — anchored to the bottom-center of
+                the network canvas itself (not the page). Same retrieval
+                pipeline as /chat; auto-speaks when Voice responses is on. */}
+            <QuickChatLauncher />
           </div>
         </div>
       </div>
@@ -192,7 +223,11 @@ export default function FlowMap() {
       <KpiRow items={kpis} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ConnectedSources />
+        <ConnectedSources
+          videoCount={totalVideoCount}
+          documentCount={documentCount}
+          hnContentCount={hnContentCount}
+        />
         <DerivedSignals patterns={patterns} />
       </div>
 
