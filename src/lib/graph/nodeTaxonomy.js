@@ -11,6 +11,7 @@ export const NODE_TYPES = [
   { id: 'learning_path', label: 'Learning',     color: '#10b981' },
   { id: 'memory',        label: 'Memory',       color: '#a855f7' },
   { id: 'signal',        label: 'Signal',       color: '#f43f5e' },
+  { id: 'document',      label: 'Document',     color: '#f59e0b' },
 ]
 
 const BY_ID = Object.fromEntries(NODE_TYPES.map((t) => [t.id, t]))
