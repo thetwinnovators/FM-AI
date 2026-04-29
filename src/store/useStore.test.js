@@ -170,3 +170,80 @@ describe('user topics', () => {
     expect(result.current.userTopicBySlug('does-not-exist')).toBeUndefined()
   })
 })
+
+describe('folder actions', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  it('addFolder creates a folder and returns its meta', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('Research') })
+    expect(folder.name).toBe('Research')
+    expect(folder.id).toMatch(/^folder_/)
+    expect(folder.createdAt).toBeTruthy()
+    expect(result.current.folders[folder.id]).toEqual(folder)
+  })
+
+  it('addFolder trims and caps name at 80 chars', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('  ' + 'A'.repeat(100) + '  ') })
+    expect(folder.name).toBe('A'.repeat(80))
+  })
+
+  it('addFolder with blank name falls back to "New Folder"', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('   ') })
+    expect(folder.name).toBe('New Folder')
+  })
+
+  it('renameFolder updates the folder name', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('Old') })
+    act(() => result.current.renameFolder(folder.id, 'New'))
+    expect(result.current.folders[folder.id].name).toBe('New')
+  })
+
+  it('renameFolder is a no-op for unknown id', () => {
+    const { result } = renderHook(() => useStore())
+    act(() => result.current.renameFolder('folder_nope', 'X'))
+    // no throw
+  })
+
+  it('removeFolder deletes folder and nulls folderId on its docs', () => {
+    const { result } = renderHook(() => useStore())
+    let folder, doc
+    act(() => { folder = result.current.addFolder('F') })
+    act(() => { doc = result.current.addDocument({ title: 'D', plainText: 'hello', folderId: folder.id }) })
+    expect(result.current.documents[doc.id].folderId).toBe(folder.id)
+    act(() => result.current.removeFolder(folder.id))
+    expect(result.current.folders[folder.id]).toBeUndefined()
+    expect(result.current.documents[doc.id].folderId).toBeNull()
+  })
+
+  it('removeFolder leaves docs from other folders untouched', () => {
+    const { result } = renderHook(() => useStore())
+    let f1, f2, d1, d2
+    act(() => { f1 = result.current.addFolder('F1') })
+    act(() => { f2 = result.current.addFolder('F2') })
+    act(() => { d1 = result.current.addDocument({ title: 'A', plainText: 'a', folderId: f1.id }) })
+    act(() => { d2 = result.current.addDocument({ title: 'B', plainText: 'b', folderId: f2.id }) })
+    act(() => result.current.removeFolder(f1.id))
+    expect(result.current.documents[d1.id].folderId).toBeNull()
+    expect(result.current.documents[d2.id].folderId).toBe(f2.id)
+  })
+
+  it('updateDocument assigns and clears folderId', () => {
+    const { result } = renderHook(() => useStore())
+    let folder, doc
+    act(() => { folder = result.current.addFolder('F') })
+    act(() => { doc = result.current.addDocument({ title: 'D', plainText: 'hello' }) })
+    expect(result.current.documents[doc.id].folderId).toBeNull()
+    act(() => result.current.updateDocument(doc.id, { folderId: folder.id }))
+    expect(result.current.documents[doc.id].folderId).toBe(folder.id)
+    act(() => result.current.updateDocument(doc.id, { folderId: null }))
+    expect(result.current.documents[doc.id].folderId).toBeNull()
+  })
+})
