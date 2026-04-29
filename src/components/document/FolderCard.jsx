@@ -17,8 +17,8 @@ export default function FolderCard({
   const inputRef = useRef(null)
 
   useEffect(() => {
+    setDraft(folder.name)
     if (isRenaming) {
-      setDraft(folder.name)
       requestAnimationFrame(() => {
         inputRef.current?.focus()
         inputRef.current?.select()
@@ -28,26 +28,27 @@ export default function FolderCard({
 
   function commit() {
     const name = draft.trim() || folder.name
-    onRenameCommit(folder.id, name)
+    onRenameCommit?.(folder.id, name)
   }
 
   function onKey(e) {
     if (e.key === 'Enter') { e.preventDefault(); commit() }
-    if (e.key === 'Escape') { setDraft(folder.name); onRenameCommit(null, null) }
+    if (e.key === 'Escape') { setDraft(folder.name); onRenameCommit?.(null, null) }
   }
 
   function handleDragOver(e) {
     setIsDragOver(true)
-    onDragOver(e)
+    onDragOver?.(e)
   }
 
-  function handleDragLeave() {
+  function handleDragLeave(e) {
+    if (e.currentTarget.contains(e.relatedTarget)) return
     setIsDragOver(false)
   }
 
   function handleDrop(e) {
     setIsDragOver(false)
-    onDrop(e)
+    onDrop?.(e)
   }
 
   return (
@@ -58,7 +59,7 @@ export default function FolderCard({
           : 'border-black/10 bg-slate-100 hover:bg-slate-200'
       }`}
       style={{ cursor: isRenaming ? 'default' : 'pointer' }}
-      onClick={!isRenaming ? onClick : undefined}
+      onClick={!isRenaming ? () => onClick?.() : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -82,7 +83,7 @@ export default function FolderCard({
             ) : (
               <h3
                 className="text-[15px] font-semibold leading-snug line-clamp-2 text-gray-900"
-                onDoubleClick={(e) => { e.stopPropagation(); onRenameStart(folder.id) }}
+                onDoubleClick={(e) => { e.stopPropagation(); onRenameStart?.(folder.id) }}
               >
                 {folder.name}
               </h3>
@@ -95,7 +96,7 @@ export default function FolderCard({
       </div>
       <div className="px-4 pb-3 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
-          onClick={(e) => { e.stopPropagation(); onRenameStart(folder.id) }}
+          onClick={(e) => { e.stopPropagation(); onRenameStart?.(folder.id) }}
           className="p-1 rounded hover:bg-slate-300 text-gray-500 hover:text-gray-700"
           title="Rename folder"
           aria-label="Rename folder"
@@ -103,7 +104,7 @@ export default function FolderCard({
           <Pencil size={13} />
         </button>
         <button
-          onClick={(e) => { e.stopPropagation(); onDelete(folder) }}
+          onClick={(e) => { e.stopPropagation(); onDelete?.(folder) }}
           className="p-1 rounded hover:bg-rose-100 text-rose-500 hover:text-rose-700"
           title="Delete folder"
           aria-label="Delete folder"
