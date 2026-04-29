@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Bookmark, BookmarkCheck, FileText } from 'lucide-react'
+import { Bookmark, BookmarkCheck, EyeOff, FileText } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { getOgImage } from '../../lib/search/ogImage.js'
+import ReasonBadges from '../ui/ReasonBadges.jsx'
 
 export default function ArticleCard({ item, onOpen }) {
-  const { isSaved, toggleSave } = useStore()
+  const { isSaved, toggleSave, dismiss } = useStore()
   const saved = isSaved(item.id)
   const [imageUrl, setImageUrl] = useState(item.thumbnail || null)
   const [imageFailed, setImageFailed] = useState(false)
@@ -12,10 +13,14 @@ export default function ArticleCard({ item, onOpen }) {
   useEffect(() => {
     if (imageUrl || !item.url) return
     let cancelled = false
-    getOgImage(item.url).then((url) => {
-      if (!cancelled && url) setImageUrl(url)
-    })
-    return () => { cancelled = true }
+    // Spread requests across 2s to avoid rate-limiting when many cards mount together
+    const delay = Math.random() * 2000
+    const timer = setTimeout(() => {
+      getOgImage(item.url).then((url) => {
+        if (!cancelled && url) setImageUrl(url)
+      })
+    }, delay)
+    return () => { cancelled = true; clearTimeout(timer) }
   }, [item.url, imageUrl])
 
   const showImage = imageUrl && !imageFailed
@@ -38,7 +43,7 @@ export default function ArticleCard({ item, onOpen }) {
       ) : null}
       <div className="p-4 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-2">
-          <span className="w-6 h-6 rounded-md bg-[color:var(--color-article)]/15 border border-[color:var(--color-article)]/30 flex items-center justify-center text-[color:var(--color-article)]">
+          <span className="w-6 h-6 rounded-md bg-[color:var(--color-article)]/15 flex items-center justify-center text-[color:var(--color-article)]">
             <FileText size={12} />
           </span>
           <span className="text-[11px] uppercase tracking-wide text-[color:var(--color-article)] font-medium truncate">
@@ -51,15 +56,26 @@ export default function ArticleCard({ item, onOpen }) {
           <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] line-clamp-3">{item.summary}</p>
         ) : null}
 
+        <ReasonBadges item={item} className="mt-2.5" />
+
         <div className="mt-auto pt-3 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
           <span>{item.publishedAt}</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
-            className="p-1 rounded hover:bg-white/5"
-            aria-label={saved ? 'Unsave' : 'Save'}
-          >
-            {saved ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" /> : <Bookmark size={14} />}
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={(e) => { e.stopPropagation(); dismiss(item.id) }}
+              className="p-1 rounded hover:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity hover:text-rose-400/70"
+              aria-label="Hide" title="Don't show again"
+            >
+              <EyeOff size={13} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
+              className="p-1 rounded hover:bg-white/5"
+              aria-label={saved ? 'Unsave' : 'Save'}
+            >
+              {saved ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" /> : <Bookmark size={14} />}
+            </button>
+          </div>
         </div>
       </div>
     </article>

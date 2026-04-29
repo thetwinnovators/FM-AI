@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Play, Bookmark, BookmarkCheck } from 'lucide-react'
+import { Play, Bookmark, BookmarkCheck, EyeOff } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { cachedYouTubeAvailability, isYouTubeAvailable, AVAIL_UNKNOWN, AVAIL_NO } from '../../lib/youtubeAvailability.js'
+import ReasonBadges from '../ui/ReasonBadges.jsx'
 
 function formatDuration(sec) {
   if (!sec) return ''
@@ -12,7 +13,7 @@ function formatDuration(sec) {
 }
 
 export default function VideoCard({ item, onOpen }) {
-  const { isSaved, toggleSave } = useStore()
+  const { isSaved, toggleSave, dismiss } = useStore()
   const { creatorById } = useSeed()
   const creator = creatorById?.(item.creatorId)
   const saved = isSaved(item.id)
@@ -58,15 +59,25 @@ export default function VideoCard({ item, onOpen }) {
       </div>
       <div className="p-3">
         <h3 className="text-sm font-medium leading-snug line-clamp-2">{item.title}</h3>
+        <ReasonBadges item={item} className="mt-2" />
         <div className="mt-2 flex items-center justify-between text-[11px] text-[color:var(--color-text-tertiary)]">
           <span className="truncate">{creator?.name ?? item.source}</span>
-          <button
-            onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
-            className="p-1 rounded hover:bg-white/5 flex-shrink-0"
-            aria-label={saved ? 'Unsave' : 'Save'}
-          >
-            {saved ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" /> : <Bookmark size={14} />}
-          </button>
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); dismiss(item.id) }}
+              className="p-1 rounded hover:bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity hover:text-rose-400/70"
+              aria-label="Hide" title="Don't show again"
+            >
+              <EyeOff size={13} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); toggleSave(item.id, item) }}
+              className="p-1 rounded hover:bg-white/5"
+              aria-label={saved ? 'Unsave' : 'Save'}
+            >
+              {saved ? <BookmarkCheck size={14} className="text-[color:var(--color-topic)]" /> : <Bookmark size={14} />}
+            </button>
+          </div>
         </div>
       </div>
     </article>
