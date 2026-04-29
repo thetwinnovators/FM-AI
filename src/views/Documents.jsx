@@ -330,7 +330,7 @@ export default function Documents() {
           <option value="saved-url">Saved URL</option>
         </select>
         <span className="text-[11px] text-[color:var(--color-text-tertiary)] ml-auto">
-          {filtered.length} of {allDocs.length}
+          {filtered.length} of {activeFolderId ? (docCountFor[activeFolderId] || 0) : allDocs.length}
         </span>
       </div>
 
@@ -355,12 +355,14 @@ export default function Documents() {
             <Inbox size={20} className="text-[color:var(--color-text-tertiary)]" />
           </div>
           <h3 className="text-base font-semibold">
-            {allDocs.length === 0 ? 'No documents yet' : 'Nothing matches'}
+            {allDocs.length === 0 ? 'No documents yet' : activeFolderId ? 'Folder is empty' : 'Nothing matches'}
           </h3>
           <p className="text-sm text-[color:var(--color-text-tertiary)] mt-2 max-w-md">
             {allDocs.length === 0
               ? 'Paste a chat transcript or a long note to get started. AI summaries land in Phase 2.'
-              : 'Loosen the filters above.'}
+              : activeFolderId
+                ? 'Drag documents here from the root view, or upload new files.'
+                : 'Loosen the filters above.'}
           </p>
           {allDocs.length === 0 ? (
             <div className="flex items-center gap-2 mt-4">
