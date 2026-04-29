@@ -521,7 +521,7 @@ export function useStore() {
     const folder = (cur.folders || {})[id]
     if (!folder) return
     const trimmed = String(name || '').trim().slice(0, 80) || 'New Folder'
-    persist({ ...cur, folders: { ...cur.folders, [id]: { ...folder, name: trimmed } } })
+    persist({ ...cur, folders: { ...(cur.folders || {}), [id]: { ...folder, name: trimmed } } })
   }, [])
 
   const removeFolder = useCallback((id) => {

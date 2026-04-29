@@ -246,4 +246,29 @@ describe('folder actions', () => {
     act(() => result.current.updateDocument(doc.id, { folderId: null }))
     expect(result.current.documents[doc.id].folderId).toBeNull()
   })
+
+  it('addFolder with null/undefined name falls back to "New Folder"', () => {
+    const { result } = renderHook(() => useStore())
+    let f1, f2
+    act(() => { f1 = result.current.addFolder(null) })
+    act(() => { f2 = result.current.addFolder(undefined) })
+    expect(f1.name).toBe('New Folder')
+    expect(f2.name).toBe('New Folder')
+  })
+
+  it('renameFolder trims and caps at 80 chars', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('F') })
+    act(() => result.current.renameFolder(folder.id, 'B'.repeat(100)))
+    expect(result.current.folders[folder.id].name).toBe('B'.repeat(80))
+  })
+
+  it('renameFolder with blank name falls back to "New Folder"', () => {
+    const { result } = renderHook(() => useStore())
+    let folder
+    act(() => { folder = result.current.addFolder('F') })
+    act(() => result.current.renameFolder(folder.id, '   '))
+    expect(result.current.folders[folder.id].name).toBe('New Folder')
+  })
 })
