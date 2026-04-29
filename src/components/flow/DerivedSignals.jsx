@@ -1,13 +1,25 @@
 import Pill from '../ui/Pill.jsx'
 
-export default function DerivedSignals({ patterns }) {
+export default function DerivedSignals({ patterns, recentlyReinforced = '—' }) {
   const top = patterns?.coOccurrence?.[0]
   const topAffinity = Object.entries(patterns?.topicAffinity || {}).sort((a, b) => b[1] - a[1])[0]
 
   const rows = [
-    { label: 'Strongest co-occurrence', value: top ? `${top.a.replace('topic_', '')} + ${top.b.replace('topic_', '')}` : '—', tone: 'positive' },
-    { label: 'Top topic affinity',      value: topAffinity ? topAffinity[0].replace('topic_', '') : '—',                       tone: 'accent' },
-    { label: 'Recently reinforced',     value: 'computing',                                                                    tone: 'warning' },
+    {
+      label: 'Strongest co-occurrence',
+      value: top ? `${top.a.replace('topic_', '')} + ${top.b.replace('topic_', '')}` : '—',
+      tone: 'positive',
+    },
+    {
+      label: 'Top topic affinity',
+      value: topAffinity ? topAffinity[0].replace('topic_', '') : '—',
+      tone: 'accent',
+    },
+    {
+      label: 'Recently reinforced',
+      value: recentlyReinforced,
+      tone: 'warning',
+    },
   ]
 
   return (

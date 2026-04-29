@@ -18,12 +18,37 @@ import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { subscribeVoicePlaying } from '../lib/voice/player.js'
 
+function computeRecentlyReinforced(seedContent, seedTopics, manualContent, views, saves) {
+  let latestId = null
+  let latestTime = ''
+
+  for (const [id, v] of Object.entries(views || {})) {
+    if ((v.lastAt || '') > latestTime) { latestTime = v.lastAt; latestId = id }
+  }
+  for (const [id, s] of Object.entries(saves || {})) {
+    if ((s.savedAt || '') > latestTime) { latestTime = s.savedAt; latestId = id }
+  }
+
+  if (!latestId) return '—'
+
+  const seedItem = seedContent.find((c) => c.id === latestId)
+  const manualEntry = seedItem
+    ? null
+    : Object.values(manualContent || {}).find((e) => e.item?.id === latestId)
+
+  const topicId = (seedItem?.topicIds || manualEntry?.topicIds || [])[0]
+  if (!topicId) return '—'
+
+  const topic = seedTopics.find((t) => t.id === topicId)
+  return (topic?.name || topicId).replace(/^topic_/, '').replace(/_/g, ' ')
+}
+
 export default function FlowMap() {
   const navigate = useNavigate()
   const { nodes, edges } = useGraph()
   const patterns = useLearning()
   const { topics, content, contentById } = useSeed()
-  const { saves, follows, documents, userTopics, manualContent, memoryEntries } = useStore()
+  const { saves, follows, documents, userTopics, manualContent, memoryEntries, views } = useStore()
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -152,6 +177,8 @@ export default function FlowMap() {
   const documentCount = Object.keys(documents || {}).length
   const totalVideoCount = videos + manualVideos
 
+  const recentlyReinforced = computeRecentlyReinforced(content, topics, manualContent, views, saves)
+
   return (
     <div className="p-6 space-y-6">
       <header className="flex items-end justify-between">
@@ -228,7 +255,7 @@ export default function FlowMap() {
           documentCount={documentCount}
           hnContentCount={hnContentCount}
         />
-        <DerivedSignals patterns={patterns} />
+        <DerivedSignals patterns={patterns} recentlyReinforced={recentlyReinforced} />
       </div>
 
       <InterestMemoryPanel />
