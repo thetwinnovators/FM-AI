@@ -161,13 +161,13 @@ export default function FlowMap() {
   const totalContent = content.length + userDocs.length
 
   const kpis = [
-    { label: 'Followed topics', value: followedCount, live: true, sub: `of ${totalTopics}` },
-    { label: 'Total content',   value: totalContent,  live: userDocs.length > 0 },
-    { label: 'Saved items',     value: savedCount,    live: true },
-    { label: 'Sources tracked', value: 1, sub: 'YouTube · v1.1 expands' },
-    { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video') },
-    { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article') },
-    { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post') },
+    { label: 'Followed topics', value: followedCount, live: true, sub: `of ${totalTopics}`, spark: followedCount / Math.max(1, totalTopics) },
+    { label: 'Total content',   value: totalContent,  live: userDocs.length > 0, spark: Math.min(1, totalContent / 50) },
+    { label: 'Saved items',     value: savedCount,    live: true, spark: Math.min(1, savedCount / Math.max(1, totalContent)) },
+    { label: 'Sources tracked', value: 1, sub: 'YouTube · v1.1 expands', spark: 0.2 },
+    { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video'),        spark: videos   / Math.max(1, totalContent) },
+    { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article'),      spark: articles / Math.max(1, totalContent) },
+    { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post'),  spark: posts    / Math.max(1, totalContent) },
   ]
 
   const manualVideos = Object.values(manualContent || {}).filter((e) => e.item?.type === 'video').length
