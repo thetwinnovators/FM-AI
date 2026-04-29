@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { Folder, Pencil, Trash2 } from 'lucide-react'
 
+const PALETTE = [
+  '#e879f9', '#a78bfa', '#60a5fa', '#34d399',
+  '#fb923c', '#f472b6', '#facc15', '#2dd4bf',
+]
+
+function pickColor(id) {
+  let h = 0
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return PALETTE[h % PALETTE.length]
+}
+
 export default function FolderCard({
   folder,
   docCount,
@@ -16,6 +27,7 @@ export default function FolderCard({
   const [isDragOver, setIsDragOver] = useState(false)
   const inputRef = useRef(null)
   const cancelledRef = useRef(false)
+  const color = pickColor(folder.id)
 
   useEffect(() => {
     setDraft(folder.name)
@@ -55,11 +67,12 @@ export default function FolderCard({
   return (
     <article
       className={`rounded-lg overflow-hidden border transition-colors flex flex-col group shadow-sm relative ${
-        isDragOver
-          ? 'border-[color:var(--color-topic)] ring-2 ring-[color:var(--color-topic)]/40 bg-slate-50'
-          : 'border-black/10 bg-slate-100 hover:bg-slate-200'
+        isDragOver ? 'bg-slate-50' : 'border-black/10 bg-slate-100 hover:bg-slate-200'
       }`}
-      style={{ cursor: isRenaming ? 'default' : 'pointer' }}
+      style={{
+        cursor: isRenaming ? 'default' : 'pointer',
+        ...(isDragOver ? { borderColor: color, boxShadow: `0 0 0 2px ${color}66` } : {}),
+      }}
       onClick={!isRenaming ? () => onClick?.() : undefined}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -67,8 +80,11 @@ export default function FolderCard({
     >
       <div className="p-5 flex-1 flex flex-col">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[color:var(--color-topic)]/15 flex items-center justify-center flex-shrink-0">
-            <Folder size={18} className="text-[color:var(--color-topic)]" />
+          <div
+            className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: color + '26', color }}
+          >
+            <Folder size={18} />
           </div>
           <div className="flex-1 min-w-0">
             {isRenaming ? (
@@ -79,7 +95,8 @@ export default function FolderCard({
                 onBlur={commit}
                 onKeyDown={onKey}
                 onClick={(e) => e.stopPropagation()}
-                className="text-[15px] font-semibold leading-snug w-full bg-transparent border-b border-[color:var(--color-topic)] outline-none text-gray-900"
+                className="text-[15px] font-semibold leading-snug w-full bg-transparent outline-none text-gray-900"
+                style={{ borderBottom: `1px solid ${color}` }}
               />
             ) : (
               <h3
