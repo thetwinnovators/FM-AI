@@ -33,7 +33,17 @@ function pushImplicit(map, from, to, contentId, kind = 'derived', weight = 0.5, 
   map.set(k1, { from, to, kind, weight, evidence: [contentId], lastReinforced })
 }
 
-export function buildGraph(seed) {
+export function buildGraph(seed, userState = {}) {
+  const {
+    userTopics = {},
+    documents = {},
+    manualContent = {},
+    memoryEntries = {},
+    saves = {},
+    views = {},
+    follows = {},
+  } = userState
+
   const nodes = [
     ...seed.topics.map((x)    => nodeFromEntity(x, 'topic')),
     ...seed.tools.map((x)     => nodeFromEntity(x, 'tool')),
@@ -44,6 +54,38 @@ export function buildGraph(seed) {
     ...seed.content.map((x)   => nodeFromEntity(x, x.type)),
     ...(seed.seedMemory || []).map(nodeFromMemory),
   ]
+
+  const existingIds = new Set(nodes.map((n) => n.id))
+
+  for (const t of Object.values(userTopics)) {
+    if (existingIds.has(t.id)) continue
+    nodes.push({ id: t.id, label: t.name || t.id, type: 'topic', summary: t.summary || '' })
+    existingIds.add(t.id)
+  }
+
+  for (const entry of Object.values(manualContent)) {
+    const item = entry.item
+    if (!item || existingIds.has(item.id)) continue
+    nodes.push({ id: item.id, label: item.title || item.id, type: item.type || 'article', summary: item.summary || '' })
+    existingIds.add(item.id)
+  }
+
+  for (const doc of Object.values(documents)) {
+    if (existingIds.has(doc.id)) continue
+    nodes.push({ id: doc.id, label: doc.title || doc.id, type: 'document', summary: doc.excerpt || '' })
+    existingIds.add(doc.id)
+  }
+
+  for (const entry of Object.values(memoryEntries)) {
+    if (existingIds.has(entry.id)) continue
+    nodes.push(nodeFromMemory(entry))
+    existingIds.add(entry.id)
+  }
+
+  const topicById = Object.fromEntries(seed.topics.map((t) => [t.id, t]))
+  const topicBySlug = Object.fromEntries(
+    seed.topics.filter((t) => t.slug).map((t) => [t.slug, t])
+  )
 
   const explicit = (seed.relations || []).map((r) => ({
     from: r.from,
@@ -61,10 +103,45 @@ export function buildGraph(seed) {
       pushImplicit(implicit, c.id, tid, c.id, 'covers', 0.6, date)
     }
     if (c.creatorId) pushImplicit(implicit, c.creatorId, c.id, c.id, 'authored', 0.7, date)
-    for (const tid of c.toolIds   || []) pushImplicit(implicit, c.id, tid, c.id, 'discusses', 0.5, date)
-    for (const cid of c.conceptIds|| []) pushImplicit(implicit, c.id, cid, c.id, 'discusses', 0.5, date)
-    for (const tid of c.tagIds    || []) pushImplicit(implicit, c.id, tid, c.id, 'tagged_with', 0.3, date)
+    for (const tid of c.toolIds    || []) pushImplicit(implicit, c.id, tid, c.id, 'discusses', 0.5, date)
+    for (const cid of c.conceptIds || []) pushImplicit(implicit, c.id, cid, c.id, 'discusses', 0.5, date)
+    for (const tid of c.tagIds     || []) pushImplicit(implicit, c.id, tid, c.id, 'tagged_with', 0.3, date)
   }
 
-  return { nodes, edges: [...explicit, ...implicit.values()] }
+  for (const entry of Object.values(manualContent)) {
+    const item = entry.item
+    if (!item || !existingIds.has(item.id)) continue
+    for (const tid of entry.topicIds || []) {
+      if (existingIds.has(tid)) {
+        pushImplicit(implicit, item.id, tid, item.id, 'covers', 0.6, entry.savedAt || null)
+      }
+    }
+  }
+
+  for (const doc of Object.values(documents)) {
+    if (!existingIds.has(doc.id)) continue
+    for (const ref of doc.topics || []) {
+      const resolved = topicById[ref] || topicBySlug[ref]
+      if (resolved && existingIds.has(resolved.id)) {
+        pushImplicit(implicit, doc.id, resolved.id, doc.id, 'covers', 0.6, doc.updatedAt || null)
+      }
+    }
+  }
+
+  const edges = [...explicit, ...implicit.values()]
+
+  for (const edge of edges) {
+    if (follows[edge.from] || follows[edge.to]) {
+      edge.weight = Math.min(1.0, edge.weight * 1.4)
+    }
+    if (saves[edge.from] || saves[edge.to]) {
+      edge.weight = Math.min(1.0, edge.weight + 0.15)
+    }
+    const vc = (views[edge.from]?.count ?? 0) + (views[edge.to]?.count ?? 0)
+    if (vc > 0) {
+      edge.weight = Math.min(1.0, edge.weight + Math.min(0.1, vc * 0.02))
+    }
+  }
+
+  return { nodes, edges }
 }
