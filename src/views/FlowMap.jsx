@@ -179,6 +179,12 @@ export default function FlowMap() {
 
   const recentlyReinforced = computeRecentlyReinforced(content, topics, manualContent, views, saves)
 
+  const retainCount = savedCount + Object.keys(memoryEntries || {}).length
+  const hasUserData =
+    Object.keys(userTopics || {}).length > 0 ||
+    Object.keys(documents || {}).length > 0 ||
+    Object.keys(manualContent || {}).length > 0
+
   return (
     <div className="p-6 space-y-6">
       <header className="flex items-end justify-between">
@@ -190,11 +196,11 @@ export default function FlowMap() {
         </div>
         <span className="chip border-[color:var(--color-creator)]/40 bg-[color:var(--color-creator)]/10 text-[color:var(--color-creator)]">
           <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--color-creator)] animate-pulse" />
-          Live · seed
+          {hasUserData ? 'Live · personal' : 'Live · seed'}
         </span>
       </header>
 
-      <PipelineStrip counts={{ discover: followedCount || 1, parse: totalContent, classify: edges.length, retain: savedCount }} />
+      <PipelineStrip counts={{ discover: followedCount, parse: totalContent, classify: edges.length, retain: retainCount }} />
 
       <div className="relative" style={{ height: '55vh', minHeight: 380 }}>
         <div
