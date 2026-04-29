@@ -349,7 +349,7 @@ export default function Documents() {
         </div>
       ) : null}
 
-      {filtered.length === 0 ? (
+      {filtered.length === 0 && (activeFolderId ? true : allFolders.length === 0) ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-12 h-12 rounded-full bg-[color:var(--color-bg-glass-strong)] border border-[color:var(--color-border-default)] flex items-center justify-center mb-4">
             <Inbox size={20} className="text-[color:var(--color-text-tertiary)]" />
