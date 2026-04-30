@@ -129,6 +129,51 @@ function MessageContextPanel({ context }) {
   )
 }
 
+// Parse [label](url) and bare https:// URLs into React elements.
+// Internal paths (starting with /) become <Link>; external become <a target="_blank">.
+function renderContent(text) {
+  if (!text) return null
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"')\]]+)/g
+  const parts = []
+  let last = 0
+  let key = 0
+  for (const m of text.matchAll(re)) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    if (m[1] != null) {
+      // Markdown link [label](url)
+      const label = m[1]
+      const href = m[2]
+      if (href.startsWith('/')) {
+        parts.push(
+          <Link key={key++} to={href} onClick={(e) => e.stopPropagation()}
+            className="underline text-[color:var(--color-article)] hover:text-white transition-colors">
+            {label}
+          </Link>
+        )
+      } else {
+        parts.push(
+          <a key={key++} href={href} target="_blank" rel="noopener noreferrer"
+            className="underline text-[color:var(--color-creator)] hover:text-white transition-colors">
+            {label}
+          </a>
+        )
+      }
+    } else {
+      // Bare URL
+      const href = m[3]
+      parts.push(
+        <a key={key++} href={href} target="_blank" rel="noopener noreferrer"
+          className="underline text-[color:var(--color-creator)]/70 hover:text-[color:var(--color-creator)] transition-colors break-all">
+          {href}
+        </a>
+      )
+    }
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts.length > 0 ? parts : text
+}
+
 function MessageBubble({ message }) {
   const isUser = message.role === 'user'
   const [copied, setCopied] = useState(false)
@@ -163,7 +208,7 @@ function MessageBubble({ message }) {
               : 'bg-white/[0.05] text-white/90'
           }`}
         >
-          {message.content || <span className="text-white/40 italic">empty</span>}
+          {message.content ? renderContent(message.content) : <span className="text-white/40 italic">empty</span>}
         </div>
         {!isUser ? CopyButton : null}
       </div>
@@ -606,10 +651,10 @@ export default function Chat() {
     ]
     const allTopics = [
       ...(seedTopics || []).map((t) => ({
-        id: t.id, name: t.name, summary: t.summary || t.description, isUser: false, followed: isFollowing(t.id),
+        id: t.id, name: t.name, slug: t.slug, summary: t.summary || t.description, isUser: false, followed: isFollowing(t.id),
       })),
       ...Object.values(userTopics || {}).map((t) => ({
-        id: t.id, name: t.name, summary: t.summary, isUser: true, followed: !!t.followed,
+        id: t.id, name: t.name, slug: t.slug, summary: t.summary, isUser: true, followed: !!t.followed,
       })),
     ]
     // Per-item notes — flatten the userNotes map and resolve each itemId

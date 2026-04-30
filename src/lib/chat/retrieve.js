@@ -187,7 +187,22 @@ const PERSONALITY =
   `No emoji unless the user is already using them. Don't overuse slang. ` +
   `Avoid: "Based on the available documents", "I don't have a saved doc on the exact topic", ` +
   `"I don't have any information about this", "I couldn't find a document on that", ` +
-  `"Based on the available context". Replace those with natural human language.\n\n`
+  `"Based on the available context". Replace those with natural human language.\n\n` +
+  `LINKING RULES — you can and should provide clickable links in your replies:\n` +
+  `- Use Markdown link syntax: [Display text](URL)\n` +
+  `- FlowMap internal pages use relative paths:\n` +
+  `    Topic page:     /topic/{slug}         e.g. [Agentic UI](/topic/agentic-ui)\n` +
+  `    Document:       /documents/{id}       e.g. [My Notes](/documents/doc_abc123)\n` +
+  `    Topics list:    /topics\n` +
+  `    Discover feed:  /discover\n` +
+  `    Memory:         /memory\n` +
+  `    Chat:           /chat\n` +
+  `- External sources (web articles, YouTube, etc.) use the full URL:\n` +
+  `    [Article title](https://example.com/article)\n` +
+  `    [Video title](https://youtube.com/watch?v=...)\n` +
+  `- Every TOPIC entry below has its /topic/slug link — use it when referencing a topic.\n` +
+  `- Every EXCERPT entry below has its source URL and /documents/id link — use whichever is most helpful.\n` +
+  `- Always prefer the source URL for web articles/videos, and the /documents/id link for pasted notes.\n\n`
 
 // ─── Casual chat system prompt ────────────────────────────────────────────────
 const CASUAL_SYSTEM_MESSAGE =
@@ -221,9 +236,10 @@ function formatTopicsBlock(topics) {
   const lines = topics.map((t) => {
     const desc = String(t.summary || t.description || '').trim().replace(/\s+/g, ' ').slice(0, 160)
     const tag = t.isUser ? ' · saved' : (t.followed ? ' · followed' : '')
-    return desc ? `- ${t.name}${tag}: ${desc}` : `- ${t.name}${tag}`
+    const link = t.slug ? ` — [open](/topic/${t.slug})` : ''
+    return desc ? `- ${t.name}${tag}${link}: ${desc}` : `- ${t.name}${tag}${link}`
   })
-  return `TOPICS (the user's research areas — saved or followed; reference by name when relevant):\n${lines.join('\n')}\n\n`
+  return `TOPICS (the user's research areas — link format: /topic/{slug}):\n${lines.join('\n')}\n\n`
 }
 
 // Format the user's per-item notes for prompt injection. Each entry pairs
@@ -302,14 +318,22 @@ export function buildSystemMessage(retrieved, userQuery = '', memoryEntries = []
   // recap, walk through), give the top match its full plainText (capped) and
   // reduce the rest to short snippets so the prompt stays under the context
   // budget. Otherwise everyone gets the standard snippet treatment.
+  function fmtMeta(r, i, full = false) {
+    const lines = [`[${i + 1}] Title: ${r.meta.title}`]
+    if (r.meta.url) lines.push(`Source URL: ${r.meta.url}`)
+    lines.push(`FlowMap link: /documents/${r.meta.id}`)
+    lines.push(full
+      ? `Full document (truncated to ${FULL_DOC_LIMIT} chars):\n${fullTextFor(r)}`
+      : `Excerpt: ${r.snippet}`)
+    return lines.join('\n')
+  }
+
   const corpus = isReadDirective
     ? [
-        `[1] Title: ${retrieved[0].meta.title}\nFull document (truncated to ${FULL_DOC_LIMIT} chars):\n${fullTextFor(retrieved[0])}`,
-        ...retrieved.slice(1).map((r, i) => `[${i + 2}] Title: ${r.meta.title}\nExcerpt: ${r.snippet}`),
+        fmtMeta(retrieved[0], 0, true),
+        ...retrieved.slice(1).map((r, i) => fmtMeta(r, i + 1, false)),
       ].join('\n\n')
-    : retrieved
-        .map((r, i) => `[${i + 1}] Title: ${r.meta.title}\nExcerpt: ${r.snippet}`)
-        .join('\n\n')
+    : retrieved.map((r, i) => fmtMeta(r, i, false)).join('\n\n')
 
   const turnBanner = isReadDirective
     ? `THIS TURN: the user asked you to read/summarize a document. The TOP entry below has the full document text (truncated). Answer thoroughly from it; don't hedge with "based on a fragment". Ignore unrelated topics — focus on this document.`
