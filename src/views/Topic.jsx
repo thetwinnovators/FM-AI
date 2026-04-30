@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bookmark, BookmarkCheck, ChevronLeft, Loader2, AlertCircle, Sparkles, Trash2, LinkIcon, Pencil, Save, X } from 'lucide-react'
+import { Bookmark, BookmarkCheck, ChevronLeft, Loader2, AlertCircle, Sparkles, Trash2, LinkIcon, Pencil, Save, X, FilePlus } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
@@ -11,6 +11,8 @@ import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
 import ArticleReader from '../components/content/ArticleReader.jsx'
 import Chip from '../components/ui/Chip.jsx'
 import UrlIngestModal from '../components/ingest/UrlIngestModal.jsx'
+import SummaryCard from '../components/topic/SummaryCard.jsx'
+import SummaryModal from '../components/topic/SummaryModal.jsx'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { fetchAll, groupByCategory, isRecent } from '../lib/search/aggregate.js'
 import { buildTopicContext } from '../lib/search/topicContext.js'
@@ -87,6 +89,7 @@ export default function Topic() {
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
   const [showIngest, setShowIngest] = useState(false)
+  const [showSummaryModal, setShowSummaryModal] = useState(false)
   // Inline title edit — only for user-saved topics. The summary is also
   // rewritten on save so the auto-generated "Saved from your search for X"
   // stays in sync with the new name (unless the user already customized it).
@@ -265,7 +268,7 @@ export default function Topic() {
             onClick={() => setShowIngest(true)}
             className="btn text-xs"
           >
-            <LinkIcon size={13} /> Add URL
+            <FilePlus size={13} /> Add content
           </button>
           {isUser ? (
             <button
@@ -286,7 +289,7 @@ export default function Topic() {
         </div>
       </header>
 
-      <div className={isUser ? '' : 'grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6'}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Main content */}
         <section>
           {/* Tabs */}
@@ -350,58 +353,70 @@ export default function Topic() {
           )}
         </section>
 
-        {/* Side rail — only for seed topics. Sticks below the hero on lg+. */}
-        {!isUser ? (
-          <aside
-            className="space-y-4 lg:sticky lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-auto pr-1"
-            style={{ top: `${headerHeight + 12}px` }}
-          >
+        {/* Side rail — always visible, sticks below the hero on lg+. Order is
+            fixed: Summary, Related Topics, Tools, Concepts. Cards render with
+            an empty state when the topic has no entries for that section. */}
+        <aside
+          className="space-y-4 lg:sticky lg:self-start lg:max-h-[calc(100vh-2rem)] lg:overflow-auto pr-1"
+          style={{ top: `${headerHeight + 12}px` }}
+        >
+          <SummaryCard
+            topic={topic}
+            items={sourceItems}
+            onGenerate={() => setShowSummaryModal(true)}
+          />
+
+          <div className="glass-panel p-4">
+            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
+              Related topics
+            </h3>
             {topic.relatedTopicIds?.length ? (
-              <div className="glass-panel p-4">
-                <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
-                  Related topics
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {topic.relatedTopicIds.map((id) => {
-                    const t = topicById(id)
-                    return t ? <Link key={id} to={`/topic/${t.slug}`}><Chip color="#d946ef">{t.name}</Chip></Link> : null
-                  })}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {topic.relatedTopicIds.map((id) => {
+                  const t = topicById(id)
+                  return t ? <Link key={id} to={`/topic/${t.slug}`}><Chip color="#d946ef">{t.name}</Chip></Link> : null
+                })}
               </div>
-            ) : null}
+            ) : (
+              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None linked yet.</p>
+            )}
+          </div>
 
+          <div className="glass-panel p-4">
+            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Tools mentioned</h3>
             {topic.toolIds?.length ? (
-              <div className="glass-panel p-4">
-                <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Tools</h3>
-                <ul className="space-y-2">
-                  {topic.toolIds.map((id) => {
-                    const tool = toolById(id)
-                    return tool ? (
-                      <li key={id}>
-                        <a href={tool.url} target="_blank" rel="noreferrer" className="text-sm hover:underline">
-                          {tool.name}
-                        </a>
-                        <p className="text-[11px] text-[color:var(--color-text-tertiary)]">{tool.summary}</p>
-                      </li>
-                    ) : null
-                  })}
-                </ul>
-              </div>
-            ) : null}
+              <ul className="space-y-2">
+                {topic.toolIds.map((id) => {
+                  const tool = toolById(id)
+                  return tool ? (
+                    <li key={id}>
+                      <a href={tool.url} target="_blank" rel="noreferrer" className="text-sm hover:underline">
+                        {tool.name}
+                      </a>
+                      <p className="text-[11px] text-[color:var(--color-text-tertiary)]">{tool.summary}</p>
+                    </li>
+                  ) : null
+                })}
+              </ul>
+            ) : (
+              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None tagged yet.</p>
+            )}
+          </div>
 
+          <div className="glass-panel p-4">
+            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Concepts</h3>
             {topic.conceptIds?.length ? (
-              <div className="glass-panel p-4">
-                <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Concepts</h3>
-                <div className="flex flex-wrap gap-2">
-                  {topic.conceptIds.map((id) => {
-                    const c = conceptById(id)
-                    return c ? <Chip key={id} color="#94a3b8">{c.name}</Chip> : null
-                  })}
-                </div>
+              <div className="flex flex-wrap gap-2">
+                {topic.conceptIds.map((id) => {
+                  const c = conceptById(id)
+                  return c ? <Chip key={id} color="#94a3b8">{c.name}</Chip> : null
+                })}
               </div>
-            ) : null}
-          </aside>
-        ) : null}
+            ) : (
+              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None tagged yet.</p>
+            )}
+          </div>
+        </aside>
       </div>
 
       <VideoPlayerModal item={openVideo} onClose={() => setOpenVideo(null)} />
@@ -410,6 +425,12 @@ export default function Topic() {
         open={showIngest}
         onClose={() => setShowIngest(false)}
         defaultTopicId={topic?.id}
+      />
+      <SummaryModal
+        open={showSummaryModal}
+        topic={topic}
+        items={sourceItems}
+        onClose={() => setShowSummaryModal(false)}
       />
     </div>
   )

@@ -190,19 +190,25 @@ const PERSONALITY =
   `"Based on the available context". Replace those with natural human language.\n\n` +
   `LINKING RULES — you can and should provide clickable links in your replies:\n` +
   `- Use Markdown link syntax: [Display text](URL)\n` +
-  `- FlowMap internal pages use relative paths:\n` +
+  `- FlowMap is a LOCAL app running in the user's browser. There is NO public website, NO "flowmap.ai", NO hosted docs site. Never invent a URL like flowmap.ai, flowmap.app, /docs/anything, or any other made-up host.\n` +
+  `- Only use URLs that are EXPLICITLY present in this prompt:\n` +
+  `    • the relative paths listed below (/topics, /discover, /memory, /chat, and /topic/{slug} for slugs that appear in the TOPICS block)\n` +
+  `    • /documents/{id} where {id} is taken verbatim from a "FlowMap link:" line in an EXCERPT entry\n` +
+  `    • the exact full URL from a "Source URL:" line in an EXCERPT entry\n` +
+  `- FlowMap internal pages use relative paths (no host):\n` +
   `    Topic page:     /topic/{slug}         e.g. [Agentic UI](/topic/agentic-ui)\n` +
   `    Document:       /documents/{id}       e.g. [My Notes](/documents/doc_abc123)\n` +
   `    Topics list:    /topics\n` +
   `    Discover feed:  /discover\n` +
   `    Memory:         /memory\n` +
   `    Chat:           /chat\n` +
-  `- External sources (web articles, YouTube, etc.) use the full URL:\n` +
+  `- For external sources, use ONLY the exact full URL from a Source URL line — never a guessed one:\n` +
   `    [Article title](https://example.com/article)\n` +
   `    [Video title](https://youtube.com/watch?v=...)\n` +
   `- Every TOPIC entry below has its /topic/slug link — use it when referencing a topic.\n` +
-  `- Every EXCERPT entry below has its source URL and /documents/id link — use whichever is most helpful.\n` +
-  `- Always prefer the source URL for web articles/videos, and the /documents/id link for pasted notes.\n\n`
+  `- Every EXCERPT entry below shows the URLs available for that item — use whichever is most helpful (Source URL for web articles/videos, /documents/{id} for pasted notes).\n` +
+  `- If an item has no Source URL line, do NOT make one up. Use its /documents/{id} link, or no link at all.\n` +
+  `- Documents may live inside named folders — when an EXCERPT entry shows a "Folder:" line, mention the folder by name in your reply (e.g. "in your Research folder"). Documents without a Folder line live at the library root. There is no per-folder URL, so link the document itself or /documents.\n\n`
 
 // ─── Casual chat system prompt ────────────────────────────────────────────────
 const CASUAL_SYSTEM_MESSAGE =
@@ -220,8 +226,8 @@ const CASUAL_SYSTEM_MESSAGE =
 const META_SYSTEM_MESSAGE =
   PERSONALITY +
   `The user is asking a META question about how you work. Explain the architecture honestly and confidently — don't retrieve or quote documents:\n\n` +
-  `- The user uploads documents (notes, articles, chat dumps) and FlowMap stores them locally.\n` +
-  `- On every message, FlowMap runs keyword retrieval and feeds the top matching excerpts into the prompt.\n` +
+  `- The user saves content locally — uploaded documents, bookmarked articles/videos/posts, and manually added URLs.\n` +
+  `- On every message, FlowMap runs keyword retrieval across ALL saved content and feeds the top matching excerpts into the prompt.\n` +
   `- Active MEMORY entries (facts/preferences the user saved) are also injected, along with prior conversation turns.\n` +
   `- No live browsing — FlowMap pre-fetches the relevant passages for each message.\n` +
   `- So yes: I do have access to saved documents and memory through this retrieval pipeline.\n\n` +
@@ -276,7 +282,7 @@ function formatMemoryBlock(memoryEntries) {
   return `USER MEMORY (facts and preferences the user has saved about themselves — treat as authoritative for personal questions):\n${lines.join('\n')}\n\n`
 }
 
-export function buildSystemMessage(retrieved, userQuery = '', memoryEntries = [], topics = [], notes = [], intent = 'retrieval_request') {
+export function buildSystemMessage(retrieved, userQuery = '', memoryEntries = [], topics = [], notes = [], intent = 'retrieval_request', folders = {}) {
   // Casual turns get a lightweight conversational prompt — no retrieval context.
   if (intent === 'casual_chat') return CASUAL_SYSTEM_MESSAGE
 
@@ -319,9 +325,17 @@ export function buildSystemMessage(retrieved, userQuery = '', memoryEntries = []
   // reduce the rest to short snippets so the prompt stays under the context
   // budget. Otherwise everyone gets the standard snippet treatment.
   function fmtMeta(r, i, full = false) {
-    const lines = [`[${i + 1}] Title: ${r.meta.title}`]
+    const isContent = r.meta._kind === 'content'
+    const typeLabel = isContent
+      ? (r.meta.type || 'item').replace('_', ' ').toUpperCase()
+      : 'DOCUMENT'
+    const lines = [`[${i + 1}] ${typeLabel}: ${r.meta.title}`]
+    if (!isContent && r.meta.folderId) {
+      const folderName = folders?.[r.meta.folderId]?.name
+      if (folderName) lines.push(`Folder: ${folderName}`)
+    }
     if (r.meta.url) lines.push(`Source URL: ${r.meta.url}`)
-    lines.push(`FlowMap link: /documents/${r.meta.id}`)
+    if (!isContent) lines.push(`FlowMap link: /documents/${r.meta.id}`)
     lines.push(full
       ? `Full document (truncated to ${FULL_DOC_LIMIT} chars):\n${fullTextFor(r)}`
       : `Excerpt: ${r.snippet}`)

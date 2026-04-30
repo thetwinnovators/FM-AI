@@ -1,0 +1,487 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Sparkles, Send, X, Loader2, Mic, MicOff, Square } from 'lucide-react'
+import { useStore } from '../../store/useStore.js'
+import { useSeed } from '../../store/useSeed.js'
+import { streamChat } from '../../lib/llm/ollama.js'
+import { OLLAMA_CONFIG } from '../../lib/llm/ollamaConfig.js'
+import { retrieveDocuments, buildSystemMessage } from '../../lib/chat/retrieve.js'
+import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
+import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voice/player.js'
+import { startRecording, transcribeBlob } from '../../lib/voice/stt.js'
+
+// "Talk to FlowMap" launcher — a fixed pill at the bottom-center of the
+// FlowMap page that expands into an inline chat panel. Ephemeral by design
+// (no sidebar conversation entry) so quick "what is this node?" / "tell me
+// about my Claude topic" probes don't clutter the persistent chat list.
+//
+// Reuses the same pipeline as /chat: retrieve docs → build system prompt
+// (memory + topics + excerpts) → stream from Ollama → auto-speak via TTS.
+// That means everything tied to that pipeline (graph edge glow, captions
+// panel) lights up here too.
+export default function QuickChatLauncher() {
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [messages, setMessages] = useState([])
+  const [streaming, setStreaming] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const [micError, setMicError] = useState(null)
+  // Conversation mode = mic stays open, every utterance auto-sends on the
+  // user pausing, and the mic auto-pauses while the AI is speaking. Toggled
+  // on by clicking the launcher pill (instead of just opening the chat).
+  const [conversationMode, setConversationMode] = useState(false)
+  const [voicePlaying, setVoicePlaying] = useState(false)
+  const [pos, setPos] = useState(null) // {left,top} when dragged; null = default bottom-right
+  const abortRef = useRef(null)
+  const inputRef = useRef(null)
+  const scrollRef = useRef(null)
+  const dragRef = useRef(null)
+  const recorderRef = useRef(null)            // MediaRecorder controller from stt.js
+  const transcribingRef = useRef(false)
+  const micBaseTextRef = useRef('')           // draft contents when mic was activated
+  const conversationModeRef = useRef(false)   // mirror for use inside SR callbacks
+  const pendingSendRef = useRef('')           // utterance to flush on `onend`
+  conversationModeRef.current = conversationMode
+
+  // STT support check — we use MediaRecorder + a local Whisper container
+  // (whisper-asr-webservice on :9000, proxied via /api/stt). The only thing
+  // that needs to exist client-side is MediaRecorder + getUserMedia.
+  const speechSupported = typeof window !== 'undefined'
+    && typeof window.MediaRecorder !== 'undefined'
+    && !!navigator?.mediaDevices?.getUserMedia
+
+  const {
+    documents, documentContents,
+    memoryEntries, isMemoryDismissed,
+    userTopics, isFollowing,
+    userNotes,
+  } = useStore()
+  const { seedMemory, topics: seedTopics, contentById } = useSeed()
+
+  const allDocs = useMemo(() => Object.values(documents || {}), [documents])
+
+  // Auto-focus the input when the panel opens; auto-scroll to bottom on
+  // each new chunk during streaming.
+  useEffect(() => { if (open) inputRef.current?.focus() }, [open])
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+  }, [messages, streaming])
+
+  // Subscribe to TTS playing state so the Stop button can react to voice-only
+  // activity (e.g. a finished stream that's still being read aloud).
+  useEffect(() => subscribeVoicePlaying(setVoicePlaying), [])
+
+  // Esc behavior depends on context:
+  //   • Streaming or speaking → Esc stops without closing the panel.
+  //   • Idle → Esc closes the panel as before.
+  useEffect(() => {
+    if (!open) return
+    function onKey(e) {
+      if (e.key !== 'Escape') return
+      if (busy || voicePlaying) {
+        if (busy && abortRef.current) abortRef.current.abort()
+        stopVoice()
+      } else {
+        setOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, busy, voicePlaying])
+
+  function stopAll() {
+    if (busy && abortRef.current) {
+      try { abortRef.current.abort() } catch {}
+    }
+    stopVoice()
+  }
+
+  async function send(overrideText) {
+    const text = String(overrideText ?? draft).trim()
+    if (!text || busy) return
+
+    if (listening) stopMic()
+    const nextHistory = [...messages, { role: 'user', content: text }]
+    setMessages(nextHistory)
+    setDraft('')
+    micBaseTextRef.current = ''
+    setBusy(true)
+    setStreaming('')
+
+    // Same retrieval inputs as Chat.jsx — keeps prompt shape identical so the
+    // model behaves the same here as in the persistent chat.
+    const retrieved = retrieveDocuments(text, allDocs, documentContents, 5)
+    const allMemory = [
+      ...(seedMemory || []).filter((m) => !isMemoryDismissed(m.id)),
+      ...Object.values(memoryEntries || {}),
+    ]
+    const allTopics = [
+      ...(seedTopics || []).map((t) => ({
+        id: t.id, name: t.name, summary: t.summary || t.description, isUser: false, followed: isFollowing(t.id),
+      })),
+      ...Object.values(userTopics || {}).map((t) => ({
+        id: t.id, name: t.name, summary: t.summary, isUser: true, followed: !!t.followed,
+      })),
+    ]
+    const allNotes = []
+    for (const [itemId, raw] of Object.entries(userNotes || {})) {
+      const entries = Array.isArray(raw) ? raw : (raw?.content ? [raw] : [])
+      if (entries.length === 0) continue
+      const item = (contentById && contentById(itemId)) || documents?.[itemId] || null
+      const title = item?.title || `item ${itemId}`
+      const type = item?.type || ''
+      for (const n of entries) {
+        if (n?.content && String(n.content).trim()) {
+          allNotes.push({ title, type, content: n.content })
+        }
+      }
+    }
+    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes)
+    const llmMessages = [
+      { role: 'system', content: systemMessage },
+      ...nextHistory.map((m) => ({ role: m.role, content: m.content })),
+    ]
+
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    let assistantText = ''
+    try {
+      for await (const chunk of streamChat(llmMessages, { signal: ctrl.signal })) {
+        assistantText += chunk
+        setStreaming(assistantText)
+      }
+    } catch { /* logged inside streamChat */ }
+
+    setBusy(false)
+    setStreaming('')
+    if (assistantText.trim()) {
+      setMessages((m) => [...m, { role: 'assistant', content: assistantText }])
+      if (VOICE_CONFIG.enabled) {
+        playTtsForReply(assistantText).catch(() => {})
+      }
+    }
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      send()
+    }
+  }
+
+  // ─── Speech-to-text (mic dictation) ────────────────────────────────────
+  // Records mic audio with MediaRecorder, then ships the blob to the local
+  // Whisper container via /api/stt for transcription. Replaces the browser's
+  // Google-dependent SpeechRecognition. UX: click mic to start, click again
+  // to stop — the transcript appears once Whisper finishes (typically <1s on
+  // GPU). The textarea content is preserved; the transcript is appended.
+  async function startMic() {
+    if (!speechSupported || listening || transcribingRef.current) return
+    setMicError(null)
+    micBaseTextRef.current = draft
+    try {
+      const ctl = await startRecording()
+      recorderRef.current = ctl
+      setListening(true)
+    } catch (err) {
+      // getUserMedia rejection — usually permission denied or no device.
+      const msg = /denied|not allowed/i.test(String(err?.message))
+        ? 'Mic permission denied — allow it in the browser.'
+        : (err?.message || 'mic init failed')
+      setMicError(msg)
+    }
+  }
+
+  async function stopMic() {
+    const ctl = recorderRef.current
+    if (!ctl) { setListening(false); return }
+    recorderRef.current = null
+    setListening(false)
+    transcribingRef.current = true
+    setTranscribing(true)
+    setMicError(null)
+    try {
+      const blob = await ctl.stop()
+      const text = await transcribeBlob(blob)
+      if (text) {
+        const base = micBaseTextRef.current
+        const sep = base && !/\s$/.test(base) ? ' ' : ''
+        const next = base + sep + text
+        setDraft(next)
+        micBaseTextRef.current = next
+      }
+    } catch (err) {
+      const msg = err?.status === 502 || err?.status === 503
+        ? 'Whisper container unreachable. Is the docker service running on :9000?'
+        : `Transcription failed: ${err?.message || err}`
+      setMicError(msg)
+    } finally {
+      transcribingRef.current = false
+      setTranscribing(false)
+    }
+  }
+
+  function cancelMic() {
+    const ctl = recorderRef.current
+    if (ctl) {
+      try { ctl.cancel() } catch {}
+      recorderRef.current = null
+    }
+    setListening(false)
+  }
+
+  function toggleMic() {
+    if (listening) stopMic()
+    else startMic()
+  }
+
+  // Make sure the mic is released when the panel closes / unmounts.
+  useEffect(() => () => cancelMic(), [])
+  useEffect(() => { if (!open && listening) cancelMic() }, [open, listening])
+
+  function reset() {
+    if (busy) abortRef.current?.abort()
+    stopMic()
+    stopVoice()
+    setMessages([])
+    setStreaming('')
+    setDraft('')
+    setBusy(false)
+  }
+
+  function close() {
+    reset()
+    setOpen(false)
+    setPos(null)
+  }
+
+  function onHeaderPointerDown(e) {
+    if (e.target.closest('button')) return
+    e.preventDefault()
+    const panel = document.getElementById('quick-chat-panel')
+    if (!panel) return
+    const rect = panel.getBoundingClientRect()
+    const startX = e.clientX
+    const startY = e.clientY
+    const origLeft = rect.left
+    const origTop = rect.top
+    function onMove(ev) {
+      setPos({
+        left: Math.max(0, Math.min(window.innerWidth - rect.width, origLeft + ev.clientX - startX)),
+        top:  Math.max(0, Math.min(window.innerHeight - rect.height, origTop + ev.clientY - startY)),
+      })
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
+  // Rendered inline as an absolute child — the host (network section in
+  // FlowMap.jsx) provides `position: relative`. The wrapper covers the canvas
+  // area but uses `pointer-events-none` so graph drag/click still passes
+  // through; the button itself opts back in.
+  if (!open) {
+    return (
+      <div className="absolute bottom-4 right-4 z-30 pointer-events-none">
+        <button
+          onClick={() => setOpen(true)}
+          className="pointer-events-auto group relative inline-flex items-center justify-center w-12 h-12 rounded-full text-white transition-transform hover:-translate-y-[2px] hover:scale-[1.04]"
+          style={{
+            background:
+              'linear-gradient(135deg, rgba(20,184,166,0.22) 0%, rgba(99,102,241,0.22) 50%, rgba(217,70,239,0.22) 100%),' +
+              'rgba(255,255,255,0.07)',
+            backdropFilter: 'blur(28px) saturate(200%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(200%)',
+            border: '1px solid rgba(255,255,255,0.22)',
+            boxShadow:
+              '0 12px 32px rgba(0,0,0,0.45),' +
+              '0 1px 0 rgba(255,255,255,0.18) inset,' +
+              '0 -8px 16px rgba(20,184,166,0.12) inset',
+          }}
+          title="Talk to FlowMap (Esc to close)"
+          aria-label="Talk to FlowMap"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-full"
+            style={{
+              background:
+                'radial-gradient(120% 60% at 50% -10%, rgba(255,255,255,0.40) 0%, rgba(255,255,255,0) 60%)',
+            }}
+          />
+          <Mic size={18} className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" />
+        </button>
+      </div>
+    )
+  }
+
+  // Default: anchor inside the network canvas (parent has position:relative)
+  // so the panel pops up over the Network section. Once dragged, switch to
+  // viewport-fixed coords so the user can park it anywhere on screen.
+  const panelPos = pos
+    ? { position: 'fixed', left: pos.left, top: pos.top, zIndex: 50 }
+    : { position: 'absolute', bottom: 16, right: 16, zIndex: 50 }
+
+  return (
+    <div style={panelPos}>
+    <div
+      id="quick-chat-panel"
+      className="w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl overflow-hidden"
+      style={{
+        maxHeight: pos ? 'min(60vh, 520px)' : 'min(calc(100% - 32px), 480px)',
+        background:
+          'linear-gradient(160deg, rgba(20,184,166,0.10) 0%, rgba(99,102,241,0.07) 50%, rgba(217,70,239,0.10) 100%),' +
+          'rgba(8,10,22,0.78)',
+        backdropFilter: 'blur(8px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+        border: '1px solid rgba(255,255,255,0.13)',
+        boxShadow:
+          '0 24px 80px rgba(0,0,0,0.55),' +
+          '0 1px 0 rgba(255,255,255,0.14) inset,' +
+          '0 -1px 0 rgba(0,0,0,0.4) inset',
+      }}
+    >
+      <header
+        className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08] flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
+        style={{ background: 'rgba(255,255,255,0.03)' }}
+        onPointerDown={onHeaderPointerDown}
+      >
+        <Sparkles size={14} className="text-[color:var(--color-creator)]" />
+        <span className="text-sm font-medium text-white">Talk to FlowMap</span>
+        <span className="text-[11px] text-white/40 ml-1">· {OLLAMA_CONFIG.model}</span>
+        <span className="ml-auto inline-flex items-center gap-1">
+          {messages.length > 0 ? (
+            <button
+              onClick={reset}
+              className="text-[11px] text-white/50 hover:text-white px-2 py-1 rounded-lg hover:bg-white/[0.06]"
+              title="Clear this thread"
+            >
+              Clear
+            </button>
+          ) : null}
+          <button
+            onClick={close}
+            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08]"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
+        </span>
+      </header>
+
+      <div ref={scrollRef} className="flex-1 overflow-auto px-4 py-3 space-y-3 min-h-[80px]">
+        {messages.length === 0 && !streaming ? (
+          <p className="text-[13px] text-white/45">
+            Ask anything about your topics, documents, or memory. Replies use the same retrieval as the main chat — and will speak aloud if Voice responses is on.
+          </p>
+        ) : null}
+        {messages.map((m, i) => (
+          <Bubble key={i} role={m.role} text={m.content} />
+        ))}
+        {streaming ? <Bubble role="assistant" text={streaming} streaming /> : null}
+        {busy && !streaming ? (
+          <div className="inline-flex items-center gap-2 text-[12px] text-white/45">
+            <Loader2 size={11} className="animate-spin" /> thinking…
+          </div>
+        ) : null}
+      </div>
+
+      <footer className="px-3 py-3 border-t border-white/[0.06] flex flex-col gap-1.5 flex-shrink-0">
+        {micError ? (
+          <p className="text-[11px] text-amber-300/80 px-1">{micError}</p>
+        ) : null}
+        <div className="flex items-end gap-2">
+          <textarea
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => { setDraft(e.target.value); micBaseTextRef.current = e.target.value }}
+            onKeyDown={onKeyDown}
+            rows={1}
+            placeholder={
+              listening ? 'Listening… click mic again to transcribe'
+              : transcribing ? 'Transcribing with Whisper…'
+              : 'Ask FlowMap…  (Enter to send, Shift+Enter for newline)'
+            }
+            className="flex-1 text-[13px] leading-relaxed text-white/90 bg-white/[0.05] rounded-lg px-3 outline-none focus:bg-white/[0.07] placeholder:text-white/30 resize-none"
+            style={{ height: 48, minHeight: 48, maxHeight: 48 }}
+          />
+          {speechSupported ? (
+            <button
+              onClick={toggleMic}
+              disabled={busy || transcribing}
+              className={`px-3 py-2 self-end rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                listening
+                  ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
+                  : 'bg-white/[0.05] text-white/70 hover:text-white hover:bg-white/[0.08]'
+              }`}
+              aria-label={listening ? 'Stop dictation' : 'Start dictation'}
+              title={listening ? 'Stop dictation' : 'Speak to type'}
+            >
+              {listening ? (
+                <span className="relative inline-flex">
+                  <Mic size={13} />
+                  <span className="absolute -inset-1 rounded-full bg-rose-400/40 animate-ping" />
+                </span>
+              ) : transcribing ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <Mic size={13} />
+              )}
+            </button>
+          ) : (
+            <button
+              disabled
+              className="px-3 py-2 self-end rounded-lg bg-white/[0.03] text-white/30 cursor-not-allowed"
+              aria-label="Mic unavailable"
+              title="This browser doesn't support speech recognition"
+            >
+              <MicOff size={13} />
+            </button>
+          )}
+          {busy || voicePlaying ? (
+            <button
+              onClick={stopAll}
+              className="px-3 py-2 self-end rounded-lg text-rose-100 bg-rose-500/25 hover:bg-rose-500/35 transition-colors inline-flex items-center justify-center"
+              aria-label="Stop"
+              title={busy ? 'Stop generating (Esc)' : 'Stop voice (Esc)'}
+            >
+              <Square size={13} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              onClick={() => send()}
+              disabled={!draft.trim()}
+              className="btn btn-primary px-3 py-2 self-end disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Send"
+              title="Send (Enter)"
+            >
+              <Send size={13} />
+            </button>
+          )}
+        </div>
+      </footer>
+    </div>
+    </div>
+  )
+}
+
+function Bubble({ role, text, streaming }) {
+  const isUser = role === 'user'
+  return (
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
+          isUser
+            ? 'bg-[rgba(94,234,212,0.18)] text-white'
+            : 'bg-white/[0.05] text-white/90'
+        }`}
+      >
+        {text || (streaming ? <span className="text-white/40 italic">…</span> : null)}
+      </div>
+    </div>
+  )
+}

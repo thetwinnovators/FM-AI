@@ -8,6 +8,8 @@ import { CATEGORY_LABELS } from '../lib/search/classify.js'
 import { searchEntities } from '../lib/searchEntities.js'
 import { getOgImage } from '../lib/search/ogImage.js'
 import { Link } from 'react-router-dom'
+import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
+import ArticleReader from '../components/content/ArticleReader.jsx'
 
 function iconAndAccentFor(item) {
   if (item.type === 'video')       return { Icon: Play,          accent: 'var(--color-video)' }
@@ -16,7 +18,7 @@ function iconAndAccentFor(item) {
   return { Icon: Globe, accent: 'var(--color-article)' }
 }
 
-function ResultCard({ item }) {
+function ResultCard({ item, onOpen }) {
   const { Icon, accent } = iconAndAccentFor(item)
   const { isSaved, toggleSave } = useStore()
   const saved = isSaved(item.id)
@@ -40,12 +42,16 @@ function ResultCard({ item }) {
     toggleSave(item.id, item)
   }
 
+  function handleExternal(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    window.open(item.url, '_blank', 'noopener,noreferrer')
+  }
+
   return (
-    <a
-      href={item.url}
-      target="_blank"
-      rel="noreferrer"
-      className="block rounded-2xl overflow-hidden border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] hover:bg-[color:var(--color-bg-glass-strong)] hover:border-[color:var(--color-border-default)] transition-colors group flex flex-col"
+    <article
+      onClick={() => onOpen?.(item)}
+      className="block rounded-2xl overflow-hidden border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] hover:bg-[color:var(--color-bg-glass-strong)] hover:border-[color:var(--color-border-default)] transition-colors group flex flex-col cursor-pointer"
     >
       {showImage ? (
         <div className="aspect-[1.91/1] bg-black/40 overflow-hidden">
@@ -69,7 +75,14 @@ function ResultCard({ item }) {
           <span className="text-[11px] uppercase tracking-wide font-medium truncate" style={{ color: accent }}>
             {item.source}
           </span>
-          <ExternalLink size={11} className="ml-auto flex-shrink-0 opacity-0 group-hover:opacity-60 transition-opacity" />
+          <button
+            onClick={handleExternal}
+            className="ml-auto p-1 rounded text-[color:var(--color-text-tertiary)] opacity-0 group-hover:opacity-100 hover:text-white hover:bg-white/10 transition-all flex-shrink-0"
+            aria-label="Open original in new tab"
+            title="Open original in new tab"
+          >
+            <ExternalLink size={11} />
+          </button>
         </div>
         <h3 className="text-[15px] font-semibold leading-snug line-clamp-3">{item.title}</h3>
         {item.summary ? (
@@ -89,7 +102,7 @@ function ResultCard({ item }) {
           </button>
         </div>
       </div>
-    </a>
+    </article>
   )
 }
 
@@ -134,6 +147,16 @@ export default function Search() {
   const [state, setState] = useState({ status: 'idle', items: [], errors: [] })
   const abortRef = useRef(null)
 
+  // Open clicked results in the same VideoPlayerModal / ArticleReader the rest
+  // of the app uses, instead of bouncing the user out to a new tab.
+  const [openVideo, setOpenVideo] = useState(null)
+  const [openArticle, setOpenArticle] = useState(null)
+  function openItem(item) {
+    if (!item) return
+    if (item.type === 'video') setOpenVideo(item)
+    else setOpenArticle(item)
+  }
+
   useEffect(() => {
     if (!query.trim()) {
       setState({ status: 'idle', items: [], errors: [] })
@@ -160,7 +183,27 @@ export default function Search() {
     ? Object.values(seedHits).reduce((sum, arr) => sum + arr.length, 0)
     : 0
 
-  const grouped = groupByCategory(state.items)
+  // SearXNG-style category tabs by sourceType. "All" preserves the topical
+  // groupByCategory display below; specific tabs render a flat filtered grid.
+  const [sourceTab, setSourceTab] = useState('all')
+  const tabCounts = state.items.reduce((acc, it) => {
+    acc.all += 1
+    if (it.sourceType) acc[it.sourceType] = (acc[it.sourceType] || 0) + 1
+    return acc
+  }, { all: 0, article: 0, video: 0, news: 0, reference: 0, community: 0 })
+  const SOURCE_TABS = [
+    { id: 'all',       label: 'All' },
+    { id: 'article',   label: 'General' },
+    { id: 'video',     label: 'Videos' },
+    { id: 'news',      label: 'News' },
+    { id: 'reference', label: 'Reference' },
+    { id: 'community', label: 'Community' },
+  ]
+  const filteredItems = sourceTab === 'all'
+    ? state.items
+    : state.items.filter((it) => it.sourceType === sourceTab)
+
+  const grouped = groupByCategory(filteredItems)
   const groups = sortCategoryGroups(grouped)
   const liveTotal = state.items.length
 
@@ -212,12 +255,34 @@ export default function Search() {
           ) : null}
 
           <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium">
-                Live web — Hacker News + Reddit ({liveTotal})
-              </h2>
+            {/* SearXNG-style category tabs — slice by sourceType. Counts read
+                straight from the items already fetched (no re-fetching on tab switch). */}
+            <div className="flex items-end justify-between mb-3 gap-3 flex-wrap">
+              <div className="flex gap-1 border-b border-[color:var(--color-border-subtle)] flex-wrap">
+                {SOURCE_TABS.map((t) => {
+                  const count = tabCounts[t.id] || 0
+                  const active = sourceTab === t.id
+                  const dimmed = count === 0 && t.id !== 'all'
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setSourceTab(t.id)}
+                      disabled={dimmed}
+                      className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                        active
+                          ? 'border-[color:var(--color-topic)] text-white'
+                          : dimmed
+                            ? 'border-transparent text-[color:var(--color-text-tertiary)]/40 cursor-default'
+                            : 'border-transparent text-[color:var(--color-text-tertiary)] hover:text-white'
+                      }`}
+                    >
+                      {t.label} <span className="text-[11px] text-[color:var(--color-text-tertiary)]">{count}</span>
+                    </button>
+                  )
+                })}
+              </div>
               {state.status === 'loading' ? (
-                <span className="text-[11px] text-[color:var(--color-text-tertiary)] inline-flex items-center gap-1.5">
+                <span className="text-[11px] text-[color:var(--color-text-tertiary)] inline-flex items-center gap-1.5 pb-2">
                   <Loader2 size={12} className="animate-spin" /> fetching…
                 </span>
               ) : null}
@@ -234,18 +299,26 @@ export default function Search() {
             ) : null}
 
             {state.status === 'loading' && state.items.length === 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] p-4 h-32 animate-pulse" />
                 ))}
               </div>
-            ) : groups.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
               state.status === 'done' ? (
                 <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">
-                  No live results. The seed library above may still have matches.
+                  {sourceTab === 'all'
+                    ? 'No live results. The seed library above may still have matches.'
+                    : 'No results in this tab. Try another category.'}
                 </p>
               ) : null
+            ) : sourceTab !== 'all' ? (
+              // Flat grid for specific source-type tabs.
+              <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+                {filteredItems.map((it) => <ResultCard key={it.id} item={it} onOpen={openItem} />)}
+              </div>
             ) : (
+              // "All" tab — keep the topical category grouping with Follow buttons.
               <div className="space-y-8">
                 {groups.map(({ category, label, items }) => (
                   <div key={category}>
@@ -265,8 +338,8 @@ export default function Search() {
                         </button>
                       ) : null}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {items.map((it) => <ResultCard key={it.id} item={it} />)}
+                    <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+                      {items.map((it) => <ResultCard key={it.id} item={it} onOpen={openItem} />)}
                     </div>
                   </div>
                 ))}
@@ -275,6 +348,9 @@ export default function Search() {
           </section>
         </div>
       )}
+
+      <VideoPlayerModal item={openVideo} onClose={() => setOpenVideo(null)} />
+      <ArticleReader item={openArticle} onClose={() => setOpenArticle(null)} />
     </div>
   )
 }

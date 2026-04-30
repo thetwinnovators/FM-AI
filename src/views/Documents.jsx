@@ -129,6 +129,9 @@ export default function Documents() {
     Object.values(folders || {}).sort((a, b) => a.name.localeCompare(b.name)),
   [folders])
 
+  const regularFolders = useMemo(() => allFolders.filter(f => f.name !== 'AI Memory'), [allFolders])
+  const systemFolders  = useMemo(() => allFolders.filter(f => f.name === 'AI Memory'), [allFolders])
+
   const docCountFor = useMemo(() => {
     const counts = {}
     for (const doc of Object.values(documents || {})) {
@@ -200,7 +203,7 @@ export default function Documents() {
       <header className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-            <FileText size={20} className="text-[color:var(--color-topic)]" /> Documents
+            <FileText size={20} className="text-[color:var(--color-topic)]" /> My Documents
           </h1>
           <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
             Long-form notes, chat dumps, and articles you want FlowMap to remember.
@@ -383,12 +386,40 @@ export default function Documents() {
         </div>
       ) : (
         <>
+        {/* AI Memory system folder — pinned above regular folders */}
+        {!activeFolderId && systemFolders.length > 0 ? (
+          <div className="mb-5 pb-5 border-b border-white/[0.06]">
+            <p className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
+              AI-generated
+            </p>
+            <div
+              className="grid gap-4"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, 300px)' }}
+            >
+              {systemFolders.map((folder) => (
+                <FolderCard
+                  key={folder.id}
+                  folder={folder}
+                  docCount={docCountFor[folder.id] || 0}
+                  isRenaming={false}
+                  onRenameStart={() => {}}
+                  onRenameCommit={() => {}}
+                  onDelete={() => {}}
+                  onClick={() => { setActiveFolderId(folder.id); setPage(1) }}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, folder.id)}
+                />
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <div
           className="grid gap-4"
           style={{ gridTemplateColumns: 'repeat(auto-fill, 300px)' }}
         >
-          {/* Folder cards — only shown in root view */}
-          {!activeFolderId ? allFolders.map((folder) => (
+          {/* Regular folder cards — only shown in root view */}
+          {!activeFolderId ? regularFolders.map((folder) => (
             <FolderCard
               key={folder.id}
               folder={folder}

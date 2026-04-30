@@ -14,12 +14,13 @@ export default function FlowGraph({
   selectedNodeId = null,
   onNodeClick,
   onNodeHover,
+  voiceActive = false,
 }) {
   const canvasRef = useRef(null)
-  const propsRef = useRef({ nodes, edges, activeNodeIds, selectedNodeId, onNodeClick, onNodeHover })
+  const propsRef = useRef({ nodes, edges, activeNodeIds, selectedNodeId, onNodeClick, onNodeHover, voiceActive })
 
   useEffect(() => {
-    propsRef.current = { nodes, edges, activeNodeIds, selectedNodeId, onNodeClick, onNodeHover }
+    propsRef.current = { nodes, edges, activeNodeIds, selectedNodeId, onNodeClick, onNodeHover, voiceActive }
   })
 
   useEffect(() => {
@@ -240,6 +241,15 @@ export default function FlowGraph({
 
       const SAMPLES = 40
 
+      // Voice pulse — when the assistant is speaking, edges glow softly with
+      // a layered sin wave so the graph "breathes" with the audio. The two
+      // sin frequencies + a tiny per-edge phase offset keep the flicker from
+      // looking metronomic.
+      const voiceOn = !!propsRef.current.voiceActive
+      const vp = voiceOn
+        ? 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(t * 5.5)) * (0.7 + 0.3 * Math.sin(t * 13))
+        : 0
+
       for (const e of edges_) {
         const a = projById[e.from], b = projById[e.to]
         if (!a || !b) continue
@@ -253,13 +263,24 @@ export default function FlowGraph({
 
         const edgeSigs = sigsByEdge.get(`${e.from}__${e.to}`)
         const isActive = edgeSigs && edgeSigs.length > 0
-        const lineAlpha = isActive ? Math.min(1, baseAlpha * 2.2) : baseAlpha
+        let lineAlpha = isActive ? Math.min(1, baseAlpha * 2.2) : baseAlpha
+        let widthBoost = 1
+
+        if (voiceOn) {
+          // Per-edge phase from a hash of the endpoints — keeps the flicker
+          // out of phase across the network so it shimmers rather than blinks.
+          const phase = ((a.x ^ b.x) * 0.013 + (a.y ^ b.y) * 0.027) % 6.28
+          const local = 0.65 + 0.35 * Math.sin(t * 6 + phase)
+          // Boost alpha up to ~3.5x baseline at the wave peak; widen lightly.
+          lineAlpha = Math.min(1, baseAlpha * (1 + 2.5 * vp * local))
+          widthBoost = 1 + 0.6 * vp * local
+        }
 
         const grad = ctx.createLinearGradient(a.sx, a.sy, b.sx, b.sy)
         grad.addColorStop(0, `rgba(${fromRgb[0]},${fromRgb[1]},${fromRgb[2]},${lineAlpha})`)
         grad.addColorStop(1, `rgba(${toRgb[0]},${toRgb[1]},${toRgb[2]},${lineAlpha})`)
         ctx.strokeStyle = grad
-        ctx.lineWidth = (e.weight ?? 0.5) * (isActive ? 1.9 : 1.4) * dpr
+        ctx.lineWidth = (e.weight ?? 0.5) * (isActive ? 1.9 : 1.4) * widthBoost * dpr
         ctx.beginPath()
 
         if (isActive) {

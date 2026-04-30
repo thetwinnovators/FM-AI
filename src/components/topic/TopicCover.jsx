@@ -18,19 +18,11 @@ function hashStr(s) {
   return Math.abs(h)
 }
 
-function initialsFor(name) {
-  if (!name) return '?'
-  const parts = String(name).split(/\s+/).filter(Boolean)
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
-  return (parts[0][0] + parts[1][0]).toUpperCase()
-}
-
 export default function TopicCover({ slug = '', name = '', image = null, className = '' }) {
   const seed = slug || name || 'topic'
   const hash = hashStr(seed)
   const [c1, c2] = PALETTE[hash % PALETTE.length]
   const angle = 110 + (hashStr(seed + ':a') % 100)  // 110°–210°
-  const initials = initialsFor(name)
 
   return (
     <div className={`relative overflow-hidden rounded-xl aspect-[16/7] ${className}`}>
@@ -51,12 +43,6 @@ export default function TopicCover({ slug = '', name = '', image = null, classNa
             'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.18) 0%, transparent 55%)',
         }}
       />
-      <div
-        className="absolute bottom-2 left-3 text-[26px] font-bold text-white/95 leading-none tracking-tighter"
-        style={{ textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}
-      >
-        {initials}
-      </div>
     </div>
   )
 }

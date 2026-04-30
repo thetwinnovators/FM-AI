@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, X, Loader2, Inbox, RefreshCw } from 'lucide-react'
+import { Filter, X, Loader2, Compass, RefreshCw } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { filterContent } from '../lib/filter.js'
@@ -27,7 +27,10 @@ export default function Discover() {
   const initialQuery = params.get('q') || ''
   const relatedToNodeId = params.get('node') || null
   const { topics, content, topicById, toolById, creatorById, conceptById, companyById, tagById } = useSeed()
-  const { isDismissed, dismiss, viewCount, userTopics, recentSearches } = useStore()
+  // dismisses/views read directly from state so the inbox useMemo recomputes
+  // when they mutate. The isDismissed/viewCount selectors are stable (empty
+  // useCallback deps), so React would otherwise skip recomputation after dismiss.
+  const { isDismissed, dismiss, viewCount, userTopics, recentSearches, dismisses, views } = useStore()
 
   const focusNode = relatedToNodeId
     ? (topicById(relatedToNodeId) || toolById(relatedToNodeId) || creatorById(relatedToNodeId) ||
@@ -42,6 +45,7 @@ export default function Discover() {
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
   const [showRead, setShowRead] = useState(false)
+  const [sortDiscover, setSortDiscover] = useState('newest')
 
   // Live items pulled from user topics + recent searches
   const [liveItems, setLiveItems] = useState([])
@@ -116,9 +120,17 @@ export default function Discover() {
     const filtered = showRead
       ? deduped.filter((it) => !isDismissed(it.id))
       : deduped.filter((it) => !isDismissed(it.id) && viewCount(it.id) === 0)
-    filtered.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''))
+    if (sortDiscover === 'oldest') {
+      filtered.sort((a, b) => (a.publishedAt || '').localeCompare(b.publishedAt || ''))
+    } else if (sortDiscover === 'az') {
+      filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
+    } else if (sortDiscover === 'za') {
+      filtered.sort((a, b) => (b.title || '').localeCompare(a.title || ''))
+    } else {
+      filtered.sort((a, b) => (b.publishedAt || '').localeCompare(a.publishedAt || ''))
+    }
     return filtered
-  }, [content, liveItems, query, type, topicIds, relatedToNodeId, isDismissed, viewCount, showRead])
+  }, [content, liveItems, query, type, topicIds, relatedToNodeId, isDismissed, viewCount, showRead, dismisses, views, sortDiscover])
 
   const totalUnread = useMemo(() => {
     const merged = [...content, ...liveItems]
@@ -130,7 +142,7 @@ export default function Discover() {
       if (!isDismissed(it.id) && viewCount(it.id) === 0) count += 1
     }
     return count
-  }, [content, liveItems, isDismissed, viewCount])
+  }, [content, liveItems, isDismissed, viewCount, dismisses, views])
 
   const visible = inbox.slice(0, page * PAGE_SIZE)
   const hasMore = visible.length < inbox.length
@@ -150,7 +162,7 @@ export default function Discover() {
       <header className="mb-4 flex items-end justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-            <Inbox size={20} className="text-[color:var(--color-topic)]" /> Discover
+            <Compass size={20} className="text-[color:var(--color-topic)]" /> Discover
           </h1>
           <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
             {showRead
@@ -217,20 +229,29 @@ export default function Discover() {
           ))}
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {topics.map((t) => {
-            const on = topicIds.includes(t.id)
-            return (
-              <Chip
-                key={t.id}
-                color={on ? '#d946ef' : undefined}
-                onClick={() => toggleTopic(t.id)}
-              >
-                {t.name}
-              </Chip>
-            )
-          })}
+        <div className="w-px h-4 bg-white/10 flex-shrink-0" />
+
+        <div className="flex items-center gap-1">
+          {[
+            { id: 'newest', label: 'Newest' },
+            { id: 'oldest', label: 'Oldest' },
+            { id: 'az',     label: 'A → Z'  },
+            { id: 'za',     label: 'Z → A'  },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => { setSortDiscover(opt.id); setPage(1) }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                sortDiscover === opt.id
+                  ? 'bg-[color:var(--color-topic)]/15 text-[color:var(--color-topic)] border border-[color:var(--color-topic)]/40'
+                  : 'text-[color:var(--color-text-secondary)] hover:bg-white/5 border border-transparent'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
+
       </div>
 
       {/* Stream */}
@@ -238,7 +259,7 @@ export default function Discover() {
         <div className="text-sm text-[color:var(--color-text-tertiary)] py-16 text-center">
           {totalUnread === 0 && !query && type === '' && topicIds.length === 0 ? (
             <>
-              <Inbox size={28} className="mx-auto mb-3 opacity-50" />
+              <Compass size={28} className="mx-auto mb-3 opacity-50" />
               <p>You're all caught up. Save more topics from <a href="/search" className="underline text-white">Search</a> to grow your inbox.</p>
             </>
           ) : (
@@ -247,7 +268,7 @@ export default function Discover() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
             {visible.map((it) => (
               <div key={it.id} className="relative group">
                 <button

@@ -197,6 +197,27 @@ article.group:hover {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
 }
 
+/* Glassmorphic scrollbar */
+.glass-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+.glass-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.glass-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 99px;
+}
+.glass-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(217, 70, 239, 0.35) 0%, rgba(255, 255, 255, 0.12) 100%);
+  border-radius: 99px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.glass-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(217, 70, 239, 0.55) 0%, rgba(255, 255, 255, 0.22) 100%);
+}
+
 /* ─── Button press feedback ─────────────────────────────────── */
 .btn:active:not(:disabled) {
   transform: scale(0.96);
@@ -221,3 +242,6 @@ button.glass-panel:not(:disabled):active {
 
 /* Inter from Google Fonts */
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* Plus Jakarta Sans — used for AI-authored prose (topic summary, etc.) */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap");

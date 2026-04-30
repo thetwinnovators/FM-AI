@@ -28,6 +28,11 @@ const EMPTY = {
   // reader modals so the user can capture takeaways without leaving the app.
   userNotes: {},        // itemId -> { content, updatedAt }
   folders: {},
+  // Per-topic AI overviews. Cached so the SummaryCard renders instantly on
+  // revisit. itemSignature is a hash of the item ids the overview was built
+  // from — when it drifts from the topic's current items, the card surfaces
+  // an "out of date" hint.
+  topicSummaries: {},   // topicId -> { overview, report, generatedAt, itemSignature }
 }
 
 let memoryState = EMPTY
@@ -507,6 +512,38 @@ export function useStore() {
     persist({ ...cur, documents: docs, documentContents: contents })
   }, [])
 
+  const setTopicSummary = useCallback((topicId, patch) => {
+    if (!topicId || !patch) return
+    const cur = memoryState
+    const prev = (cur.topicSummaries || {})[topicId] || {}
+    const next = { ...prev, ...patch }
+    persist({ ...cur, topicSummaries: { ...(cur.topicSummaries || {}), [topicId]: next } })
+  }, [])
+
+  const clearTopicSummary = useCallback((topicId) => {
+    if (!topicId) return
+    const cur = memoryState
+    const map = { ...(cur.topicSummaries || {}) }
+    delete map[topicId]
+    persist({ ...cur, topicSummaries: map })
+  }, [])
+
+  // Find or create the special "AI Memory" folder used by the topic-summary
+  // save flow. Centralized so the modal doesn't need to care whether the
+  // folder existed beforehand.
+  const ensureFolderByName = useCallback((name) => {
+    const cur = memoryState
+    const trimmed = String(name || '').trim()
+    if (!trimmed) return null
+    const lc = trimmed.toLowerCase()
+    const existing = Object.values(cur.folders || {}).find((f) => String(f.name || '').toLowerCase() === lc)
+    if (existing) return existing
+    const id = `folder_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+    const folder = { id, name: trimmed.slice(0, 80), createdAt: new Date().toISOString() }
+    persist({ ...cur, folders: { ...(cur.folders || {}), [id]: folder } })
+    return folder
+  }, [])
+
   const addFolder = useCallback((name) => {
     const cur = memoryState
     const id = `folder_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
@@ -687,7 +724,8 @@ export function useStore() {
     addUserTopic, removeUserTopic, updateUserTopic, userTopicBySlug,
     addManualContent, removeManualContent, manualContentForTopic, manualContentByUrl,
     addDocument, updateDocument, removeDocument, documentById, documentContentById, documentsForTopic, requestSummary,
-    addFolder, renameFolder, removeFolder,
+    addFolder, renameFolder, removeFolder, ensureFolderByName,
+    setTopicSummary, clearTopicSummary,
     createConversation, updateConversation, deleteConversation, addChatMessage,
     conversationById, chatMessagesFor, allConversationsSorted,
     isSaved, isFollowing, isDismissed, viewCount, recentSearches,

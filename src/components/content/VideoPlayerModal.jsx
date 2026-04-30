@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, ExternalLink, Play, AlertCircle } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { cachedYouTubeAvailability, isYouTubeAvailable, AVAIL_UNKNOWN, AVAIL_NO } from '../../lib/youtubeAvailability.js'
+import NotesEditor from './NotesEditor.jsx'
 
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.07) 100%)',
@@ -131,6 +132,8 @@ export default function VideoPlayerModal({ item, onClose }) {
           {item.publishedAt ? (
             <div className="mt-4 text-[11px] text-[color:var(--color-text-tertiary)]">Published {item.publishedAt}</div>
           ) : null}
+
+          <NotesEditor itemId={item.id} accentColor="var(--color-video)" />
         </div>
       </div>
     </div>,

@@ -1,14 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Bookmark, BookmarkX, Database, Sparkles } from 'lucide-react'
+import { Plus, Bookmark, BookmarkX, Database, Sparkles, Link as LinkIcon, Brain } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import MemoryEntryCard from '../components/memory/MemoryEntryCard.jsx'
 import MemoryAddForm from '../components/memory/MemoryAddForm.jsx'
 import SavedItemsGrid from '../components/memory/SavedItemsGrid.jsx'
+import AddedUrlsGrid from '../components/memory/AddedUrlsGrid.jsx'
+import BackupPanel from '../components/memory/BackupPanel.jsx'
+import UrlIngestModal from '../components/ingest/UrlIngestModal.jsx'
+import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 
 const TABS = [
   { id: 'saved',    label: 'Saved items'      },
+  { id: 'added',    label: 'Added URLs'       },
   { id: 'followed', label: 'Followed topics'  },
   { id: 'memory',   label: 'Memory entries'   },
   { id: 'sources',  label: 'Source preferences' },
@@ -26,12 +31,47 @@ export default function Memory() {
   const { topics, seedMemory } = useSeed()
   const {
     saves, follows, toggleFollow, memoryEntries, addMemory, deleteMemory, isMemoryDismissed,
-    userTopics, removeUserTopic,
+    userTopics, removeUserTopic, manualContent,
   } = useStore()
 
   const [tab, setTab] = useState('saved')
   const [showAdd, setShowAdd] = useState(false)
+  const [showIngest, setShowIngest] = useState(false)
   const [catFilter, setCatFilter] = useState('all')
+  const confirm = useConfirm()
+
+  async function askDeleteMemory(id) {
+    const entry = allMemory.find((m) => m.id === id)
+    const isSeed = String(id).startsWith('mem_seed_')
+    const ok = await confirm({
+      title: isSeed ? 'Hide this memory entry?' : 'Delete this memory entry?',
+      message: isSeed
+        ? 'This is a seeded entry — hiding it removes it from your view. You can restore it by clearing your local data.'
+        : `"${entry?.content?.slice(0, 80) || 'This entry'}${entry?.content?.length > 80 ? '…' : ''}" will be permanently removed.`,
+      confirmLabel: isSeed ? 'Hide' : 'Delete',
+      danger: true,
+    })
+    if (ok) deleteMemory(id)
+  }
+
+  async function askRemoveUserTopic(t) {
+    const ok = await confirm({
+      title: `Remove "${t.name}"?`,
+      message: 'This stops tracking the topic. Any URLs you added to it stay in Memory > Added URLs but lose this topic label.',
+      confirmLabel: 'Remove topic',
+      danger: true,
+    })
+    if (ok) removeUserTopic(t.id)
+  }
+
+  async function askUnfollow(t) {
+    const ok = await confirm({
+      title: `Unfollow "${t.name}"?`,
+      message: 'You can re-follow it any time from the Topics page.',
+      confirmLabel: 'Unfollow',
+    })
+    if (ok) toggleFollow(t.id)
+  }
 
   const followedSeed = topics.filter((t) => follows[t.id])
   const userTopicList = Object.values(userTopics)
@@ -46,20 +86,29 @@ export default function Memory() {
 
   const savedCount = Object.keys(saves).length
   const followedTotal = followedSeed.length + userTopicList.length
+  const addedCount = Object.keys(manualContent || {}).length
 
   return (
     <div className="p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Memory</h1>
-        <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
-          What you've saved, followed, and the rules shaping your map.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+            <Brain size={20} className="text-[color:var(--color-topic)]" /> Knowledge Base
+          </h1>
+          <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
+            What you've saved, followed, and the rules shaping your map.
+          </p>
+        </div>
+        <button onClick={() => setShowIngest(true)} className="btn text-sm flex-shrink-0">
+          <LinkIcon size={13} /> Add URL
+        </button>
       </header>
 
       <div className="flex gap-1 mb-6 border-b border-[color:var(--color-border-subtle)] flex-wrap">
         {TABS.map((t) => {
           const count =
             t.id === 'saved'    ? savedCount :
+            t.id === 'added'    ? addedCount :
             t.id === 'followed' ? followedTotal :
             t.id === 'memory'   ? allMemory.length :
             null
@@ -81,6 +130,8 @@ export default function Memory() {
       </div>
 
       {tab === 'saved' && <SavedItemsGrid />}
+
+      {tab === 'added' && <AddedUrlsGrid />}
 
       {tab === 'followed' && (
         followedTotal === 0 ? (
@@ -105,7 +156,7 @@ export default function Memory() {
                   </div>
                 </Link>
                 <button
-                  onClick={() => toggleFollow(t.id)}
+                  onClick={() => askUnfollow(t)}
                   className="btn text-xs flex-shrink-0"
                   aria-label="Unfollow"
                 >
@@ -128,7 +179,7 @@ export default function Memory() {
                   </div>
                 </Link>
                 <button
-                  onClick={() => removeUserTopic(t.id)}
+                  onClick={() => askRemoveUserTopic(t)}
                   className="btn text-xs flex-shrink-0 text-rose-300 hover:text-rose-200 hover:border-rose-400/40"
                 >
                   Remove
@@ -174,25 +225,18 @@ export default function Memory() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
               {filteredMemory.map((entry) => (
-                <MemoryEntryCard key={entry.id} entry={entry} onDelete={deleteMemory} />
+                <MemoryEntryCard key={entry.id} entry={entry} onDelete={askDeleteMemory} />
               ))}
             </div>
           )}
         </div>
       )}
 
-      {tab === 'sources' && (
-        <div className="glass-panel p-6 max-w-[640px]">
-          <Database size={18} className="text-[color:var(--color-creator)] mb-3" />
-          <h2 className="text-base font-semibold">Source preferences</h2>
-          <p className="text-sm text-[color:var(--color-text-secondary)] mt-2 leading-relaxed">
-            Source weighting comes online when full live ingestion ships. For now, the mix is hard-coded:
-            curated seed (high signal), Hacker News (high), Reddit (varied), Dailymotion (educational videos).
-          </p>
-        </div>
-      )}
+      {tab === 'sources' && <BackupPanel />}
+
+      <UrlIngestModal open={showIngest} onClose={() => setShowIngest(false)} />
     </div>
   )
 }

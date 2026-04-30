@@ -1,23 +1,89 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
-import { Bookmark, BookmarkCheck, Sparkles, Trash2 } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Sparkles, Trash2, Plus, BookOpen, ArrowUpDown } from 'lucide-react'
 import TopicCover from '../components/topic/TopicCover.jsx'
+import NewTopicModal from '../components/topic/NewTopicModal.jsx'
+import { getCached } from '../lib/search/cache.js'
+import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 
-// Pick the first content item with a thumbnail as the topic's cover image.
-// Falls back to the procedural gradient when nothing's available (user topics, etc.).
-function coverImageForTopic(topic, contentByTopic) {
-  if (!contentByTopic || topic.isUserAdded) return null
-  const items = contentByTopic(topic.id) || []
+// Cached Reddit thumbnails come back with literal "&amp;" sequences instead of
+// "&", which breaks the signed `s=` query parameter and 403s on load. Decode
+// before passing to the <img>.
+function decodeAmp(url) {
+  return url ? url.replace(/&amp;/g, '&') : url
+}
+
+// 70x70 b.thumbs.redditmedia.com avatars render poorly at 16:7. Reddit
+// preview.redd.it URLs are referer-locked at the small-thumbnail size — they
+// fail to load from outside Reddit. Treat both as "bad cover" candidates.
+function isUnusableThumb(url) {
+  if (!url) return false
+  if (url.includes('b.thumbs.redditmedia.com')) return true
+  if (/preview\.redd\.it/.test(url) || /external-preview\.redd\.it/.test(url)) return true
+  return false
+}
+
+function pickCover(items, used) {
+  // Videos first — YouTube maxresdefault is reliably 1280x720.
   for (const it of items) {
-    if (it.thumbnail) return it.thumbnail
+    if (it?.type === 'video' && it.thumbnail && !used.has(it.thumbnail)) return decodeAmp(it.thumbnail)
+  }
+  // Then any thumbnail that won't visibly fail (skips referer-locked Reddit previews
+  // and tiny avatar thumbnails).
+  for (const it of items) {
+    if (it?.thumbnail && !used.has(it.thumbnail) && !isUnusableThumb(it.thumbnail)) return decodeAmp(it.thumbnail)
   }
   return null
+}
+
+// Pull a cover thumbnail from a user topic's cached search results. Bypasses
+// the normal 30-min TTL — a stale thumbnail is still fine for card art, and
+// the cover would otherwise wink to a procedural gradient between visits.
+function cachedCoverForUserTopic(userTopic, used) {
+  if (!userTopic?.query) return null
+  const key = 'all:' + String(userTopic.query).trim().toLowerCase()
+  const cached = getCached(key, Number.MAX_SAFE_INTEGER)
+  return pickCover(cached?.items || [], used)
+}
+
+// Build a map of topicId → cover thumbnail, with a global de-dup so two topics
+// that share their top content (e.g. the Anthropic agents talk shows under both
+// Claude and AI Agents) don't end up with identical card art. Iterates in seed
+// order so assignment is stable regardless of follow state. Topics that can't
+// claim a unique thumbnail fall back to the procedural gradient.
+function buildTopicCovers(topicsInOrder, contentByTopic) {
+  const used = new Set()
+  const map = {}
+  for (const t of topicsInOrder) {
+    const items = t.isUserAdded ? null : (contentByTopic ? (contentByTopic(t.id) || []) : [])
+    const chosen = t.isUserAdded
+      ? cachedCoverForUserTopic(t, used)
+      : pickCover(items, used)
+    if (chosen) used.add(chosen)
+    map[t.id] = chosen
+  }
+  return map
 }
 
 export default function Topics() {
   const { topics, contentByTopic } = useSeed()
   const { isFollowing, toggleFollow, userTopics, removeUserTopic } = useStore()
+  const confirm = useConfirm()
+  const [showNew, setShowNew] = useState(false)
+  const [sortBy, setSortBy] = useState('newest')
+
+  async function askRemoveUserTopic(t) {
+    const ok = await confirm({
+      title: `Remove "${t.name}"?`,
+      message:
+        'This stops tracking the topic. Any URLs you added to it stay in Memory > Added URLs but lose this topic label.',
+      confirmLabel: 'Remove topic',
+      danger: true,
+    })
+    if (ok) removeUserTopic(t.id)
+  }
 
   const userTopicList = Object.values(userTopics)
   const merged = [
@@ -25,7 +91,23 @@ export default function Topics() {
     ...userTopicList.map((t) => ({ ...t, isUserAdded: true })),
   ]
 
+  const coversById = buildTopicCovers(merged, contentByTopic)
+
   const sorted = [...merged].sort((a, b) => {
+    if (sortBy === 'az') return a.name.localeCompare(b.name)
+    if (sortBy === 'za') return b.name.localeCompare(a.name)
+    if (sortBy === 'count') {
+      const ac = a.isUserAdded ? 0 : (contentByTopic(a.id)?.length || 0)
+      const bc = b.isUserAdded ? 0 : (contentByTopic(b.id)?.length || 0)
+      return bc - ac
+    }
+    if (sortBy === 'newest') {
+      // user-added topics have timestamp-encoded IDs; seed topics go last
+      if (a.isUserAdded && !b.isUserAdded) return -1
+      if (!a.isUserAdded && b.isUserAdded) return 1
+      return (b.id || '').localeCompare(a.id || '')
+    }
+    // following first
     const aFollowed = a.isUserAdded ? a.followed : isFollowing(a.id)
     const bFollowed = b.isUserAdded ? b.followed : isFollowing(b.id)
     return (aFollowed ? 0 : 1) - (bFollowed ? 0 : 1)
@@ -33,15 +115,46 @@ export default function Topics() {
 
   return (
     <div className="p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Topics</h1>
-        <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
-          {sorted.length} {sorted.length === 1 ? 'topic' : 'topics'} in your map
-          {userTopicList.length > 0 ? <> · <span className="text-white">{userTopicList.length} saved from search</span></> : null}.
-        </p>
+      <header className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+            <BookOpen size={20} className="text-[color:var(--color-topic)]" /> My Topics
+          </h1>
+          <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
+            {sorted.length} {sorted.length === 1 ? 'topic' : 'topics'} in your map
+            {userTopicList.length > 0 ? <> · <span className="text-white">{userTopicList.length} saved from search</span></> : null}.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 bg-white/[0.05] border border-white/10 rounded-lg p-0.5">
+            <ArrowUpDown size={11} className="text-[color:var(--color-text-tertiary)] ml-2 flex-shrink-0" />
+            {[
+              { id: 'newest',    label: 'Newest'     },
+              { id: 'following', label: 'Following' },
+              { id: 'az',        label: 'A → Z'     },
+              { id: 'za',        label: 'Z → A'     },
+              { id: 'count',     label: 'Most items' },
+            ].map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setSortBy(opt.id)}
+                className={`px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors ${
+                  sortBy === opt.id
+                    ? 'bg-[color:var(--color-topic)]/25 text-white'
+                    : 'text-[color:var(--color-text-tertiary)] hover:text-white'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setShowNew(true)} className="btn btn-primary text-sm">
+            <Plus size={13} /> New topic
+          </button>
+        </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {sorted.map((t) => {
           const followed = t.isUserAdded ? t.followed : isFollowing(t.id)
           const count = t.isUserAdded ? null : contentByTopic(t.id).length
@@ -51,7 +164,7 @@ export default function Topics() {
                 <TopicCover
                   slug={t.slug}
                   name={t.name}
-                  image={coverImageForTopic(t, contentByTopic)}
+                  image={coversById[t.id]}
                 />
               </Link>
 
@@ -63,7 +176,7 @@ export default function Topics() {
                   </span>
                 </div>
                 {t.isUserAdded ? (
-                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium text-[color:var(--color-creator)] px-1.5 py-0.5 rounded border border-[color:var(--color-creator)]/30 bg-[color:var(--color-creator)]/10">
+                  <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium text-[color:var(--color-creator)] px-1.5 py-0.5 rounded bg-[color:var(--color-creator)]/15">
                     <Sparkles size={10} /> saved
                   </span>
                 ) : null}
@@ -81,12 +194,19 @@ export default function Topics() {
                   {count !== null ? `${count} ${count === 1 ? 'item' : 'items'}` : 'live · fetched on visit'}
                 </span>
                 {t.isUserAdded ? (
-                  <button
-                    onClick={() => removeUserTopic(t.id)}
-                    className="btn text-xs text-rose-300 hover:text-rose-200 hover:border-rose-400/40"
-                  >
-                    <Trash2 size={13} /> Remove
-                  </button>
+                  <div className="inline-flex items-center gap-1.5">
+                    <span className="btn btn-primary text-xs cursor-default opacity-95" aria-label="Saved topic">
+                      <BookmarkCheck size={13} /> Saved
+                    </span>
+                    <button
+                      onClick={() => askRemoveUserTopic(t)}
+                      className="btn text-xs text-rose-300 hover:text-rose-200 hover:border-rose-400/40 px-2"
+                      aria-label={`Remove ${t.name}`}
+                      title="Remove topic"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={() => toggleFollow(t.id)}
@@ -101,6 +221,8 @@ export default function Topics() {
           )
         })}
       </div>
+
+      <NewTopicModal open={showNew} onClose={() => setShowNew(false)} />
     </div>
   )
 }

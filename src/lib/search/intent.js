@@ -1,6 +1,9 @@
 // Stage 1 + 2 of the FlowMap search algorithm: deterministic query interpretation
 // and search plan generation. Pure rules, no AI. Hand-curated alias groups expand
 // well-known terms; topic-aware expansion uses the seed's relatedTopicIds + toolIds.
+// Phase 2 added queryIntents + freshSensitive, both heuristic.
+
+import { classifyQueryIntent, isFreshnessSensitiveQuery } from './queryIntent.js'
 
 // Bidirectional alias groups — typing any term expands to the others.
 const ALIAS_GROUPS = [
@@ -64,7 +67,8 @@ export function interpretQuery(rawQuery) {
   if (!normalized) {
     return {
       rawQuery, normalizedQuery: '', sourceTypes: ['article', 'video'],
-      timeScope: 'any', expandedTerms: [], confidence: 0,
+      timeScope: 'any', expandedTerms: [],
+      queryIntents: [], freshSensitive: false, confidence: 0,
     }
   }
   const lower = normalized.toLowerCase()
@@ -87,6 +91,8 @@ export function interpretQuery(rawQuery) {
     sourceTypes: detectSourceTypes(lower),
     timeScope: detectTimeScope(lower),
     expandedTerms: [...expandedSet].slice(0, 6),
+    queryIntents: classifyQueryIntent(normalized),
+    freshSensitive: isFreshnessSensitiveQuery(normalized),
     confidence: 1.0,
   }
 }

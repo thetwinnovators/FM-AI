@@ -54,7 +54,7 @@ export default function GlassSidebar({
         className="w-[250px] flex flex-col rounded-2xl overflow-hidden absolute top-[48px] left-3 z-20 max-h-[544px]"
         style={{
           background: 'rgba(6,10,22,0.68)',
-          backdropFilter: 'blur(22px) saturate(1.6)',
+          backdropFilter: 'blur(8px) saturate(1.3)',
           border: '1px solid rgba(255,255,255,0.11)',
           boxShadow: '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
         }}
@@ -135,7 +135,7 @@ export default function GlassSidebar({
       className="w-[250px] flex flex-col rounded-2xl overflow-hidden absolute top-[48px] left-3 z-20 max-h-[544px]"
       style={{
         background: 'rgba(6,10,22,0.68)',
-        backdropFilter: 'blur(22px) saturate(1.6)',
+        backdropFilter: 'blur(8px) saturate(1.3)',
         border: '1px solid rgba(255,255,255,0.11)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
       }}
@@ -150,7 +150,7 @@ export default function GlassSidebar({
         />
       </div>
 
-      <div className="overflow-auto flex-1 p-2">
+      <div className="overflow-auto flex-1 p-2 glass-scroll">
         {filtered ? (
           filtered.length === 0 ? (
             <p className="text-[10px] text-white/40 px-2 py-4 text-center">No matches.</p>

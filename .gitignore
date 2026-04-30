@@ -8,3 +8,6 @@ dist
 .env.local
 coverage
 .vite
+.claude/
+docs/*.pdf
+docs/*.docx

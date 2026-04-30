@@ -59,7 +59,7 @@ export default function InterestMemoryPanel() {
         {filtered.length === 0 ? (
           <p className="text-sm text-[color:var(--color-text-tertiary)] py-8 text-center">No entries in this category.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
             {filtered.map((entry) => (
               <MemoryEntryCard
                 key={entry.id}

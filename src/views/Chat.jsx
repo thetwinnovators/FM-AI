@@ -129,11 +129,14 @@ function MessageContextPanel({ context }) {
   )
 }
 
-// Parse [label](url) and bare https:// URLs into React elements.
-// Internal paths (starting with /) become <Link>; external become <a target="_blank">.
+// Parse [label](url), bare https:// URLs, and bare internal paths into
+// React elements. The bare-path branch is defense-in-depth: small models
+// often skip the markdown wrapper and just emit "/documents/doc_xyz" inline,
+// and we still want those to navigate. Whitelisted to known FlowMap routes
+// so we don't false-match arbitrary slashes.
 function renderContent(text) {
   if (!text) return null
-  const re = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"')\]]+)/g
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"')\]]+)|(\/(?:topics|documents|discover|memory|chat|education|search)(?:\/[A-Za-z0-9_-]+)?|\/topic\/[A-Za-z0-9_-]+)/g
   const parts = []
   let last = 0
   let key = 0
@@ -158,14 +161,23 @@ function renderContent(text) {
           </a>
         )
       }
-    } else {
-      // Bare URL
+    } else if (m[3] != null) {
+      // Bare external URL
       const href = m[3]
       parts.push(
         <a key={key++} href={href} target="_blank" rel="noopener noreferrer"
           className="underline text-[color:var(--color-creator)]/70 hover:text-[color:var(--color-creator)] transition-colors break-all">
           {href}
         </a>
+      )
+    } else {
+      // Bare internal path — render as SPA <Link>
+      const href = m[4]
+      parts.push(
+        <Link key={key++} to={href} onClick={(e) => e.stopPropagation()}
+          className="underline text-[color:var(--color-article)]/80 hover:text-[color:var(--color-article)] transition-colors break-all">
+          {href}
+        </Link>
       )
     }
     last = m.index + m[0].length
@@ -527,7 +539,8 @@ export default function Chat() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const {
-    documents, documentContents,
+    documents, documentContents, folders,
+    manualContent, saves,
     memoryEntries, isMemoryDismissed,
     userTopics, isFollowing,
     userNotes,
@@ -539,6 +552,30 @@ export default function Chat() {
   const conversation = id ? conversationById(id) : null
   const messages = id ? chatMessagesFor(id) : []
   const allDocs = useMemo(() => Object.values(documents || {}), [documents])
+
+  // Normalized pool of non-document saved content for retrieval scoring.
+  // Includes manually added URLs and bookmarked items (saves with stored snapshots).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const contentPool = useMemo(() => {
+    const pool = []
+    const seenIds = new Set()
+    for (const entry of Object.values(manualContent || {})) {
+      const it = entry.item
+      if (!it?.id || seenIds.has(it.id)) continue
+      seenIds.add(it.id)
+      pool.push({ id: it.id, title: it.title || '', summary: it.summary || it.excerpt || '', url: it.url || null, type: it.type || 'article', _kind: 'content' })
+    }
+    for (const [sid, entry] of Object.entries(saves || {})) {
+      if (seenIds.has(sid)) continue
+      seenIds.add(sid)
+      const it = entry.item || contentById?.(sid) || null
+      if (!it) continue
+      pool.push({ id: it.id || sid, title: it.title || '', summary: it.summary || it.excerpt || '', url: it.url || null, type: it.type || 'article', _kind: 'content' })
+    }
+    return pool
+  }, [manualContent, saves]) // contentById is stable seed data — safe to omit
+
+  const searchablePool = useMemo(() => [...allDocs, ...contentPool], [allDocs, contentPool])
 
   const [streamingText, setStreamingText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -643,7 +680,7 @@ export default function Chat() {
     const intent = classifyIntent(text)
     const retrieved = intent === 'casual_chat'
       ? []
-      : retrieveDocuments(text, allDocs, documentContents, 5)
+      : retrieveDocuments(text, searchablePool, documentContents, 7)
     setRetrievedHint(retrieved)
     const allMemory = [
       ...(seedMemory || []).filter((m) => !isMemoryDismissed(m.id)),
@@ -673,7 +710,7 @@ export default function Chat() {
         }
       }
     }
-    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent)
+    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, folders)
 
     // Construct the message array for Ollama: system + recent history + new user msg
     const recent = chatMessagesFor(convId) // includes the user msg we just added
