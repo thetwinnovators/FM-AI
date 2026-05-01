@@ -23,7 +23,7 @@ describe('checkPermission', () => {
     const result = checkPermission(makeTool('approval_required'))
     expect(result.allowed).toBe(true)
     expect(result.requiresApproval).toBe(true)
-    expect(result.reason).toBeTruthy()
+    expect(result.reason).toContain('Test Tool')
   })
 
   it('read_only → allowed without approval', () => {
@@ -32,9 +32,16 @@ describe('checkPermission', () => {
     expect(result.requiresApproval).toBe(false)
   })
 
+  it('restricted → blocked with reason', () => {
+    const result = checkPermission(makeTool('restricted'))
+    expect(result.allowed).toBe(false)
+    expect(result.reason).toContain('Test Tool')
+  })
+
   it('restricted → blocked', () => {
     const result = checkPermission(makeTool('restricted'))
     expect(result.allowed).toBe(false)
+    expect(result.requiresApproval).toBe(false)
     expect(result.reason).toBeTruthy()
   })
 })

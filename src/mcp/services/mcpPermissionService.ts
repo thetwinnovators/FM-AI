@@ -25,5 +25,10 @@ export function checkPermission(tool: MCPToolDefinition): PermissionResult {
         requiresApproval: false,
         reason: `"${tool.displayName}" is restricted and cannot be run.`,
       }
+    default: {
+      const _exhaustive: never = mode
+      throw new Error(`Unhandled permission mode: ${_exhaustive}`)
+    }
   }
 }
+
