@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Unplug, Plug } from 'lucide-react'
 import { useMCPIntegrations } from '../hooks/useMCPIntegrations.js'
@@ -16,10 +16,15 @@ export default function MCPIntegrationDetailPage() {
   const { tools } = useMCPTools(id)
   const { records } = useMCPExecutions(id)
 
-  const [token, setToken] = useState(integration?.config?.['token'] ?? '')
-  const [chatId, setChatId] = useState(integration?.config?.['chatId'] ?? '')
+  const [token, setToken] = useState('')
+  const [chatId, setChatId] = useState('')
   const [connecting, setConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setToken(integration?.config?.['token'] ?? '')
+    setChatId(integration?.config?.['chatId'] ?? '')
+  }, [integration?.config?.['token'], integration?.config?.['chatId']])
 
   if (!integration) {
     return (
@@ -127,7 +132,7 @@ export default function MCPIntegrationDetailPage() {
           <h2 className="text-[11px] uppercase tracking-wide text-white/40 mb-3">
             Tools ({tools.length})
           </h2>
-          <ToolCatalogList tools={tools} />
+          <ToolCatalogList tools={tools} integrationName={() => integration.name} />
         </section>
       ) : null}
 
