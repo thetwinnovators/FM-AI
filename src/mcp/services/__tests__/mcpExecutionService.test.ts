@@ -52,4 +52,37 @@ describe('runTool', () => {
     expect(result.success).toBe(false)
     expect(result.error).toMatch(/not found/i)
   })
+
+  it('queues awaiting_approval record for approval_required tool', async () => {
+    localMCPStorage.saveTools('integ_canva', [
+      {
+        id: 'canva_approval',
+        integrationId: 'integ_canva',
+        toolName: 'approval_tool',
+        displayName: 'Approval Tool',
+        permissionMode: 'approval_required',
+      },
+    ])
+    const result = await runTool({ toolId: 'canva_approval' })
+    expect(result.success).toBe(false)
+    expect(result.requiresApproval).toBe(true)
+    const log = getExecutionLog()
+    expect(log[0].status).toBe('awaiting_approval')
+  })
+
+  it('returns error when tool integration is missing', async () => {
+    localMCPStorage.saveTools('integ_canva', [
+      {
+        id: 'orphan_tool',
+        integrationId: 'integ_nonexistent',
+        toolName: 'orphan',
+        displayName: 'Orphan',
+        permissionMode: 'auto',
+      },
+    ])
+    const result = await runTool({ toolId: 'orphan_tool' })
+    expect(result.success).toBe(false)
+    expect(result.error).toMatch(/not found/i)
+  })
 })
+

@@ -69,7 +69,7 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
       success: false,
       executionId: id,
       requiresApproval: true,
-      error: permission.reason,
+      error: permission.reason ?? 'Approval required',
     }
   }
 
@@ -77,6 +77,14 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
 
   try {
     const provider = getProvider(integration.type)
+    if (!provider) {
+      localMCPStorage.updateExecutionRecord(id, {
+        status: 'failed',
+        completedAt: new Date().toISOString(),
+        errorMessage: `No provider registered for type "${integration.type}"`,
+      })
+      return { success: false, executionId: id, error: `No provider registered for type "${integration.type}"` }
+    }
     const result = await provider.executeTool({ integration, tool, input })
     localMCPStorage.updateExecutionRecord(id, {
       status: result.success ? 'success' : 'failed',
@@ -88,7 +96,7 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
     })
     return { success: result.success, executionId: id, output: result.output, error: result.error }
   } catch (e) {
-    const message = (e as Error).message
+    const message = e instanceof Error ? e.message : String(e)
     localMCPStorage.updateExecutionRecord(id, {
       status: 'failed',
       completedAt: new Date().toISOString(),
