@@ -153,6 +153,23 @@ describe('saveExecutionRecord / listExecutionRecords', () => {
     }
     expect(localMCPStorage.listExecutionRecords({ limit: 2 })).toHaveLength(2)
   })
+
+  it('caps execution records at 500 and evicts the oldest', () => {
+    for (let i = 0; i < 501; i++) {
+      localMCPStorage.saveExecutionRecord({
+        id: `exec_cap_${i}`,
+        toolId: 't1',
+        integrationId: 'integ_telegram',
+        sourceSurface: 'chat',
+        status: 'success',
+        requestedAt: new Date(2026, 0, 1, 0, i).toISOString(),
+      })
+    }
+    const records = localMCPStorage.listExecutionRecords()
+    expect(records).toHaveLength(500)
+    const ids = records.map((r) => r.id)
+    expect(ids).not.toContain('exec_cap_0')
+  })
 })
 
 describe('updateExecutionRecord', () => {

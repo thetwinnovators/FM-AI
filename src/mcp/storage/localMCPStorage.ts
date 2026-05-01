@@ -28,8 +28,6 @@ function write<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
 }
 
-const now = Date.now()
-
 const SEED_INTEGRATIONS: MCPIntegration[] = [
   {
     id: 'integ_telegram',
@@ -77,51 +75,53 @@ const SEED_INTEGRATIONS: MCPIntegration[] = [
   },
 ]
 
-const SEED_TELEGRAM_MESSAGES: TelegramCommandMessage[] = [
-  {
-    id: 'tcm_1',
-    chatId: 'demo',
-    messageText: 'Summarize this URL: https://example.com/article',
-    receivedAt: new Date(now - 60_000 * 5).toISOString(),
-    status: 'processed',
-  },
-  {
-    id: 'tcm_2',
-    chatId: 'demo',
-    messageText: 'Create a research canvas called AI competitors',
-    receivedAt: new Date(now - 60_000 * 15).toISOString(),
-    status: 'received',
-  },
-  {
-    id: 'tcm_3',
-    chatId: 'demo',
-    messageText: 'Send me 3 caption ideas for this topic',
-    receivedAt: new Date(now - 60_000 * 45).toISOString(),
-    status: 'failed',
-  },
-  {
-    id: 'tcm_4',
-    chatId: 'demo',
-    messageText: "What's on my calendar today?",
-    receivedAt: new Date(now - 60_000 * 90).toISOString(),
-    status: 'processed',
-  },
-  {
-    id: 'tcm_5',
-    chatId: 'demo',
-    messageText: 'Create a Google Doc from my last note',
-    receivedAt: new Date(now - 60_000 * 180).toISOString(),
-    status: 'processed',
-  },
-]
+function makeSeedTelegramMessages(): TelegramCommandMessage[] {
+  const ts = Date.now()
+  return [
+    {
+      id: 'tcm_1',
+      chatId: 'demo',
+      messageText: 'Summarize this URL: https://example.com/article',
+      receivedAt: new Date(ts - 60_000 * 5).toISOString(),
+      status: 'processed',
+    },
+    {
+      id: 'tcm_2',
+      chatId: 'demo',
+      messageText: 'Create a research canvas called AI competitors',
+      receivedAt: new Date(ts - 60_000 * 15).toISOString(),
+      status: 'received',
+    },
+    {
+      id: 'tcm_3',
+      chatId: 'demo',
+      messageText: 'Send me 3 caption ideas for this topic',
+      receivedAt: new Date(ts - 60_000 * 45).toISOString(),
+      status: 'failed',
+    },
+    {
+      id: 'tcm_4',
+      chatId: 'demo',
+      messageText: "What's on my calendar today?",
+      receivedAt: new Date(ts - 60_000 * 90).toISOString(),
+      status: 'processed',
+    },
+    {
+      id: 'tcm_5',
+      chatId: 'demo',
+      messageText: 'Create a Google Doc from my last note',
+      receivedAt: new Date(ts - 60_000 * 180).toISOString(),
+      status: 'processed',
+    },
+  ]
+}
 
 function seedOnce(): void {
-  if (!localStorage.getItem(KEYS.integrations)) {
-    write(KEYS.integrations, SEED_INTEGRATIONS)
-  }
-  if (!localStorage.getItem(KEYS.telegramMessages)) {
-    write(KEYS.telegramMessages, SEED_TELEGRAM_MESSAGES)
-  }
+  const integrations = read<MCPIntegration[]>(KEYS.integrations, [])
+  if (integrations.length === 0) write(KEYS.integrations, SEED_INTEGRATIONS)
+
+  const messages = read<TelegramCommandMessage[]>(KEYS.telegramMessages, [])
+  if (messages.length === 0) write(KEYS.telegramMessages, makeSeedTelegramMessages())
 }
 
 export const localMCPStorage: MCPStorage = {
@@ -172,8 +172,8 @@ export const localMCPStorage: MCPStorage = {
   },
   saveExecutionRecord(record) {
     const records = read<MCPExecutionRecord[]>(KEYS.executions, [])
-    records.unshift(record)
-    if (records.length > MAX_EXECUTIONS) records.splice(MAX_EXECUTIONS)
+    records.push(record)
+    if (records.length > MAX_EXECUTIONS) records.shift()
     write(KEYS.executions, records)
   },
   updateExecutionRecord(id, patch) {
