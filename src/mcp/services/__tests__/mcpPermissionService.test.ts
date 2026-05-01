@@ -36,12 +36,6 @@ describe('checkPermission', () => {
     const result = checkPermission(makeTool('restricted'))
     expect(result.allowed).toBe(false)
     expect(result.reason).toContain('Test Tool')
-  })
-
-  it('restricted → blocked', () => {
-    const result = checkPermission(makeTool('restricted'))
-    expect(result.allowed).toBe(false)
     expect(result.requiresApproval).toBe(false)
-    expect(result.reason).toBeTruthy()
   })
 })
