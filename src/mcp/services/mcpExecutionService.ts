@@ -38,8 +38,6 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
     }
   }
 
-  const permission = checkPermission(tool)
-
   const id = makeId()
   const record: MCPExecutionRecord = {
     id,
@@ -53,6 +51,8 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
       : undefined,
   }
   localMCPStorage.saveExecutionRecord(record)
+
+  const permission = checkPermission(tool)
 
   if (!permission.allowed) {
     localMCPStorage.updateExecutionRecord(id, {
