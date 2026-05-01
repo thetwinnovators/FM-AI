@@ -1,7 +1,6 @@
 import type { MCPIntegrationProvider } from './types.js'
 import type { MCPToolDefinition } from '../types.js'
 import { realTelegramProvider } from './realTelegramProvider.js'
-import { mockTelegramProvider } from './mockTelegramProvider.js'
 
 const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
   {
@@ -37,12 +36,14 @@ export const telegramMCPProvider: MCPIntegrationProvider = {
   async executeTool({ integration, tool, input }) {
     const token = integration.config?.['token'] ?? ''
     const chatId = integration.config?.['chatId'] ?? ''
-    const provider = token ? realTelegramProvider : mockTelegramProvider
+    if (!token || !chatId) {
+      return { success: false, error: 'Telegram bot token and chat ID are required' }
+    }
     const text =
       typeof input['text'] === 'string'
         ? input['text']
         : `[FlowMap] Tool: ${tool.displayName}`
-    const result = await provider.sendMessage({ token, chatId, text })
+    const result = await realTelegramProvider.sendMessage({ token, chatId, text })
     return { success: result.success, output: result, error: result.error }
   },
   async testConnection(integration) {

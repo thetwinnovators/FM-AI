@@ -25,19 +25,12 @@ export const realTelegramProvider: TelegramProvider = {
     }
   },
 
-  async testConnection({ token, chatId }) {
+  async testConnection({ token }) {
     try {
-      const res = await fetch(`${BASE}/bot${token}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: '✅ FlowMap connected successfully.',
-        }),
-      })
+      const res = await fetch(`${BASE}/bot${token}/getMe`)
       const data = (await res.json()) as { ok: boolean; description?: string }
       if (!data.ok) {
-        return { success: false, error: data.description ?? 'Telegram API error' }
+        return { success: false, error: data.description ?? 'Invalid bot token' }
       }
       return { success: true }
     } catch (e) {
@@ -47,10 +40,10 @@ export const realTelegramProvider: TelegramProvider = {
 
   async handleIncomingWebhook(payload): Promise<TelegramCommandMessage> {
     const p = payload as {
-      message?: { chat?: { id?: number }; text?: string }
+      message?: { message_id?: number; chat?: { id?: number }; text?: string }
     }
     return {
-      id: `tcm_${Date.now()}`,
+      id: `tcm_${p.message?.message_id ?? Date.now()}`,
       chatId: String(p.message?.chat?.id ?? ''),
       messageText: p.message?.text ?? '',
       receivedAt: new Date().toISOString(),
