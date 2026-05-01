@@ -14,6 +14,11 @@ import Memory from './views/Memory.jsx'
 import Documents from './views/Documents.jsx'
 import Document from './views/Document.jsx'
 import Chat from './views/Chat.jsx'
+import MCPIntegrationsPage from './mcp/pages/MCPIntegrationsPage.jsx'
+import MCPIntegrationDetailPage from './mcp/pages/MCPIntegrationDetailPage.jsx'
+import MCPToolCatalogPage from './mcp/pages/MCPToolCatalogPage.jsx'
+import MCPExecutionLogPage from './mcp/pages/MCPExecutionLogPage.jsx'
+import TelegramCommandCenterPage from './mcp/pages/TelegramCommandCenterPage.jsx'
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -32,6 +37,11 @@ function AnimatedRoutes() {
         <Route path="/chat/:id" element={<Chat />} />
         <Route path="/education" element={<Education />} />
         <Route path="/memory" element={<Memory />} />
+        <Route path="/connections" element={<MCPIntegrationsPage />} />
+        <Route path="/connections/tools" element={<MCPToolCatalogPage />} />
+        <Route path="/connections/log" element={<MCPExecutionLogPage />} />
+        <Route path="/connections/telegram" element={<TelegramCommandCenterPage />} />
+        <Route path="/connections/:id" element={<MCPIntegrationDetailPage />} />
       </Routes>
     </div>
   )
