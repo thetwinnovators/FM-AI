@@ -1,6 +1,5 @@
 export type IntegrationType =
   | 'telegram'
-  | 'google-workspace'
   | 'google-drive'
   | 'gmail'
   | 'google-calendar'
@@ -11,8 +10,6 @@ export type IntegrationType =
   | 'instagram'
   | 'facebook'
   | 'figma'
-  | 'canva'
-  | 'generic-mcp'
 
 export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pending'
 

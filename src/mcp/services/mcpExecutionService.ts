@@ -76,6 +76,8 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
   localMCPStorage.updateExecutionRecord(id, { status: 'running' })
 
   try {
+    // Note: unlike discoverTools(), we do not throw here because there is an
+    // in-flight execution record that must be completed with a failure status.
     const provider = getProvider(integration.type)
     if (!provider) {
       localMCPStorage.updateExecutionRecord(id, {
