@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { checkPermission } from '../mcpPermissionService.js'
-import type { MCPToolDefinition } from '../../types.js'
+import type { MCPToolDefinition, MCPToolRiskLevel } from '../../types.js'
 
 function makeTool(permissionMode: MCPToolDefinition['permissionMode']): MCPToolDefinition {
   return {
@@ -42,9 +42,9 @@ describe('checkPermission', () => {
 
 describe('checkPermission — riskLevel takes precedence', () => {
   function makeToolWithRisk(
-    riskLevel: import('../../types.js').MCPToolRiskLevel,
-    permissionMode: import('../../types.js').MCPToolDefinition['permissionMode'] = 'auto',
-  ): import('../../types.js').MCPToolDefinition {
+    riskLevel: MCPToolRiskLevel,
+    permissionMode: MCPToolDefinition['permissionMode'] = 'auto',
+  ): MCPToolDefinition {
     return {
       id: 't_risk',
       integrationId: 'i1',

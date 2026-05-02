@@ -9,7 +9,6 @@ export interface PermissionResult {
 function checkByRiskLevel(level: MCPToolRiskLevel, name: string): PermissionResult {
   switch (level) {
     case 'read':
-      return { allowed: true, requiresApproval: false }
     case 'write':
       return { allowed: true, requiresApproval: false }
     case 'publish':
