@@ -4,6 +4,8 @@ import { localMCPStorage } from '../storage/localMCPStorage.js'
 import { telegramMCPProvider } from '../providers/telegramMCPProvider.js'
 import { googleDocsProvider } from '../providers/googleDocsProvider.js'
 import { googleDriveProvider } from '../providers/googleDriveProvider.js'
+import { gmailProvider } from '../providers/gmailProvider.js'
+import { googleCalendarProvider } from '../providers/googleCalendarProvider.js'
 import { figmaProvider } from '../providers/figmaProvider.js'
 
 // Only integrations with a real or mock provider are registered here.
@@ -13,6 +15,8 @@ const PROVIDERS: Partial<Record<IntegrationType, MCPIntegrationProvider>> = {
   telegram: telegramMCPProvider,
   'google-docs': googleDocsProvider,
   'google-drive': googleDriveProvider,
+  gmail: gmailProvider,
+  'google-calendar': googleCalendarProvider,
   figma: figmaProvider,
 }
 
