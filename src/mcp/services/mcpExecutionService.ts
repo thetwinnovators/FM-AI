@@ -2,6 +2,7 @@ import type { MCPExecutionRecord, SourceSurface } from '../types.js'
 import { localMCPStorage } from '../storage/localMCPStorage.js'
 import { checkPermission } from './mcpPermissionService.js'
 import { getProvider } from './mcpToolRegistry.js'
+import { writeExecutionMemory } from './mcpMemoryService.js'
 
 export interface RunToolParams {
   toolId: string
@@ -88,14 +89,22 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
       return { success: false, executionId: id, error: `No provider registered for type "${integration.type}"` }
     }
     const result = await provider.executeTool({ integration, tool, input })
+    const outputSummary = result.output
+      ? JSON.stringify(result.output).slice(0, 120)
+      : undefined
     localMCPStorage.updateExecutionRecord(id, {
       status: result.success ? 'success' : 'failed',
       completedAt: new Date().toISOString(),
-      outputSummary: result.output
-        ? JSON.stringify(result.output).slice(0, 120)
-        : undefined,
+      outputSummary,
       errorMessage: result.error,
     })
+    if (result.success && (tool.riskLevel === 'write' || tool.riskLevel === 'publish')) {
+      writeExecutionMemory(
+        { ...record, status: 'success', outputSummary },
+        tool,
+        integration,
+      )
+    }
     return { success: result.success, executionId: id, output: result.output, error: result.error }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e)
