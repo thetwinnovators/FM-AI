@@ -2,6 +2,8 @@ import type { MCPIntegrationProvider } from './types.js'
 import type { MCPToolDefinition } from '../types.js'
 import { realTelegramProvider } from './realTelegramProvider.js'
 
+// permissionMode is kept alongside riskLevel for backwards compat.
+// The permission gate uses riskLevel when present (see mcpPermissionService.ts).
 const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
   {
     id: 'telegram_send_message',
@@ -31,11 +33,11 @@ const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
     id: 'telegram_send_document',
     toolName: 'send_document',
     displayName: 'Send Document',
-    description: 'Send a file or document link to Telegram.',
+    description: 'Send a document link or file URL as a message to Telegram.',
     riskLevel: 'publish',
     permissionMode: 'approval_required',
     inputSchema: {
-      text: { type: 'string', description: 'Message or file link to send' },
+      text: { type: 'string', description: 'Document URL or file link to send as a message' },
     },
     tags: ['telegram', 'document'],
   },
