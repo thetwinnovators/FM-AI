@@ -55,10 +55,10 @@ export const googleDocsProvider: MCPIntegrationProvider = {
         error: `Google Docs is not connected. Open Connections → Google Docs to set it up.`,
       }
     }
-    // OAuth execution not yet wired — Phase 2
+    // OAuth execution not yet wired — Phase 3
     return {
       success: false,
-      error: `Google Docs tool "${tool.displayName}" requires OAuth — coming in Phase 2.`,
+      error: `Google Docs tool "${tool.displayName}" requires OAuth — coming in Phase 3.`,
     }
   },
 
