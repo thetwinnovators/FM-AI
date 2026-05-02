@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Plus, Send, MessageSquare, Sparkles, Loader2, Trash2, FileText, AlertCircle, Copy, Check, ChevronUp, ChevronDown, ChevronRight, Pencil, NotebookPen, Compass, Pin, PinOff, Mic, MicOff, Square } from 'lucide-react'
 import { useMicTranscription } from '../lib/voice/useMicTranscription.js'
@@ -6,10 +6,15 @@ import { useStore } from '../store/useStore.js'
 import { useSeed } from '../store/useSeed.js'
 import { OLLAMA_CONFIG, setOllamaModel } from '../lib/llm/ollamaConfig.js'
 import { streamChat } from '../lib/llm/ollama.js'
-import { retrieveDocuments, buildSystemMessage, classifyIntent } from '../lib/chat/retrieve.js'
+import { retrieveDocuments, buildSystemMessage, classifyIntent, retrieveWithPipeline } from '../lib/chat/retrieve.js'
+import { localSignalsStorage } from '../signals/storage/localSignalsStorage.js'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { VOICE_CONFIG } from '../lib/voice/voiceConfig.js'
 import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../lib/voice/player.js'
+import { generateFollowUps } from '../flow-ai/services/followUpService.js'
+import SuggestedPrompts from '../components/chat/SuggestedPrompts.jsx'
+import StarterPromptGrid from '../components/chat/StarterPromptGrid.jsx'
+import ChatMessage from '../components/chat/ChatMessage.jsx'
 
 function relativeDate(iso) {
   if (!iso) return ''
@@ -191,21 +196,56 @@ function MessageBubble({ message }) {
   const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
+    const text = message.content || ''
+    // Try Clipboard API first; if it throws (permission denied, document not
+    // focused, non-HTTPS dev context), immediately fall through to execCommand.
     try {
-      await navigator.clipboard.writeText(message.content || '')
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1200)
-    } catch { /* clipboard might be blocked — ignore */ }
+      await navigator.clipboard.writeText(text)
+    } catch {
+      try {
+        const el = document.createElement('textarea')
+        el.value = text
+        el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+        document.body.appendChild(el)
+        el.focus()
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      } catch { /* truly blocked — still show feedback */ }
+    }
+    // Always show the visual confirmation regardless of which path ran.
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
   }
 
   const CopyButton = (
     <button
       onClick={handleCopy}
-      className="self-end mb-1 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06] transition-opacity flex-shrink-0"
-      title={copied ? 'Copied' : 'Copy message'}
+      className={`self-end mb-1 rounded-lg flex items-center gap-1 transition-all flex-shrink-0
+        ${copied
+          ? 'px-2 py-1 bg-emerald-500/15 border border-emerald-400/25 text-emerald-400 opacity-100'
+          : 'p-1.5 opacity-0 group-hover:opacity-100 text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06]'
+        }`}
+      title={copied ? 'Copied!' : 'Copy message'}
       aria-label="Copy message"
     >
-      {copied ? <Check size={13} className="text-emerald-300" /> : <Copy size={13} />}
+      {copied ? (
+        <>
+          <Check
+            size={12}
+            className="text-emerald-400"
+            style={{ animation: 'copiedPop 0.2s cubic-bezier(0.34,1.56,0.64,1) both' }}
+          />
+          <span
+            className="text-[11px] font-medium leading-none"
+            style={{ animation: 'copiedFade 0.2s ease both' }}
+          >
+            Copied
+          </span>
+        </>
+      ) : (
+        <Copy size={13} />
+      )}
     </button>
   )
 
@@ -214,13 +254,16 @@ function MessageBubble({ message }) {
       <div className={`group flex items-end gap-1 ${isUser ? 'justify-end' : 'justify-start'}`}>
         {isUser ? CopyButton : null}
         <div
-          className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+          className={`max-w-[75%] rounded-2xl px-4 py-2.5 leading-relaxed ${
             isUser
-              ? 'bg-[rgba(94,234,212,0.18)] text-white'
+              ? 'text-sm whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white'
               : 'bg-white/[0.05] text-white/90'
           }`}
         >
-          {message.content ? renderContent(message.content) : <span className="text-white/40 italic">empty</span>}
+          {isUser
+            ? (message.content ? renderContent(message.content) : <span className="text-white/40 italic">empty</span>)
+            : (message.content ? <ChatMessage content={message.content} /> : <span className="text-white/40 italic">empty</span>)
+          }
         </div>
         {!isUser ? CopyButton : null}
       </div>
@@ -443,7 +486,7 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
           disabled ? 'Enable Ollama in the gear menu to chat.'
           : mic.listening ? 'Listening… click mic again to transcribe'
           : mic.transcribing ? 'Transcribing with Whisper…'
-          : 'Ask a question about your documents… (Enter to send, Shift+Enter for newline)'
+          : 'Ask anything about your knowledge base… (Enter to send, Shift+Enter for newline)'
         }
         disabled={disabled}
         rows={2}
@@ -546,12 +589,17 @@ export default function Chat() {
     userNotes,
     createConversation, updateConversation, deleteConversation, addChatMessage,
     conversationById, chatMessagesFor,
+    addMemory, addUserTopic,
+    recentSearches,
   } = useStore()
   const { seedMemory, topics: seedTopics, contentById } = useSeed()
 
   const conversation = id ? conversationById(id) : null
   const messages = id ? chatMessagesFor(id) : []
   const allDocs = useMemo(() => Object.values(documents || {}), [documents])
+  const allUserTopics = useMemo(() => Object.values(userTopics || {}), [userTopics])
+  const starterSearches = useMemo(() => recentSearches(6), [recentSearches])
+  const starterSignals = useMemo(() => localSignalsStorage.listSignals(), [])
 
   // Normalized pool of non-document saved content for retrieval scoring.
   // Includes manually added URLs and bookmarked items (saves with stored snapshots).
@@ -586,6 +634,9 @@ export default function Chat() {
   // button and Esc hotkey when there's no active stream but voice is alive.
   const [voicePlaying, setVoicePlaying] = useState(false)
   useEffect(() => subscribeVoicePlaying(setVoicePlaying), [])
+  const [suggestions, setSuggestions] = useState(null)
+  // Ref so the action handler can read the latest assistant text without stale closure
+  const latestAssistantRef = useRef('')
   const abortRef = useRef(null)
   const scrollRef = useRef(null)
 
@@ -665,6 +716,37 @@ export default function Chat() {
     }
   }
 
+  // ── FlowMap action runner ─────────────────────────────────────────────────
+  // Parses <fm-action>{...}</fm-action> blocks from the AI reply, runs each
+  // action against the store/router, and returns the cleaned display text.
+  function runAssistantActions(rawText) {
+    const re = /<fm-action>([\s\S]*?)<\/fm-action>/gi
+    let m
+    while ((m = re.exec(rawText)) !== null) {
+      let action
+      try { action = JSON.parse(m[1].trim()) } catch { continue }
+      try {
+        if (action.type === 'add_topic' && action.name) {
+          addUserTopic({
+            name:    String(action.name).trim(),
+            summary: action.summary ? String(action.summary).trim() : 'Added via FlowMap AI.',
+            source:  'chat-ai',
+            query:   String(action.name).trim(),
+          })
+        } else if (action.type === 'save_memory' && action.content) {
+          addMemory({
+            category: action.category || 'research_note',
+            content:  String(action.content).trim(),
+            source:   'chat-ai',
+          })
+        } else if (action.type === 'navigate' && action.path) {
+          setTimeout(() => navigate(String(action.path)), 800)
+        }
+      } catch { /* action failed silently */ }
+    }
+    return rawText.replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '').replace(/\n{3,}/g, '\n\n').trim()
+  }
+
   async function handleSend(text) {
     let convId = id
     // Auto-create conversation on first message
@@ -678,9 +760,51 @@ export default function Chat() {
     // Classify intent first — skip retrieval entirely for casual chat so the
     // model never responds to "hey" with retrieval-failure language.
     const intent = classifyIntent(text)
-    const retrieved = intent === 'casual_chat'
-      ? []
-      : retrieveDocuments(text, searchablePool, documentContents, 7)
+
+    // Create the abort controller early — shared across pipeline retrieval and
+    // the Ollama stream so Esc / Stop cancels both at once.
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+
+    // ── Retrieval ─────────────────────────────────────────────────────────────
+    // Try the flow-ai hybrid pipeline first (semantic + keyword + multi-signal
+    // reranking). Falls back to keyword-only when Ollama is off, the pipeline
+    // errors, or it finds nothing above the relevance threshold.
+    setSuggestions(null)
+    latestAssistantRef.current = ''
+
+    let pipelineResult = null
+    let retrieved = []
+
+    if (intent !== 'casual_chat') {
+      pipelineResult = await retrieveWithPipeline(
+        {
+          query:            text,
+          documents,
+          documentContents,
+          memoryEntries,
+          saves,
+          views:            {},           // TODO: wire useStore.views when available
+          userTopics,
+          seedTopics,
+          signals:          localSignalsStorage.listSignals(),
+        },
+        ctrl.signal,
+      )
+
+      if (pipelineResult) {
+        // Map the doc/save results to the { meta, snippet } shape that CitedDocsHint
+        // and the addChatMessage context block expect.
+        retrieved = pipelineResult.legacyRetrieved.map((r) => ({
+          meta: { id: r.id, title: r.title },
+          snippet: r.snippet,
+        }))
+      } else {
+        // Keyword-only fallback — used when Ollama is off or pipeline returned nothing.
+        retrieved = retrieveDocuments(text, searchablePool, documentContents, 7)
+      }
+    }
+
     setRetrievedHint(retrieved)
     const allMemory = [
       ...(seedMemory || []).filter((m) => !isMemoryDismissed(m.id)),
@@ -710,10 +834,19 @@ export default function Chat() {
         }
       }
     }
-    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, folders)
+    const systemMessage = buildSystemMessage(
+      retrieved, text, allMemory, allTopics, allNotes, intent, folders,
+      pipelineResult?.contextText ?? null,
+      allDocs,
+    )
 
-    // Construct the message array for Ollama: system + recent history + new user msg
-    const recent = chatMessagesFor(convId) // includes the user msg we just added
+    // Construct the message array for Ollama: system + recent history + new user msg.
+    // Cap history at MAX_HISTORY to keep total prompt within small-model context windows
+    // (~4k tokens). The system message alone can be 2–3k tokens (memory, topics, docs,
+    // excerpts), so we only have room for the last few turns of dialogue.
+    const MAX_HISTORY = 12 // 6 user+assistant pairs
+    const allRecent = chatMessagesFor(convId) // includes the user msg we just added
+    const recent = allRecent.length > MAX_HISTORY ? allRecent.slice(-MAX_HISTORY) : allRecent
     const llmMessages = [
       { role: 'system', content: systemMessage },
       ...recent.map((m) => ({ role: m.role, content: m.content })),
@@ -721,49 +854,78 @@ export default function Chat() {
 
     setBusy(true)
     setStreamingText('')
-    const ctrl = new AbortController()
-    abortRef.current = ctrl
     let assistantText = ''
     try {
-      for await (const chunk of streamChat(llmMessages, { signal: ctrl.signal })) {
-        assistantText += chunk
-        setStreamingText(assistantText)
-      }
-    } catch { /* devWarn already fired in adapter */ }
+      try {
+        for await (const chunk of streamChat(llmMessages, { signal: ctrl.signal })) {
+          assistantText += chunk
+          setStreamingText(assistantText)
+        }
+      } catch { /* devWarn already fired in adapter */ }
 
-    if (assistantText.trim()) {
-      addChatMessage(convId, {
-        role: 'assistant',
-        content: assistantText,
-        citedDocumentIds: retrieved.map((r) => r.meta.id),
-        // Persist exactly what was injected into this turn's system prompt so
-        // the message's "Context" panel can show provenance later. Memory is
-        // filtered to active entries (matches what formatMemoryBlock includes);
-        // topics include all so the user sees the full library scope.
-        context: {
-          retrieved: retrieved.map((r) => ({ id: r.meta.id, title: r.meta.title, snippet: r.snippet })),
-          memory: allMemory
-            .filter((m) => (m.status || 'active') === 'active' && m.content)
-            .map((m) => ({ category: m.category, content: m.content })),
-          topics: allTopics.map((t) => ({ name: t.name, summary: t.summary, isUser: t.isUser, followed: t.followed })),
-          notes: allNotes,
-        },
-      })
-      // Auto-speak the reply if Voice responses are toggled on. Fire-and-
-      // forget — playTtsForReply itself logs failures and won't crash the
-      // chat if ElevenLabs is unreachable or the API key is missing.
-      if (VOICE_CONFIG.enabled) {
-        playTtsForReply(assistantText).catch(() => { /* logged inside */ })
+      if (assistantText.trim()) {
+        // Parse + run any <fm-action> blocks; get back clean prose for display.
+        const displayText = runAssistantActions(assistantText)
+        addChatMessage(convId, {
+          role: 'assistant',
+          content: displayText,
+          citedDocumentIds: retrieved.map((r) => r.meta.id),
+          context: {
+            retrieved: retrieved.map((r) => ({ id: r.meta.id, title: r.meta.title, snippet: r.snippet })),
+            memory: allMemory
+              .filter((m) => (m.status || 'active') === 'active' && m.content)
+              .map((m) => ({ category: m.category, content: m.content })),
+            topics: allTopics.map((t) => ({ name: t.name, summary: t.summary, isUser: t.isUser, followed: t.followed })),
+            notes: allNotes,
+          },
+        })
+        if (VOICE_CONFIG.enabled) {
+          playTtsForReply(displayText).catch(() => { /* logged inside */ })
+        }
+      } else {
+        addChatMessage(convId, {
+          role: 'assistant',
+          content: '_No response from Ollama. Make sure the container is running and the configured model is pulled — check the dev console for details._',
+        })
       }
-    } else {
-      addChatMessage(convId, {
-        role: 'assistant',
-        content: '_No response from Ollama. Make sure the container is running and the configured model is pulled — check the dev console for details._',
-      })
+    } finally {
+      // Always reset busy — even if an unexpected error occurs above,
+      // so the Composer never gets permanently locked.
+      setStreamingText('')
+      setBusy(false)
+      abortRef.current = null
     }
-    setStreamingText('')
-    setBusy(false)
-    abortRef.current = null
+
+    // Generate follow-up suggestions from the cleaned display text so the
+    // LLM never sees raw <fm-action> blocks as content to follow up on.
+    if (assistantText.trim()) {
+      const cleanedForSuggestions = assistantText.replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '').trim()
+      latestAssistantRef.current = cleanedForSuggestions
+      generateFollowUps(text, cleanedForSuggestions, intent).then(setSuggestions).catch(() => {})
+    }
+  }
+
+  function handleSuggestionAction(action) {
+    if (action === 'save-as-note') {
+      const text = latestAssistantRef.current.trim()
+      if (!text) return
+      addMemory({
+        category: 'research_note',
+        content: text.slice(0, 600),
+        source: 'chat-ai',
+      })
+      setSuggestions(null)
+      return
+    }
+    const FOLLOW_UP_TEXT = {
+      'generate-summary':       'Generate a summary of this',
+      'generate-content-ideas': 'Generate content ideas based on this',
+    }
+    const followUpText = FOLLOW_UP_TEXT[action]
+    if (followUpText) {
+      setSuggestions(null)
+      handleSend(followUpText)
+    }
   }
 
   const ollamaOff = !OLLAMA_CONFIG.enabled
@@ -847,27 +1009,42 @@ export default function Chat() {
           }}
         >
           {!conversation && messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
+            <div className="flex flex-col items-center justify-center h-full text-center py-8">
               <div className="w-12 h-12 rounded-full bg-[color:var(--color-bg-glass-strong)] border border-[color:var(--color-border-default)] flex items-center justify-center mb-4">
                 <Sparkles size={20} className="text-[color:var(--color-topic)]" />
               </div>
-              <h2 className="text-lg font-semibold">Ask anything about your documents</h2>
+              <h2 className="text-lg font-semibold">Ask anything about your knowledge base</h2>
               <p className="text-sm text-[color:var(--color-text-tertiary)] mt-2 max-w-md">
-                FlowMap retrieves the most relevant snippets from your saved documents and answers based on those. Type a question below to start.
+                Flow AI searches across your documents, topics, signals, and saved content to answer your questions.
               </p>
+              <StarterPromptGrid
+                docs={allDocs}
+                userTopics={allUserTopics}
+                searches={starterSearches}
+                signals={starterSignals}
+                onSend={handleSend}
+              />
               {allDocs.length === 0 ? (
-                <p className="text-[12px] text-[color:var(--color-text-tertiary)] mt-4">
+                <p className="text-[12px] text-[color:var(--color-text-tertiary)] mt-6">
                   Add some documents first via the <Link to="/documents" className="underline text-white">Documents page</Link>.
                 </p>
-              ) : (
-                <p className="text-[12px] text-[color:var(--color-text-tertiary)] mt-4">
-                  {allDocs.length} document{allDocs.length === 1 ? '' : 's'} in your library, ready to be cited.
-                </p>
-              )}
+              ) : null}
             </div>
           ) : (
             <>
-              {messages.map((m) => <MessageBubble key={m.id} message={m} />)}
+              {messages.map((m, i) => (
+                <React.Fragment key={m.id}>
+                  <MessageBubble message={m} />
+                  {!busy && i === messages.length - 1 && m.role === 'assistant' && suggestions ? (
+                    <SuggestedPrompts
+                      questions={suggestions.questions}
+                      actions={suggestions.actions}
+                      onSend={(q) => { setSuggestions(null); handleSend(q) }}
+                      onAction={handleSuggestionAction}
+                    />
+                  ) : null}
+                </React.Fragment>
+              ))}
               {streamingText ? <MessageBubble message={{ role: 'assistant', content: streamingText }} /> : null}
               {busy && !streamingText ? (
                 <div className="flex justify-start mb-4">
