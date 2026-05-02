@@ -1,4 +1,4 @@
-import type { MCPToolDefinition, ToolPermissionMode } from '../types.js'
+import type { MCPToolDefinition, ToolPermissionMode, MCPToolRiskLevel } from '../types.js'
 
 export interface PermissionResult {
   allowed: boolean
@@ -6,8 +6,26 @@ export interface PermissionResult {
   reason?: string
 }
 
-export function checkPermission(tool: MCPToolDefinition): PermissionResult {
-  const mode: ToolPermissionMode = tool.permissionMode
+function checkByRiskLevel(level: MCPToolRiskLevel, name: string): PermissionResult {
+  switch (level) {
+    case 'read':
+      return { allowed: true, requiresApproval: false }
+    case 'write':
+      return { allowed: true, requiresApproval: false }
+    case 'publish':
+      return {
+        allowed: true,
+        requiresApproval: true,
+        reason: `"${name}" is a publish action and requires confirmation.`,
+      }
+    default: {
+      const _exhaustive: never = level
+      throw new Error(`Unhandled risk level: ${_exhaustive}`)
+    }
+  }
+}
+
+function checkByPermissionMode(mode: ToolPermissionMode, name: string): PermissionResult {
   switch (mode) {
     case 'auto':
       return { allowed: true, requiresApproval: false }
@@ -15,7 +33,7 @@ export function checkPermission(tool: MCPToolDefinition): PermissionResult {
       return {
         allowed: true,
         requiresApproval: true,
-        reason: `"${tool.displayName}" requires approval before running.`,
+        reason: `"${name}" requires approval before running.`,
       }
     case 'read_only':
       return { allowed: true, requiresApproval: false }
@@ -23,12 +41,19 @@ export function checkPermission(tool: MCPToolDefinition): PermissionResult {
       return {
         allowed: false,
         requiresApproval: false,
-        reason: `"${tool.displayName}" is restricted and cannot be run.`,
+        reason: `"${name}" is restricted and cannot be run.`,
       }
     default: {
       const _exhaustive: never = mode
       throw new Error(`Unhandled permission mode: ${_exhaustive}`)
     }
   }
+}
+
+export function checkPermission(tool: MCPToolDefinition): PermissionResult {
+  if (tool.riskLevel) {
+    return checkByRiskLevel(tool.riskLevel, tool.displayName)
+  }
+  return checkByPermissionMode(tool.permissionMode, tool.displayName)
 }
 

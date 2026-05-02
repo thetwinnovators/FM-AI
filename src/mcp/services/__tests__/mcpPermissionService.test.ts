@@ -39,3 +39,48 @@ describe('checkPermission', () => {
     expect(result.requiresApproval).toBe(false)
   })
 })
+
+describe('checkPermission — riskLevel takes precedence', () => {
+  function makeToolWithRisk(
+    riskLevel: import('../../types.js').MCPToolRiskLevel,
+    permissionMode: import('../../types.js').MCPToolDefinition['permissionMode'] = 'auto',
+  ): import('../../types.js').MCPToolDefinition {
+    return {
+      id: 't_risk',
+      integrationId: 'i1',
+      toolName: 'risk_test',
+      displayName: 'Risk Test Tool',
+      riskLevel,
+      permissionMode,
+    }
+  }
+
+  it('read → allowed, no confirmation', () => {
+    const r = checkPermission(makeToolWithRisk('read'))
+    expect(r.allowed).toBe(true)
+    expect(r.requiresApproval).toBe(false)
+  })
+
+  it('write → allowed, no confirmation', () => {
+    const r = checkPermission(makeToolWithRisk('write'))
+    expect(r.allowed).toBe(true)
+    expect(r.requiresApproval).toBe(false)
+  })
+
+  it('publish → allowed, requires confirmation', () => {
+    const r = checkPermission(makeToolWithRisk('publish'))
+    expect(r.allowed).toBe(true)
+    expect(r.requiresApproval).toBe(true)
+    expect(r.reason).toMatch(/Risk Test Tool/)
+  })
+
+  it('publish overrides permissionMode=auto', () => {
+    const r = checkPermission(makeToolWithRisk('publish', 'auto'))
+    expect(r.requiresApproval).toBe(true)
+  })
+
+  it('read overrides permissionMode=approval_required', () => {
+    const r = checkPermission(makeToolWithRisk('read', 'approval_required'))
+    expect(r.requiresApproval).toBe(false)
+  })
+})
