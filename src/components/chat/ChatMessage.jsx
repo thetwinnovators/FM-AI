@@ -103,14 +103,14 @@ function renderInlineText(text) {
       if (href.startsWith('/')) {
         parts.push(
           <Link key={key++} to={href} onClick={(e) => e.stopPropagation()}
-            className="underline text-[color:var(--color-article)] hover:text-white transition-colors">
+            className="underline text-teal-300 hover:text-teal-100 transition-colors">
             {label}
           </Link>
         )
       } else {
         parts.push(
           <a key={key++} href={href} target="_blank" rel="noopener noreferrer"
-            className="underline text-[color:var(--color-creator)] hover:text-white transition-colors">
+            className="underline text-teal-300 hover:text-teal-100 transition-colors">
             {label}
           </a>
         )
@@ -119,7 +119,7 @@ function renderInlineText(text) {
       // Bare external URL
       parts.push(
         <a key={key++} href={m[3]} target="_blank" rel="noopener noreferrer"
-          className="underline text-[color:var(--color-creator)]/70 hover:text-[color:var(--color-creator)] transition-colors break-all">
+          className="underline text-teal-300/70 hover:text-teal-300 transition-colors break-all">
           {m[3]}
         </a>
       )
@@ -127,7 +127,7 @@ function renderInlineText(text) {
       // Bare internal FlowMap path
       parts.push(
         <Link key={key++} to={m[4]} onClick={(e) => e.stopPropagation()}
-          className="underline text-[color:var(--color-article)]/80 hover:text-[color:var(--color-article)] transition-colors break-all">
+          className="underline text-teal-300/70 hover:text-teal-300 transition-colors break-all">
           {m[4]}
         </Link>
       )
