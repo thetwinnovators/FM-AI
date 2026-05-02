@@ -6,9 +6,9 @@ beforeEach(() => {
 })
 
 describe('listIntegrations', () => {
-  it('seeds 5 integrations on first call', () => {
+  it('seeds 11 integrations on first call', () => {
     const list = localMCPStorage.listIntegrations()
-    expect(list).toHaveLength(5)
+    expect(list).toHaveLength(11)
     expect(list.map((i) => i.type)).toContain('telegram')
   })
 
@@ -40,17 +40,26 @@ describe('updateIntegration', () => {
 })
 
 describe('deleteIntegration', () => {
-  it('removes the integration', () => {
+  it('removes a non-seed integration', () => {
     localMCPStorage.listIntegrations()
-    localMCPStorage.deleteIntegration('integ_figma')
-    expect(localMCPStorage.getIntegration('integ_figma')).toBeNull()
-    expect(localMCPStorage.listIntegrations()).toHaveLength(4)
+    // Save a custom integration not in the seed so seedOnce won't re-add it
+    localMCPStorage.saveIntegration({
+      id: 'integ_custom_test',
+      type: 'telegram',
+      name: 'Custom Test',
+      status: 'disconnected',
+      updatedAt: new Date().toISOString(),
+    })
+    expect(localMCPStorage.listIntegrations()).toHaveLength(12)
+    localMCPStorage.deleteIntegration('integ_custom_test')
+    expect(localMCPStorage.getIntegration('integ_custom_test')).toBeNull()
+    expect(localMCPStorage.listIntegrations()).toHaveLength(11)
   })
 
   it('is a no-op for unknown id', () => {
     localMCPStorage.listIntegrations()
     expect(() => localMCPStorage.deleteIntegration('ghost')).not.toThrow()
-    expect(localMCPStorage.listIntegrations()).toHaveLength(5)
+    expect(localMCPStorage.listIntegrations()).toHaveLength(11)
   })
 })
 
