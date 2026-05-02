@@ -14,11 +14,12 @@ import Memory from './views/Memory.jsx'
 import Documents from './views/Documents.jsx'
 import Document from './views/Document.jsx'
 import Chat from './views/Chat.jsx'
+import Signals from './views/Signals.jsx'
 import MCPIntegrationsPage from './mcp/pages/MCPIntegrationsPage.jsx'
 import MCPIntegrationDetailPage from './mcp/pages/MCPIntegrationDetailPage.jsx'
 import MCPToolCatalogPage from './mcp/pages/MCPToolCatalogPage.jsx'
 import MCPExecutionLogPage from './mcp/pages/MCPExecutionLogPage.jsx'
-import TelegramCommandCenterPage from './mcp/pages/TelegramCommandCenterPage.jsx'
+import MCPToolDetailPage from './mcp/pages/MCPToolDetailPage.jsx'
 
 function AnimatedRoutes() {
   const location = useLocation()
@@ -28,6 +29,7 @@ function AnimatedRoutes() {
         <Route path="/" element={<FlowMap />} />
         <Route path="/flow" element={<FlowMap />} />
         <Route path="/discover" element={<Discover />} />
+        <Route path="/signals" element={<Signals />} />
         <Route path="/search" element={<Search />} />
         <Route path="/topics" element={<Topics />} />
         <Route path="/topic/:slug" element={<Topic />} />
@@ -39,8 +41,8 @@ function AnimatedRoutes() {
         <Route path="/memory" element={<Memory />} />
         <Route path="/connections" element={<MCPIntegrationsPage />} />
         <Route path="/connections/tools" element={<MCPToolCatalogPage />} />
+        <Route path="/connections/tools/:toolId" element={<MCPToolDetailPage />} />
         <Route path="/connections/log" element={<MCPExecutionLogPage />} />
-        <Route path="/connections/telegram" element={<TelegramCommandCenterPage />} />
         <Route path="/connections/:id" element={<MCPIntegrationDetailPage />} />
       </Routes>
     </div>

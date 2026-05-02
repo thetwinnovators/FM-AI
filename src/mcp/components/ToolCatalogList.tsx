@@ -1,10 +1,17 @@
-import type { MCPToolDefinition, ToolPermissionMode } from '../types.js'
+import { Link } from 'react-router-dom'
+import type { MCPToolDefinition, ToolPermissionMode, MCPToolRiskLevel } from '../types.js'
+
+const RISK_COLORS: Record<MCPToolRiskLevel, string> = {
+  read:    'text-sky-300 bg-sky-400/10',
+  write:   'text-teal-300 bg-teal-400/10',
+  publish: 'text-amber-300 bg-amber-400/10',
+}
 
 const MODE_LABELS: Record<ToolPermissionMode, { label: string; color: string }> = {
-  auto: { label: 'Auto', color: 'text-teal-300 bg-teal-400/10' },
-  approval_required: { label: 'Approval', color: 'text-amber-300 bg-amber-400/10' },
-  read_only: { label: 'Read-only', color: 'text-sky-300 bg-sky-400/10' },
-  restricted: { label: 'Restricted', color: 'text-rose-300 bg-rose-400/10' },
+  auto:             { label: 'Auto',       color: 'text-teal-300 bg-teal-400/10' },
+  approval_required:{ label: 'Approval',   color: 'text-amber-300 bg-amber-400/10' },
+  read_only:        { label: 'Read-only',  color: 'text-sky-300 bg-sky-400/10' },
+  restricted:       { label: 'Restricted', color: 'text-rose-300 bg-rose-400/10' },
 }
 
 interface Props {
@@ -24,21 +31,26 @@ export function ToolCatalogList({ tools, integrationName }: Props) {
   return (
     <div className="space-y-2">
       {tools.map((tool) => {
-        const mode = MODE_LABELS[tool.permissionMode]
+        const badgeClass = tool.riskLevel
+          ? RISK_COLORS[tool.riskLevel]
+          : MODE_LABELS[tool.permissionMode].color
+        const badgeLabel = tool.riskLevel
+          ? tool.riskLevel.charAt(0).toUpperCase() + tool.riskLevel.slice(1)
+          : MODE_LABELS[tool.permissionMode].label
+
         return (
-          <div
+          <Link
             key={tool.id}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+            to={`/connections/tools/${tool.id}`}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.10] transition-colors"
           >
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-[13px] font-medium text-white/90">
                   {tool.displayName}
                 </span>
-                <span
-                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${mode.color}`}
-                >
-                  {mode.label}
+                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${badgeClass}`}>
+                  {badgeLabel}
                 </span>
               </div>
               {tool.description ? (
@@ -50,7 +62,7 @@ export function ToolCatalogList({ tools, integrationName }: Props) {
                 {integrationName(tool.integrationId)}
               </span>
             ) : null}
-          </div>
+          </Link>
         )
       })}
     </div>
