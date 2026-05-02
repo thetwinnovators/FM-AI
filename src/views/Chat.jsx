@@ -257,7 +257,7 @@ function MessageBubble({ message }) {
           className={`max-w-[75%] rounded-2xl px-4 py-2.5 leading-relaxed ${
             isUser
               ? 'text-sm whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white'
-              : 'bg-white/[0.05] text-white/90'
+              : 'text-white/90'
           }`}
         >
           {isUser
