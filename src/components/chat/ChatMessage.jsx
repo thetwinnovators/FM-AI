@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Copy, Check, ExternalLink } from 'lucide-react'
 
@@ -151,11 +151,18 @@ function renderInlineText(text) {
 // ─── CodeBlock sub-component ─────────────────────────────────────────────────
 
 // Languages where the Preview button is shown (browser can execute these).
-const PREVIEW_LANGS = new Set(['html', 'javascript', 'js', ''])
+const PREVIEW_LANGS = new Set(['html', ''])
 
 function CodeBlock({ lang, code }) {
   const [copied, setCopied] = useState(false)
+  const copyTimerRef = useRef(null)
   const showPreview = PREVIEW_LANGS.has(lang)
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+    }
+  }, [])
 
   async function handleCopy() {
     try {
@@ -172,23 +179,23 @@ function CodeBlock({ lang, code }) {
         document.body.removeChild(el)
       } catch { /* truly blocked — feedback still shows */ }
     }
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    copyTimerRef.current = setTimeout(() => setCopied(false), 2000)
   }
 
   function handlePreview() {
-    const body = (lang === 'javascript' || lang === 'js')
-      ? `<script>${code}<\/script>`
-      : code
     const html = [
       '<!DOCTYPE html><html><head>',
       '<meta charset="utf-8">',
       '<meta name="viewport" content="width=device-width,initial-scale=1">',
       '<style>body{margin:0;font-family:system-ui,sans-serif}</style>',
-      `</head><body>${body}</body></html>`,
+      `</head><body>${code}</body></html>`,
     ].join('')
     const blob = new Blob([html], { type: 'text/html' })
-    window.open(URL.createObjectURL(blob), '_blank')
+    const url = URL.createObjectURL(blob)
+    window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   }
 
   return (
@@ -198,6 +205,7 @@ function CodeBlock({ lang, code }) {
         <span className="text-[11px] text-white/40 font-mono">{lang || 'code'}</span>
         <div className="flex items-center gap-3">
           <button
+            type="button"
             onClick={handleCopy}
             className="text-[11px] flex items-center gap-1 text-white/40 hover:text-white/80 transition-colors"
           >
@@ -206,6 +214,7 @@ function CodeBlock({ lang, code }) {
           </button>
           {showPreview && (
             <button
+              type="button"
               onClick={handlePreview}
               className="text-[11px] flex items-center gap-1 text-white/40 hover:text-white/80 transition-colors"
             >
