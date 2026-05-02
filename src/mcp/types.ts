@@ -1,6 +1,15 @@
 export type IntegrationType =
   | 'telegram'
   | 'google-workspace'
+  | 'google-drive'
+  | 'gmail'
+  | 'google-calendar'
+  | 'google-slides'
+  | 'youtube'
+  | 'google-docs'
+  | 'higgsfield'
+  | 'instagram'
+  | 'facebook'
   | 'figma'
   | 'canva'
   | 'generic-mcp'
@@ -31,13 +40,16 @@ export interface MCPIntegration {
   scopes?: string[]
 }
 
+export type MCPToolRiskLevel = 'read' | 'write' | 'publish'
+
 export interface MCPToolDefinition {
   id: string
   integrationId: string
   toolName: string
   displayName: string
   description?: string
-  permissionMode: ToolPermissionMode
+  riskLevel?: MCPToolRiskLevel        // new — takes precedence when set
+  permissionMode: ToolPermissionMode  // kept for backwards compat
   inputSchema?: Record<string, unknown>
   tags?: string[]
 }
