@@ -301,10 +301,10 @@ function Sidebar({ activeId, onNew }) {
   return (
     <aside
       className="w-[260px] flex-shrink-0 border-r border-[color:var(--color-border-subtle)] flex flex-col"
-      style={{ background: 'rgba(10, 10, 10, 0.92)' }}
+      style={{ background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)' }}
     >
       <div className="p-3">
-        <button onClick={onNew} className="btn btn-teal text-sm w-full justify-center">
+        <button onClick={onNew} className="btn btn-primary text-sm w-full justify-center">
           <Plus size={13} /> New conversation
         </button>
       </div>
@@ -1005,7 +1005,7 @@ export default function Chat() {
           ref={scrollRef}
           className="flex-1 overflow-auto px-6 py-6"
           style={{
-            background: 'rgba(10, 10, 10, 0.92)',
+            background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)',
           }}
         >
           {!conversation && messages.length === 0 ? (
