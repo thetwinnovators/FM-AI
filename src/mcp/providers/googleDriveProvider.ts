@@ -58,6 +58,7 @@ export const googleDriveProvider: MCPIntegrationProvider = {
         error: `Google Drive is not connected. Open Connections → Google Drive to set it up.`,
       }
     }
+    // OAuth execution not yet wired — Phase 2
     return {
       success: false,
       error: `Google Drive tool "${tool.displayName}" requires OAuth — coming in Phase 2.`,
