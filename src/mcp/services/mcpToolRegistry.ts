@@ -4,7 +4,7 @@ import { localMCPStorage } from '../storage/localMCPStorage.js'
 import { telegramMCPProvider } from '../providers/telegramMCPProvider.js'
 import { googleDocsProvider } from '../providers/googleDocsProvider.js'
 import { googleDriveProvider } from '../providers/googleDriveProvider.js'
-import { mockFigmaProvider } from '../providers/mockFigmaProvider.js'
+import { figmaProvider } from '../providers/figmaProvider.js'
 
 // Only integrations with a real or mock provider are registered here.
 // Adding a new integration to the seed does NOT require a provider entry —
@@ -13,7 +13,7 @@ const PROVIDERS: Partial<Record<IntegrationType, MCPIntegrationProvider>> = {
   telegram: telegramMCPProvider,
   'google-docs': googleDocsProvider,
   'google-drive': googleDriveProvider,
-  figma: mockFigmaProvider,
+  figma: figmaProvider,
 }
 
 export function getProvider(type: IntegrationType): MCPIntegrationProvider | undefined {

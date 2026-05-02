@@ -1,6 +1,27 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { vi, beforeEach, describe, expect, it } from 'vitest'
 import { runTool, getExecutionLog } from '../mcpExecutionService.js'
 import { localMCPStorage } from '../../storage/localMCPStorage.js'
+
+// Mock getProvider so execution tests don't depend on real provider implementations.
+// The mock returns a controllable stub for figma that always reports success for
+// read tools — the execution service logic (permission gate, record writing) is what
+// this test suite exercises, not the provider's internal behavior.
+vi.mock('../mcpToolRegistry.js', async (importOriginal) => {
+  const original = await importOriginal<typeof import('../mcpToolRegistry.js')>()
+  return {
+    ...original,
+    getProvider: (type: string) => {
+      if (type === 'figma') {
+        return {
+          listTools: async () => [],
+          executeTool: async () => ({ success: true, output: { mock: true } }),
+          testConnection: async () => ({ success: true }),
+        }
+      }
+      return original.getProvider(type as any)
+    },
+  }
+})
 
 beforeEach(() => {
   localStorage.clear()
