@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Send, X, Loader2, Mic, MicOff, Square } from 'lucide-react'
+import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { streamChat } from '../../lib/llm/ollama.js'
-import { OLLAMA_CONFIG } from '../../lib/llm/ollamaConfig.js'
+import { OLLAMA_CONFIG, setOllamaModel } from '../../lib/llm/ollamaConfig.js'
 import { retrieveDocuments, buildSystemMessage } from '../../lib/chat/retrieve.js'
 import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
 import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voice/player.js'
@@ -33,6 +33,10 @@ export default function QuickChatLauncher() {
   const [conversationMode, setConversationMode] = useState(false)
   const [voicePlaying, setVoicePlaying] = useState(false)
   const [pos, setPos] = useState(null) // {left,top} when dragged; null = default bottom-right
+  const [model, setModel] = useState(OLLAMA_CONFIG.model)
+  const [availableModels, setAvailableModels] = useState([])
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const modelPickerRef = useRef(null)
   const abortRef = useRef(null)
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
@@ -71,6 +75,35 @@ export default function QuickChatLauncher() {
   // Subscribe to TTS playing state so the Stop button can react to voice-only
   // activity (e.g. a finished stream that's still being read aloud).
   useEffect(() => subscribeVoicePlaying(setVoicePlaying), [])
+
+  // Discover pulled Ollama models for the inline model picker.
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    fetch('/api/ollama/api/tags')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (cancelled) return
+        const names = (json?.models || []).map((m) => m.name).sort()
+        setAvailableModels(names)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [open])
+
+  // Close model picker on outside click.
+  useEffect(() => {
+    if (!modelPickerOpen) return
+    function onDoc(e) { if (!modelPickerRef.current?.contains(e.target)) setModelPickerOpen(false) }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [modelPickerOpen])
+
+  function onChangeModel(name) {
+    setOllamaModel(name)
+    setModel(name)
+    setModelPickerOpen(false)
+  }
 
   // Esc behavior depends on context:
   //   • Streaming or speaking → Esc stops without closing the panel.
@@ -332,7 +365,7 @@ export default function QuickChatLauncher() {
       id="quick-chat-panel"
       className="w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl overflow-hidden"
       style={{
-        maxHeight: pos ? 'min(60vh, 520px)' : 'min(calc(100% - 32px), 480px)',
+        maxHeight: pos ? 'min(60vh, 600px)' : 'min(calc(100% - 32px), 600px)',
         background:
           'linear-gradient(160deg, rgba(20,184,166,0.10) 0%, rgba(99,102,241,0.07) 50%, rgba(217,70,239,0.10) 100%),' +
           'rgba(8,10,22,0.78)',
@@ -352,7 +385,43 @@ export default function QuickChatLauncher() {
       >
         <Sparkles size={14} className="text-[color:var(--color-creator)]" />
         <span className="text-sm font-medium text-white">Talk to FlowMap</span>
-        <span className="text-[11px] text-white/40 ml-1">· {OLLAMA_CONFIG.model}</span>
+        {/* Inline model picker */}
+        <div ref={modelPickerRef} className="relative ml-1">
+          <button
+            type="button"
+            onClick={() => availableModels.length > 0 && setModelPickerOpen((v) => !v)}
+            className="text-[11px] text-white/40 hover:text-white/70 transition-colors inline-flex items-center gap-1"
+            title={availableModels.length === 0 ? 'No models discovered' : 'Switch model'}
+          >
+            · {model}
+            {availableModels.length > 1 && <ChevronDown size={10} className={`transition-transform ${modelPickerOpen ? 'rotate-180' : ''}`} />}
+          </button>
+          {modelPickerOpen && availableModels.length > 0 && (
+            <div
+              className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-white/10 py-1 overflow-auto max-h-[200px]"
+              style={{
+                background: 'linear-gradient(160deg, rgba(15,17,28,0.97) 0%, rgba(8,10,18,0.99) 100%)',
+                backdropFilter: 'blur(40px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
+              }}
+            >
+              {availableModels.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => onChangeModel(m)}
+                  className={`w-full px-3 py-1.5 text-[11px] text-left flex items-center gap-2 hover:bg-white/[0.06] transition-colors ${
+                    m === model ? 'text-[color:var(--color-creator)]' : 'text-white/80'
+                  }`}
+                >
+                  <Check size={10} className={m === model ? 'opacity-100' : 'opacity-0'} />
+                  <span className="truncate">{m}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <span className="ml-auto inline-flex items-center gap-1">
           {messages.length > 0 ? (
             <button
