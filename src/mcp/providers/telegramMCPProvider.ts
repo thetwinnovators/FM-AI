@@ -8,7 +8,11 @@ const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
     toolName: 'send_message',
     displayName: 'Send Message',
     description: 'Send a text message to a Telegram chat.',
-    permissionMode: 'auto',
+    riskLevel: 'publish',
+    permissionMode: 'approval_required',
+    inputSchema: {
+      text: { type: 'string', description: 'Message text to send' },
+    },
     tags: ['telegram', 'message'],
   },
   {
@@ -16,7 +20,11 @@ const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
     toolName: 'send_summary',
     displayName: 'Send Summary',
     description: 'Send a formatted summary or report to Telegram.',
-    permissionMode: 'auto',
+    riskLevel: 'publish',
+    permissionMode: 'approval_required',
+    inputSchema: {
+      text: { type: 'string', description: 'Summary content to send' },
+    },
     tags: ['telegram', 'summary'],
   },
   {
@@ -24,7 +32,11 @@ const TELEGRAM_TOOLS: Omit<MCPToolDefinition, 'integrationId'>[] = [
     toolName: 'send_document',
     displayName: 'Send Document',
     description: 'Send a file or document link to Telegram.',
-    permissionMode: 'auto',
+    riskLevel: 'publish',
+    permissionMode: 'approval_required',
+    inputSchema: {
+      text: { type: 'string', description: 'Message or file link to send' },
+    },
     tags: ['telegram', 'document'],
   },
 ]
