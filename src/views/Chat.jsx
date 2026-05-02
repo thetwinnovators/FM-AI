@@ -301,7 +301,7 @@ function Sidebar({ activeId, onNew }) {
   return (
     <aside
       className="w-[260px] flex-shrink-0 border-r border-[color:var(--color-border-subtle)] flex flex-col"
-      style={{ background: 'linear-gradient(180deg, rgba(5, 7, 15, 0.35) 0%, rgba(5, 7, 15, 0.65) 100%)' }}
+      style={{ background: 'linear-gradient(180deg, rgba(10, 10, 10,0.35) 0%, rgba(10, 10, 10,0.65) 100%)' }}
     >
       <div className="p-3">
         <button onClick={onNew} className="btn btn-teal text-sm w-full justify-center">
@@ -1005,7 +1005,7 @@ export default function Chat() {
           ref={scrollRef}
           className="flex-1 overflow-auto px-6 py-6"
           style={{
-            background: 'linear-gradient(180deg, rgba(5, 7, 15, 0.35) 0%, rgba(5, 7, 15, 0.65) 100%)',
+            background: 'linear-gradient(180deg, rgba(10, 10, 10,0.35) 0%, rgba(10, 10, 10,0.65) 100%)',
           }}
         >
           {!conversation && messages.length === 0 ? (
