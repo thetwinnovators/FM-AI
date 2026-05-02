@@ -225,7 +225,7 @@ function CodeBlock({ lang, code }) {
         </div>
       </div>
       {/* Code body */}
-      <pre className="px-4 py-3 overflow-x-auto font-mono text-sm text-slate-300 leading-relaxed whitespace-pre m-0">
+      <pre className="px-4 py-3 overflow-x-auto font-mono text-sm text-zinc-300 leading-relaxed whitespace-pre m-0">
         <code>{code}</code>
       </pre>
     </div>
@@ -252,18 +252,18 @@ export default function ChatMessage({ content }) {
           case 'list':
             return block.ordered
               ? (
-                <ol key={idx} className="list-decimal pl-5 space-y-1 mb-3 text-slate-300">
+                <ol key={idx} className="list-decimal pl-5 space-y-1 mb-3 text-zinc-300">
                   {block.items.map((item, i) => <li key={i}>{renderInlineText(item)}</li>)}
                 </ol>
               )
               : (
-                <ul key={idx} className="list-disc pl-5 space-y-1 mb-3 text-slate-300">
+                <ul key={idx} className="list-disc pl-5 space-y-1 mb-3 text-zinc-300">
                   {block.items.map((item, i) => <li key={i}>{renderInlineText(item)}</li>)}
                 </ul>
               )
 
           default: // paragraph
-            return <p key={idx} className="text-slate-300 mb-3 last:mb-0">{renderInlineText(block.text)}</p>
+            return <p key={idx} className="text-zinc-300 mb-3 last:mb-0">{renderInlineText(block.text)}</p>
         }
       })}
     </div>
