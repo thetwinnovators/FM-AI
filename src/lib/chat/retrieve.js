@@ -126,6 +126,34 @@ function extractSnippet(query, text, len = 1800) {
   return (start > 0 ? '…' : '') + text.slice(start, end).trim() + (end < text.length ? '…' : '')
 }
 
+// ─── Layered context helpers ──────────────────────────────────────────────────
+
+// Build the [IDENTITY] block from user-pinned memory entries.
+// Only pinned, active entries are included — capped at 8, sorted by addedAt
+// desc, content truncated to 100 chars per line (~120 tokens total max).
+export function buildIdentityBlock(memoryEntries) {
+  if (!memoryEntries || memoryEntries.length === 0) return ''
+  const pinned = memoryEntries
+    .filter((m) => m.isIdentityPinned === true && (m.status || 'active') === 'active' && m.content)
+    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
+    .slice(0, 8)
+  if (pinned.length === 0) return ''
+  const lines = pinned.map((m) => `- ${String(m.content).slice(0, 100)}`)
+  return `[IDENTITY]\n${lines.join('\n')}\n\n`
+}
+
+// Build a one-line task state from recent conversation history.
+// Extracts the last assistant message, collapses whitespace, truncates to 100
+// chars. Returns '' when there is no prior assistant context.
+export function buildTaskState(recentMessages, _currentQuery) {
+  if (!recentMessages || recentMessages.length === 0) return ''
+  const lastAssistant = [...recentMessages].reverse().find((m) => m.role === 'assistant')
+  if (!lastAssistant) return ''
+  const summary = String(lastAssistant.content || '').replace(/\s+/g, ' ').trim().slice(0, 100)
+  if (!summary) return ''
+  return `Task state: continuing from "${summary}"\n\n`
+}
+
 // Build a system message that grounds the model in the retrieved excerpts.
 // Phase 3 stops short of citation parsing — we just instruct the model to
 // answer based on the snippets and hand back the assistant's prose.
