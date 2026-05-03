@@ -40,11 +40,26 @@ let initialized = false
 let searchCounter = 0
 const listeners = new Set()
 
+export const IDENTITY_DEFAULT_CATEGORIES = new Set([
+  'personal_rule', 'preference', 'behavior', 'personal_fact',
+])
+
+export function backfillIdentityPins(memoryEntriesRecord) {
+  const result = {}
+  for (const [id, entry] of Object.entries(memoryEntriesRecord || {})) {
+    result[id] = entry.isIdentityPinned !== undefined
+      ? entry
+      : { ...entry, isIdentityPinned: IDENTITY_DEFAULT_CATEGORIES.has(entry.category) }
+  }
+  return result
+}
+
 function loadState() {
   if (typeof localStorage === 'undefined') return EMPTY
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    return raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY
+    const base = raw ? { ...EMPTY, ...JSON.parse(raw) } : EMPTY
+    return { ...base, memoryEntries: backfillIdentityPins(base.memoryEntries) }
   } catch {
     return EMPTY
   }
@@ -262,6 +277,7 @@ export function useStore() {
       status: data.status || 'active',
       addedAt: new Date().toISOString().slice(0, 10),
       source: data.source || 'manual',
+      isIdentityPinned: IDENTITY_DEFAULT_CATEGORIES.has(data.category || 'research_focus'),
     }
     persist({ ...cur, memoryEntries: { ...cur.memoryEntries, [id]: entry } })
     return id
@@ -292,6 +308,19 @@ export function useStore() {
     (id) => Boolean(memoryState.memoryDismisses?.[id]),
     []
   )
+
+  const pinMemoryAsIdentity = useCallback((id, pinned) => {
+    const cur = memoryState
+    const existing = cur.memoryEntries[id]
+    if (!existing) return
+    persist({
+      ...cur,
+      memoryEntries: {
+        ...cur.memoryEntries,
+        [id]: { ...existing, isIdentityPinned: Boolean(pinned) },
+      },
+    })
+  }, [])
 
   // Per-item notes — sticky-note style, multiple per item, each independently
   // removable. Stored as `userNotes[itemId] = [{ id, content, addedAt }]`. The
@@ -719,7 +748,7 @@ export function useStore() {
     ...state,
     toggleSave, toggleFollow, dismiss,
     recordView, recordSearch,
-    addMemory, updateMemory, deleteMemory, isMemoryDismissed,
+    addMemory, updateMemory, deleteMemory, isMemoryDismissed, pinMemoryAsIdentity,
     notesFor, addNote, removeNote,
     addUserTopic, removeUserTopic, updateUserTopic, userTopicBySlug,
     addManualContent, removeManualContent, manualContentForTopic, manualContentByUrl,
