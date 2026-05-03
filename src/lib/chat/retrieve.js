@@ -1,7 +1,9 @@
-// Phase 3 chat retrieval: pick the top K documents most relevant to the user
-// query using simple keyword scoring (no vectors). Phases 4+ extend this to
-// cover saved items and conversation context. Stays heuristic and fast —
-// every score component is transparent.
+// Phase 3 chat retrieval: keyword scoring baseline.
+// Phase 4+ adds the flow-ai pipeline: hybrid retrieval + multi-signal reranking.
+// The new pipeline is tried first; this file's keyword search is the fallback.
+
+import { retrieve as _pipelineRetrieve } from '../../flow-ai/services/retrievalService.js'
+import { buildContext as _buildContext }  from '../../flow-ai/services/contextBuilderService.js'
 
 function tokenize(s) {
   return String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 2)
@@ -384,4 +386,41 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
     `- If nothing covers the question, say so plainly and suggest what doc to add.\n\n` +
     `EXCERPTS:\n${corpus}`
   )
+}
+
+// ─── Flow AI pipeline wrapper ─────────────────────────────────────────────────
+// Runs the hybrid retrieval + reranking pipeline. Returns null on failure or
+// empty results so callers fall back to keyword retrieval.
+//
+// Return shape:
+//   {
+//     results:         RankedResult[]              — full ranked list
+//     contextText:     string                      — formatted CONTEXT block
+//     legacyRetrieved: { id, title, snippet }[]   — doc/save items for the UI panel
+//     usedEmbeddings:  boolean                     — whether Ollama embeddings ran
+//   }
+export async function retrieveWithPipeline(input, signal) {
+  try {
+    const output = await _pipelineRetrieve(input, signal)
+    if (!output || !output.results.length) return null
+
+    const { promptText } = _buildContext(output.results, output.analysis)
+    if (!promptText) return null
+
+    // Map to the flat { id, title, snippet } shape expected by the context panel
+    // and CitedDocsHint. Only document/save types have /documents/:id routes.
+    const legacyRetrieved = output.results
+      .filter((r) => r.type === 'document' || r.type === 'save')
+      .map((r) => ({ id: r.id, title: r.title, snippet: r.snippet }))
+
+    return {
+      results:         output.results,
+      contextText:     promptText,
+      legacyRetrieved,
+      usedEmbeddings:  output.usedEmbeddings,
+    }
+  } catch (err) {
+    console.warn('[flow-ai] Pipeline error — falling back to keyword retrieval:', err)
+    return null
+  }
 }
