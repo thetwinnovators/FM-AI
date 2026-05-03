@@ -1,13 +1,7 @@
-import { vi, describe, it, expect } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
-// Isolate from pipeline imports that have browser-specific dependencies
-vi.mock('../../../flow-ai/services/retrievalService.js', () => ({
-  retrieve: vi.fn(),
-}))
-vi.mock('../../../flow-ai/services/contextBuilderService.js', () => ({
-  buildContext: vi.fn(),
-}))
-
+// retrieve.js has no imports — it is a self-contained module.
+// No mocks needed for these pure function tests.
 import { buildIdentityBlock, buildTaskState } from '../retrieve.js'
 
 // ─── buildIdentityBlock ───────────────────────────────────────────────────────

@@ -145,7 +145,7 @@ export function buildIdentityBlock(memoryEntries) {
 // Build a one-line task state from recent conversation history.
 // Extracts the last assistant message, collapses whitespace, truncates to 100
 // chars. Returns '' when there is no prior assistant context.
-export function buildTaskState(recentMessages, _currentQuery) {
+export function buildTaskState(recentMessages) {
   if (!recentMessages || recentMessages.length === 0) return ''
   const lastAssistant = [...recentMessages].reverse().find((m) => m.role === 'assistant')
   if (!lastAssistant) return ''
