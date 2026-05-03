@@ -788,6 +788,7 @@ export default function Chat() {
           userTopics,
           seedTopics,
           signals:          localSignalsStorage.listSignals(),
+          userNotes,
         },
         ctrl.signal,
       )
@@ -834,10 +835,13 @@ export default function Chat() {
         }
       }
     }
+    // Compute allRecent BEFORE buildSystemMessage so we can pass recentMessages
+    const allRecent = chatMessagesFor(convId) // includes the user msg we just added
     const systemMessage = buildSystemMessage(
       retrieved, text, allMemory, allTopics, allNotes, intent, folders,
       pipelineResult?.contextText ?? null,
       allDocs,
+      allRecent.slice(-4, -1),
     )
 
     // Construct the message array for Ollama: system + recent history + new user msg.
@@ -845,7 +849,6 @@ export default function Chat() {
     // (~4k tokens). The system message alone can be 2–3k tokens (memory, topics, docs,
     // excerpts), so we only have room for the last few turns of dialogue.
     const MAX_HISTORY = 12 // 6 user+assistant pairs
-    const allRecent = chatMessagesFor(convId) // includes the user msg we just added
     const recent = allRecent.length > MAX_HISTORY ? allRecent.slice(-MAX_HISTORY) : allRecent
     const llmMessages = [
       { role: 'system', content: systemMessage },
