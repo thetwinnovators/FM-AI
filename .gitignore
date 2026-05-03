@@ -11,3 +11,4 @@ coverage
 .claude/
 docs/*.pdf
 docs/*.docx
+.worktrees/
