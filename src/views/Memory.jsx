@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Bookmark, BookmarkX, Database, Sparkles, Link as LinkIcon, Brain } from 'lucide-react'
+import { Plus, Bookmark, BookmarkX, Database, Sparkles, Link as LinkIcon, Brain, Pin } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import MemoryEntryCard from '../components/memory/MemoryEntryCard.jsx'
@@ -31,7 +31,7 @@ export default function Memory() {
   const { topics, seedMemory } = useSeed()
   const {
     saves, follows, toggleFollow, memoryEntries, addMemory, deleteMemory, isMemoryDismissed,
-    userTopics, removeUserTopic, manualContent,
+    userTopics, removeUserTopic, manualContent, pinMemoryAsIdentity,
   } = useStore()
 
   const [tab, setTab] = useState('saved')
@@ -76,8 +76,13 @@ export default function Memory() {
   const followedSeed = topics.filter((t) => follows[t.id])
   const userTopicList = Object.values(userTopics)
   const visibleSeedMemory = (seedMemory || []).filter((m) => !isMemoryDismissed(m.id))
-  const allMemory = [...visibleSeedMemory, ...Object.values(memoryEntries)]
-  const filteredMemory = catFilter === 'all' ? allMemory : allMemory.filter((m) => m.category === catFilter)
+  const allMemory      = [...visibleSeedMemory, ...Object.values(memoryEntries)]
+  const identityMemory = allMemory.filter((m) => m.isIdentityPinned === true)
+  const workingMemory  = allMemory.filter((m) => !m.isIdentityPinned)
+  const filteredWorking = catFilter === 'all'
+    ? workingMemory
+    : workingMemory.filter((m) => m.category === catFilter)
+  const pinnedCount = identityMemory.length
 
   function onAddSubmit(data) {
     addMemory(data)
@@ -191,46 +196,89 @@ export default function Memory() {
       )}
 
       {tab === 'memory' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              {CATEGORY_FILTERS.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setCatFilter(c.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                    catFilter === c.id
-                      ? 'bg-[color:var(--color-topic)]/15 border-[color:var(--color-topic)]/40 text-[color:var(--color-topic)]'
-                      : 'border-[color:var(--color-border-subtle)] text-[color:var(--color-text-secondary)] hover:bg-white/5'
-                  }`}
-                >
-                  {c.label}
-                </button>
-              ))}
+        <div className="space-y-6">
+          {/* ── Identity Memory ──────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-[color:var(--color-text-secondary)] flex items-center gap-1.5">
+                <Pin size={13} className="text-[color:var(--color-topic)]" />
+                Identity Memory
+                <span className="text-xs text-white/30 font-normal">({pinnedCount} / 8)</span>
+              </h3>
+              {pinnedCount >= 8 && (
+                <span className="text-[10px] text-amber-400/70">
+                  Soft cap reached — unpin an entry to add more
+                </span>
+              )}
             </div>
-            <button onClick={() => setShowAdd((v) => !v)} className="btn btn-primary text-sm">
-              <Plus size={13} /> Add memory
-            </button>
+            {identityMemory.length === 0 ? (
+              <p className="text-xs text-[color:var(--color-text-tertiary)] py-3">
+                No identity memory pinned yet. Pin entries below to always include them in AI context.
+              </p>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+                {identityMemory.map((entry) => (
+                  <MemoryEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    onDelete={askDeleteMemory}
+                    onPin={pinMemoryAsIdentity}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {showAdd ? <MemoryAddForm onSubmit={onAddSubmit} onCancel={() => setShowAdd(false)} /> : null}
-
-          {filteredMemory.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-12 h-12 rounded-full bg-[color:var(--color-bg-glass-strong)] border border-[color:var(--color-border-default)] flex items-center justify-center mb-3">
-                <Database size={20} className="text-[color:var(--color-text-tertiary)]" />
+          {/* ── Working Memory ───────────────────────────────────────────── */}
+          <div>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
+              <h3 className="text-sm font-semibold text-[color:var(--color-text-secondary)]">
+                Working Memory
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                {CATEGORY_FILTERS.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setCatFilter(c.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      catFilter === c.id
+                        ? 'bg-[color:var(--color-topic)]/15 border-[color:var(--color-topic)]/40 text-[color:var(--color-topic)]'
+                        : 'border-[color:var(--color-border-subtle)] text-[color:var(--color-text-secondary)] hover:bg-white/5'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
               </div>
-              <p className="text-sm text-[color:var(--color-text-tertiary)] max-w-md">
-                No memory entries in this category. Add a rule, source preference, research focus, or stack note above.
-              </p>
+              <button onClick={() => setShowAdd((v) => !v)} className="btn btn-primary text-sm">
+                <Plus size={13} /> Add memory
+              </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
-              {filteredMemory.map((entry) => (
-                <MemoryEntryCard key={entry.id} entry={entry} onDelete={askDeleteMemory} />
-              ))}
-            </div>
-          )}
+
+            {showAdd ? <MemoryAddForm onSubmit={onAddSubmit} onCancel={() => setShowAdd(false)} /> : null}
+
+            {filteredWorking.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-12 h-12 rounded-full bg-[color:var(--color-bg-glass-strong)] border border-[color:var(--color-border-default)] flex items-center justify-center mb-3">
+                  <Database size={20} className="text-[color:var(--color-text-tertiary)]" />
+                </div>
+                <p className="text-sm text-[color:var(--color-text-tertiary)] max-w-md">
+                  No memory entries in this category. Add a rule, source preference, research focus, or stack note above.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+                {filteredWorking.map((entry) => (
+                  <MemoryEntryCard
+                    key={entry.id}
+                    entry={entry}
+                    onDelete={askDeleteMemory}
+                    onPin={pinMemoryAsIdentity}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
