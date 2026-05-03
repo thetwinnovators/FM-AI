@@ -269,7 +269,8 @@ function formatDocumentsIndexBlock(documents, folders = {}, limit = 5) {
   const lines = shown.map((d) => {
     const title = String(d.title || d.url || d.id || 'Untitled').trim()
     const folderName = d.folderId && folders[d.folderId]?.name ? ` [${folders[d.folderId].name}]` : ''
-    return `- ${title}${folderName} — /documents/${d.id}`
+    const link = d.id ? ` — /documents/${d.id}` : ''
+    return `- ${title}${folderName}${link}`
   })
   const total = documents.length
   const header = total > limit
@@ -290,6 +291,9 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
   const isReadDirective = isReadDocIntent(userQuery) && retrieved.length > 0
   const docIndexBlock  = isReadDirective ? '' : formatDocumentsIndexBlock(allDocuments, folders)
 
+  // META_SYSTEM_MESSAGE already bundles PERSONALITY and all persona rules
+  // so we skip preamble here. We do surface identity memory so the model
+  // can answer personal "do you know about me?" variants accurately.
   if (isMetaSystemQuestion(userQuery)) {
     return identityBlock
       ? `${META_SYSTEM_MESSAGE}\n\n${identityBlock}`
@@ -313,7 +317,7 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
       `- If identity memory covers it, use it directly.\n` +
       `- If it's a general-knowledge question, answer briefly.\n` +
       `- If source material is missing, say so naturally — e.g. "I don't see that in FlowMap yet — drop in the doc or link and I'll take it from there." Never say "I don't have a saved doc on the exact topic" or "Based on the available documents".\n` +
-      `- NEVER write the strings "EXCERPTS:" or "[N] Title:" in your response — those are prompt scaffolding, not content to echo.`
+      `- NEVER write the strings "EXCERPTS:" or "[N] Title:" in your response if they appear — those are prompt scaffolding, not content to echo.`
     )
   }
 

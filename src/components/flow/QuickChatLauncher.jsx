@@ -170,7 +170,9 @@ export default function QuickChatLauncher() {
         }
       }
     }
-    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes)
+    // QuickChat is ephemeral — no persistent conversation, no recentMessages.
+    // Pass allDocs so the model sees the document library index.
+    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, 'retrieval_request', {}, null, allDocs)
     const llmMessages = [
       { role: 'system', content: systemMessage },
       ...nextHistory.map((m) => ({ role: m.role, content: m.content })),
