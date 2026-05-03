@@ -72,3 +72,49 @@ export interface TelegramCommandMessage {
   status: 'received' | 'processed' | 'failed'
   linkedExecutionId?: string
 }
+
+export interface ContextFileReference {
+  fileId: string          // unique id, e.g. "ctxfile_<timestamp>_<random>"
+  title: string           // human-readable label
+  contentType: string     // e.g. "text/plain", "text/markdown", "application/json"
+  byteSize: number        // character length of the stored content
+  reasonIncluded: string  // why this was captured, e.g. "webpage extract for task xyz"
+  createdAt: string       // ISO timestamp
+}
+
+export type TaskTranscriptEntryType = 'tool_call' | 'tool_result' | 'note' | 'recitation'
+
+export interface TaskTranscriptEntry {
+  seq: number                     // monotonically increasing sequence number
+  type: TaskTranscriptEntryType
+  toolName?: string               // set for tool_call and tool_result entries
+  content: string                 // summary text or recitation body
+  status?: 'success' | 'failed'  // set for tool_result entries
+  errorReason?: string            // set when status === 'failed', kept visible per spec
+  retryOf?: number                // seq of the entry this retries, if applicable
+  timestamp: string               // ISO timestamp
+}
+
+export type AgentTaskPlanStatus = 'planned' | 'running' | 'blocked' | 'completed' | 'failed'
+export type AgentTaskStepStatus = 'pending' | 'running' | 'done' | 'failed'
+
+export interface AgentTaskStep {
+  id: string
+  title: string
+  toolName?: string
+  status: AgentTaskStepStatus
+  notes?: string
+}
+
+export interface AgentTaskPlan {
+  id: string
+  goal: string
+  status: AgentTaskPlanStatus
+  currentStep?: string            // id of the currently active step
+  steps: AgentTaskStep[]
+  recitationSummary: string       // short paragraph rewritten after each step
+  createdAt: string
+  updatedAt: string
+  contextFiles: ContextFileReference[]   // files accumulated during this task
+  transcript: TaskTranscriptEntry[]      // append-only execution log
+}
