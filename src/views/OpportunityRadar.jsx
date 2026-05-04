@@ -124,8 +124,6 @@ export default function OpportunityRadar() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
-  const activeConceptClusterId = concepts.find((c) => c.id === activeConceptId)?.clusterId
-
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] p-4 md:p-6 max-w-7xl mx-auto">
 
@@ -185,27 +183,20 @@ export default function OpportunityRadar() {
             {top3.map((cluster, i) => {
               const existingConcept = concepts.find((c) => c.clusterId === cluster.id)
               return (
-                <div key={cluster.id}>
-                  <RadarTopCard
-                    cluster={cluster}
-                    signals={signals.filter((s) => cluster.signalIds.includes(s.id))}
-                    rank={i + 1}
-                    existingConcept={existingConcept ?? null}
-                    generating={generatingFor === cluster.id}
-                    onGenerateConcept={() => handleGenerateConcept(cluster.id)}
-                    onViewConcept={() => setActiveConceptId(existingConcept?.id ?? null)}
-                    onViewEvidence={() => setEvidenceClusterId(
-                      evidenceClusterId === cluster.id ? null : cluster.id,
-                    )}
-                    evidenceOpen={evidenceClusterId === cluster.id}
-                  />
-                  {activeConceptClusterId === cluster.id && activeConceptId && (
-                    <ConceptView
-                      concept={concepts.find((c) => c.id === activeConceptId)}
-                      onClose={() => setActiveConceptId(null)}
-                    />
+                <RadarTopCard
+                  key={cluster.id}
+                  cluster={cluster}
+                  signals={signals.filter((s) => cluster.signalIds.includes(s.id))}
+                  rank={i + 1}
+                  existingConcept={existingConcept ?? null}
+                  generating={generatingFor === cluster.id}
+                  onGenerateConcept={() => handleGenerateConcept(cluster.id)}
+                  onViewConcept={() => setActiveConceptId(existingConcept?.id ?? null)}
+                  onViewEvidence={() => setEvidenceClusterId(
+                    evidenceClusterId === cluster.id ? null : cluster.id,
                   )}
-                </div>
+                  evidenceOpen={evidenceClusterId === cluster.id}
+                />
               )
             })}
           </div>
@@ -223,14 +214,12 @@ export default function OpportunityRadar() {
         />
       )}
 
-      {/* Concept view for PatternTable clicks (cluster not in top-3 grid) */}
-      {activeConceptId && !top3.find((c) => c.id === activeConceptClusterId) && (
-        <section className="mb-8">
-          <ConceptView
-            concept={concepts.find((c) => c.id === activeConceptId)}
-            onClose={() => setActiveConceptId(null)}
-          />
-        </section>
+      {/* Concept modal — covers top-3 and PatternTable clicks */}
+      {activeConceptId && (
+        <ConceptView
+          concept={concepts.find((c) => c.id === activeConceptId)}
+          onClose={() => setActiveConceptId(null)}
+        />
       )}
 
       {/* Zone 3: All patterns */}
