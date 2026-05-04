@@ -36,7 +36,10 @@ function Section({ title, content, copyable = false }) {
 export default function ConceptView({ concept, onClose }) {
   if (!concept) return null
 
-  const isOllama = concept.generatedBy === 'ollama'
+  const isOllama        = concept.generatedBy === 'ollama'
+  const evidenceSummary = concept.evidenceSummary ?? {}
+  const sourceBreakdown = evidenceSummary.sourceBreakdown ?? {}
+  const topQuotes       = evidenceSummary.topQuotes ?? []
 
   return (
     <div className="mt-3 rounded-xl border border-white/8 bg-white/[0.025] overflow-hidden">
@@ -77,13 +80,13 @@ export default function ConceptView({ concept, onClose }) {
         <div className="mb-5 p-3 rounded-lg bg-white/[0.02] border border-white/5 text-xs">
           <div className="text-white/30 mb-2 uppercase tracking-wide text-[10px]">Evidence</div>
           <div className="flex flex-wrap gap-3 mb-2 text-white/60">
-            <span>{concept.evidenceSummary.signalCount} signals</span>
-            {Object.entries(concept.evidenceSummary.sourceBreakdown).map(([src, n]) => (
+            <span>{evidenceSummary.signalCount ?? 0} signals</span>
+            {Object.entries(sourceBreakdown).map(([src, n]) => (
               <span key={src}>{src}: {n}</span>
             ))}
           </div>
-          {concept.evidenceSummary.topQuotes.slice(0, 3).map((q, i) => (
-            <blockquote key={i} className="text-white/40 italic border-l-2 border-white/10 pl-2 mb-1.5 text-[11px]">
+          {topQuotes.slice(0, 3).map((q, i) => (
+            <blockquote key={q.url ?? `${q.source}-${i}`} className="text-white/40 italic border-l-2 border-white/10 pl-2 mb-1.5 text-[11px]">
               "{q.text.slice(0, 150)}"
               {q.url && (
                 <a href={q.url} target="_blank" rel="noopener noreferrer" className="ml-1 text-teal-400/70 not-italic">
@@ -123,15 +126,10 @@ export default function ConceptView({ concept, onClose }) {
 
       {/* Footer actions */}
       <div className="flex gap-2 p-4 border-t border-white/5 flex-wrap">
-        <button
-          onClick={() => {
-            const md = `# ${concept.title}\n\n${concept.tagline}\n\n---\n\n${concept.claudeCodePrompt}\n\n---\n\n${concept.implementationPlan}`
-            navigator.clipboard.writeText(md)
-          }}
-          className="text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] text-white/50 border border-white/8 hover:bg-white/8 transition-colors"
-        >
-          Export as Markdown
-        </button>
+        <CopyButton
+          text={`# ${concept.title}\n\n${concept.tagline}\n\n---\n\n${concept.claudeCodePrompt}\n\n---\n\n${concept.implementationPlan}`}
+          label="Export as Markdown"
+        />
       </div>
     </div>
   )

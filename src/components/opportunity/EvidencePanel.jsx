@@ -13,7 +13,7 @@ function IntensityBadge({ score }) {
   )
 }
 
-export default function EvidencePanel({ cluster, signals, onClose }) {
+export default function EvidencePanel({ cluster, signals = [], onClose }) {
   const [filterSource,    setFilterSource]    = useState('')
   const [filterIntensity, setFilterIntensity] = useState(0)
 
