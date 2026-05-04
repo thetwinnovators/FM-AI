@@ -212,7 +212,7 @@ export default function OpportunityRadar() {
         )}
       </section>
 
-      {/* Evidence drawer */}
+      {/* Evidence modal */}
       {evidenceClusterId && (
         <EvidencePanel
           cluster={clusters.find((c) => c.id === evidenceClusterId)}
@@ -221,6 +221,16 @@ export default function OpportunityRadar() {
           )}
           onClose={() => setEvidenceClusterId(null)}
         />
+      )}
+
+      {/* Concept view for PatternTable clicks (cluster not in top-3 grid) */}
+      {activeConceptId && !top3.find((c) => c.id === activeConceptClusterId) && (
+        <section className="mb-8">
+          <ConceptView
+            concept={concepts.find((c) => c.id === activeConceptId)}
+            onClose={() => setActiveConceptId(null)}
+          />
+        </section>
       )}
 
       {/* Zone 3: All patterns */}
