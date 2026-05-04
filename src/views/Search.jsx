@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle, Plus, Check, Bookmark, BookmarkCheck, Play } from 'lucide-react'
+import { Loader2, AlertCircle, ExternalLink, Globe, FileText, MessageCircle, Plus, Check, Bookmark, BookmarkCheck, Play, FileDown } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { fetchAll, groupByCategory, sortCategoryGroups } from '../lib/search/aggregate.js'
@@ -10,11 +10,25 @@ import { getOgImage } from '../lib/search/ogImage.js'
 import { Link } from 'react-router-dom'
 import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
 import ArticleReader from '../components/content/ArticleReader.jsx'
+import FileTypeChip from '../components/document/FileTypeChip.jsx'
+
+function relativeDate(iso) {
+  if (!iso) return ''
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (Number.isNaN(diff)) return ''
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
 
 function iconAndAccentFor(item) {
-  if (item.type === 'video')       return { Icon: Play,          accent: 'var(--color-video)' }
+  if (item.type === 'pdf' || item.sourceType === 'pdf')
+                               return { Icon: FileDown,     accent: '#f59e0b' }
+  if (item.type === 'video')   return { Icon: Play,         accent: 'var(--color-video)' }
   if (item.type === 'social_post') return { Icon: MessageCircle, accent: 'var(--color-social-post)' }
-  if (item.type === 'article')     return { Icon: FileText,      accent: 'var(--color-article)' }
+  if (item.type === 'article') return { Icon: FileText,     accent: 'var(--color-article)' }
   return { Icon: Globe, accent: 'var(--color-article)' }
 }
 
@@ -123,12 +137,70 @@ function SeedResultRow({ kind, item }) {
   )
 }
 
+function stripHtml(html) {
+  return (html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+}
+
+function getSnippet(text, query) {
+  if (!text || !query) return null
+  const plain = stripHtml(text)
+  const idx = plain.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return null
+  const start = Math.max(0, idx - 55)
+  const end = Math.min(plain.length, idx + query.length + 80)
+  return (start > 0 ? '…' : '') + plain.slice(start, end) + (end < plain.length ? '…' : '')
+}
+
+function DocCard({ doc, query }) {
+  const snippet = getSnippet(doc.content, query) || getSnippet(doc.excerpt, query) || doc.summary || doc.excerpt
+  const topicChips = (doc.tags || []).slice(0, 4)
+  return (
+    <article className="rounded-lg overflow-hidden border transition-colors flex flex-col group shadow-sm border-black/10 bg-slate-100 hover:bg-slate-200">
+      <Link to={`/documents/${doc.id}`} className="block p-5 flex-1">
+        <div className="flex items-center gap-2 mb-4">
+          <FileTypeChip sourceType={doc.sourceType} fileName={doc.fileName} />
+          {doc.fileName ? (
+            <span className="text-[11px] text-gray-500 font-mono truncate min-w-0" title={doc.fileName}>
+              {doc.fileName}
+            </span>
+          ) : null}
+          <span className="text-[11px] text-gray-500 ml-auto flex-shrink-0">
+            {relativeDate(doc.updatedAt || doc.createdAt)}
+          </span>
+        </div>
+        <h3 className="text-[15px] font-semibold leading-snug line-clamp-2 text-gray-900">
+          {doc.title || 'Untitled'}
+        </h3>
+        {snippet ? (
+          <p className="mt-3 text-xs text-gray-600 line-clamp-3 leading-relaxed">{snippet}</p>
+        ) : null}
+        {topicChips.length > 0 ? (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {topicChips.map((tag, i) => (
+              <span
+                key={i}
+                className="text-[10px] text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 bg-gray-50"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </Link>
+      <div className="px-5 pb-3 text-[11px] text-gray-500">
+        {doc.wordCount ? `${doc.wordCount} words` : ''}
+      </div>
+    </article>
+  )
+}
+
 export default function Search() {
   const [params] = useSearchParams()
   const query = params.get('q') || ''
+  const isWebMode = params.get('mode') === 'web'
   const navigate = useNavigate()
   const seed = useSeed()
-  const { addUserTopic, userTopics, saves, views, dismisses } = useStore()
+  const { addUserTopic, userTopics, saves, views, dismisses, documents } = useStore()
   const userTopicSlugs = new Set(Object.values(userTopics).map((t) => t.slug))
   const slugForName = (s) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9\s-]/g, '').replace(/[\s-]+/g, '-').replace(/^-+|-+$/g, '')
 
@@ -153,8 +225,13 @@ export default function Search() {
   const [openArticle, setOpenArticle] = useState(null)
   function openItem(item) {
     if (!item) return
-    if (item.type === 'video') setOpenVideo(item)
-    else setOpenArticle(item)
+    if (item.type === 'pdf' || item.sourceType === 'pdf') {
+      window.open(item.url, '_blank', 'noopener,noreferrer')
+    } else if (item.type === 'video') {
+      setOpenVideo(item)
+    } else {
+      setOpenArticle(item)
+    }
   }
 
   useEffect(() => {
@@ -183,6 +260,17 @@ export default function Search() {
     ? Object.values(seedHits).reduce((sum, arr) => sum + arr.length, 0)
     : 0
 
+  const docHits = query
+    ? Object.values(documents || {}).filter((doc) => {
+        const term = query.toLowerCase()
+        return (
+          (doc.title   || '').toLowerCase().includes(term) ||
+          (doc.excerpt || '').toLowerCase().includes(term) ||
+          stripHtml(doc.content || '').toLowerCase().includes(term)
+        )
+      })
+    : []
+
   // SearXNG-style category tabs by sourceType. "All" preserves the topical
   // groupByCategory display below; specific tabs render a flat filtered grid.
   const [sourceTab, setSourceTab] = useState('all')
@@ -190,16 +278,23 @@ export default function Search() {
     acc.all += 1
     if (it.sourceType) acc[it.sourceType] = (acc[it.sourceType] || 0) + 1
     return acc
-  }, { all: 0, article: 0, video: 0, news: 0, reference: 0, community: 0 })
+  }, { all: 0, article: 0, video: 0, news: 0, reference: 0, community: 0, pdf: 0, documents: 0 })
+  // Documents only surface in FlowMap mode — not in web search
+  if (!isWebMode) {
+    tabCounts.documents = docHits.length
+    tabCounts.all += docHits.length
+  }
   const SOURCE_TABS = [
     { id: 'all',       label: 'All' },
+    ...(!isWebMode ? [{ id: 'documents', label: 'Documents' }] : []),
     { id: 'article',   label: 'General' },
     { id: 'video',     label: 'Videos' },
+    { id: 'pdf',       label: 'PDFs' },
     { id: 'news',      label: 'News' },
     { id: 'reference', label: 'Reference' },
     { id: 'community', label: 'Community' },
   ]
-  const filteredItems = sourceTab === 'all'
+  const filteredItems = sourceTab === 'all' || sourceTab === 'documents'
     ? state.items
     : state.items.filter((it) => it.sourceType === sourceTab)
 
@@ -216,7 +311,7 @@ export default function Search() {
         </p>
       </header>
 
-      {query ? (
+      {query && isWebMode ? (
         <div className="mb-6 glass-panel px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <div className="text-[12px] text-[color:var(--color-text-secondary)]">
             Track this search? Save it as a topic to follow it on the Topics page.
@@ -239,20 +334,6 @@ export default function Search() {
         </p>
       ) : (
         <div className="space-y-10">
-          {seedTotal > 0 ? (
-            <section>
-              <h2 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
-                In your library ({seedTotal})
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {seedHits.topics.map((x)    => <SeedResultRow key={x.id} kind="topics"    item={x} />)}
-                {seedHits.tools.map((x)     => <SeedResultRow key={x.id} kind="tools"     item={x} />)}
-                {seedHits.creators.map((x)  => <SeedResultRow key={x.id} kind="creators"  item={x} />)}
-                {seedHits.companies.map((x) => <SeedResultRow key={x.id} kind="companies" item={x} />)}
-                {seedHits.concepts.map((x)  => <SeedResultRow key={x.id} kind="concepts"  item={x} />)}
-              </div>
-            </section>
-          ) : null}
 
           <section>
             {/* SearXNG-style category tabs — slice by sourceType. Counts read
@@ -298,7 +379,17 @@ export default function Search() {
               </div>
             ) : null}
 
-            {state.status === 'loading' && state.items.length === 0 ? (
+            {sourceTab === 'documents' ? (
+              docHits.length === 0 ? (
+                <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">
+                  No documents match "{query}".
+                </p>
+              ) : (
+                <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 300px)' }}>
+                  {docHits.map((doc) => <DocCard key={doc.id} doc={doc} query={query} />)}
+                </div>
+              )
+            ) : state.status === 'loading' && state.items.length === 0 ? (
               <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div key={i} className="rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] p-4 h-32 animate-pulse" />
@@ -313,13 +404,23 @@ export default function Search() {
                 </p>
               ) : null
             ) : sourceTab !== 'all' ? (
-              // Flat grid for specific source-type tabs.
               <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
                 {filteredItems.map((it) => <ResultCard key={it.id} item={it} onOpen={openItem} />)}
               </div>
             ) : (
-              // "All" tab — keep the topical category grouping with Follow buttons.
               <div className="space-y-8">
+                {!isWebMode && docHits.length > 0 ? (
+                  <div>
+                    <div className="flex items-center justify-between mb-3 gap-3">
+                      <h3 className="text-[11px] uppercase tracking-wide text-white/50 font-semibold">
+                        Documents <span className="text-[10px] text-[color:var(--color-text-tertiary)] ml-1">{docHits.length}</span>
+                      </h3>
+                    </div>
+                    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 300px)' }}>
+                      {docHits.map((doc) => <DocCard key={doc.id} doc={doc} query={query} />)}
+                    </div>
+                  </div>
+                ) : null}
                 {groups.map(({ category, label, items }) => (
                   <div key={category}>
                     <div className="flex items-center justify-between mb-3 gap-3">

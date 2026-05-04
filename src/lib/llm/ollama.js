@@ -82,6 +82,26 @@ export async function generateSummary(text, opts = {}) {
   return String(json.response).trim() || null
 }
 
+// Generic response — takes a pre-built prompt and calls /api/generate without
+// any wrapper. Used by the Telegram bot responder and other callers that need
+// a conversational answer rather than a document summary.
+export async function generateResponse(prompt, opts = {}) {
+  if (!OLLAMA_CONFIG.enabled) return null
+  const trimmed = String(prompt || '').trim()
+  if (!trimmed) return null
+
+  const json = await postJson('/api/generate', {
+    model: OLLAMA_CONFIG.model,
+    prompt: trimmed,
+    stream: false,
+    keep_alive: '15m',
+    options: { temperature: opts.temperature ?? 0.7 },
+  }, opts.signal)
+
+  if (!json?.response) return null
+  return String(json.response).trim() || null
+}
+
 // Quick health check — does the proxy reach a running Ollama instance with the
 // configured model available? Used by the gear menu to show a status hint.
 // Returns one of: 'ok' | 'no-instance' | 'no-model' | 'disabled'.
@@ -126,7 +146,13 @@ export async function* streamChat(messages, opts = {}) {
         keep_alive: '15m',  // keep model in RAM between messages — first call eats ~10s load, follow-ups are fast
         options: {
           temperature: opts.temperature ?? 0.3,
-          num_predict: opts.num_predict ?? 512, // cap output length — bounds slow tails on CPU
+          // Expand the context window beyond Ollama's conservative 4096 default.
+          // phi4-mini supports up to 128K; 32K is a practical sweet spot that keeps
+          // VRAM usage reasonable while giving long code blocks plenty of room.
+          // Callers can override via opts.num_ctx.
+          num_ctx: opts.num_ctx ?? 32768,
+          // -1 = no hard output cap; model runs to natural completion (or num_ctx).
+          num_predict: opts.num_predict ?? -1,
         },
       }),
       signal: ctrl.signal,

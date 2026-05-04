@@ -12,7 +12,6 @@
 import { useMemo } from 'react'
 import { FileText, Compass, TrendingUp, Search, Sparkles, BookOpen } from 'lucide-react'
 
-// All cards share one neutral style — context comes from the label, not colour
 const ICONS = {
   document: FileText,
   topic:    Compass,
@@ -30,6 +29,7 @@ const LABELS = {
   overview: 'Overview',
   reading:  'Reading',
 }
+
 
 function trunc(str, n) {
   if (!str) return ''
@@ -133,11 +133,11 @@ export default function StarterPromptGrid({ docs, userTopics, searches, signals,
   if (prompts.length === 0) return null
 
   return (
-    <div className="mt-8 w-full max-w-[480px] mx-auto">
+    <div className="mt-8 w-full max-w-[680px] mx-auto">
       <p className="text-[10px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] text-center mb-3 font-semibold">
         Start a conversation
       </p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {prompts.map((p, i) => {
           const Icon = ICONS[p.type] || Sparkles
           const label = LABELS[p.type] || 'Prompt'
@@ -147,13 +147,13 @@ export default function StarterPromptGrid({ docs, userTopics, searches, signals,
               onClick={() => onSend(p.prompt)}
               className="flex flex-col gap-1.5 px-3.5 py-3 rounded-xl border text-left
                 transition-colors cursor-pointer
-                border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.06] hover:border-white/[0.14]"
+                border-white/[0.07] bg-[#0d0f1c] hover:bg-[#111326] hover:border-white/[0.14]"
             >
-              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold text-white/35">
+              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold opacity-70 text-[color:var(--color-tool)]">
                 <Icon size={10} aria-hidden="true" />
                 {label}
               </span>
-              <span className="text-[13px] text-white/75 leading-snug">
+              <span className="text-[13px] text-stone-300/80 leading-snug">
                 {p.display}
               </span>
             </button>

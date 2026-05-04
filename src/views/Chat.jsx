@@ -381,7 +381,7 @@ function ModelPicker({ value, options, disabled, onChange }) {
       <button
         onClick={() => !disabled && !isEmpty && setOpen((v) => !v)}
         disabled={disabled || isEmpty}
-        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-input)] text-xs text-white/85 hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-input)] text-xs text-white/85 hover:bg-white/[0.06] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         title={isEmpty ? 'No models discovered — pull one with `docker exec ollama ollama pull …`' : 'Model used for the next message'}
       >
         <Sparkles size={11} className="text-[color:var(--color-text-tertiary)] flex-shrink-0" />
@@ -473,86 +473,99 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
   useEffect(() => { ref.current?.focus() }, [])
 
   return (
-    <div className="border-t border-[color:var(--color-border-subtle)] p-4">
+    <div className="p-4">
       {mic.error ? (
         <p className="mb-2 text-[11px] text-amber-300/80">{mic.error}</p>
       ) : null}
-      <textarea
-        ref={ref}
-        value={text}
-        onChange={(e) => { setText(e.target.value); mic.rebase(e.target.value) }}
-        onKeyDown={onKey}
-        placeholder={
-          disabled ? 'Enable Ollama in the gear menu to chat.'
-          : mic.listening ? 'Listening… click mic again to transcribe'
-          : mic.transcribing ? 'Transcribing with Whisper…'
-          : 'Ask anything about your knowledge base… (Enter to send, Shift+Enter for newline)'
-        }
-        disabled={disabled}
-        rows={2}
-        className="glass-input w-full text-sm resize-none disabled:opacity-50"
-      />
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <ModelPicker
-          value={model}
-          options={availableModels}
-          disabled={disabled}
-          onChange={onChangeModel}
+      <div className="relative">
+        {/* Gradient glow behind the input */}
+        <div
+          className="absolute -inset-2 rounded-2xl blur-2xl pointer-events-none"
+          style={{
+            background: 'radial-gradient(ellipse 80% 60% at 50% 80%, rgba(99,102,241,0.28) 0%, rgba(217,70,239,0.18) 45%, transparent 75%)',
+            opacity: 0.85,
+          }}
         />
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {mic.supported ? (
-            <button
-              onClick={mic.toggleMic}
-              disabled={disabled || busy || mic.transcribing}
-              className={`p-2 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                mic.listening
-                  ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
-                  : 'bg-white/[0.05] text-white/70 hover:text-white hover:bg-white/[0.08]'
-              }`}
-              aria-label={mic.listening ? 'Stop dictation' : 'Start dictation'}
-              title={mic.listening ? 'Stop dictation' : 'Speak to type (local Whisper)'}
-            >
-              {mic.listening ? (
-                <span className="relative inline-flex">
-                  <Mic size={14} />
-                  <span className="absolute -inset-1 rounded-full bg-rose-400/40 animate-ping" />
-                </span>
-              ) : mic.transcribing ? (
-                <Loader2 size={14} className="animate-spin" />
+        {/* Unified input box — textarea + toolbar inside one glass container */}
+        <div className="relative glass-input p-0 flex flex-col focus-within:border-[color:var(--color-border-strong)] transition-colors" style={{ background: 'rgba(6,8,16,0.82)' }}>
+          <textarea
+            ref={ref}
+            value={text}
+            onChange={(e) => { setText(e.target.value); mic.rebase(e.target.value) }}
+            onKeyDown={onKey}
+            placeholder={
+              disabled ? 'Enable Ollama in the gear menu to chat.'
+              : mic.listening ? 'Listening… click mic again to transcribe'
+              : mic.transcribing ? 'Transcribing with Whisper…'
+              : 'Ask anything about your knowledge base… (Enter to send, Shift+Enter for newline)'
+            }
+            disabled={disabled}
+            rows={4}
+            className="w-full bg-transparent text-sm resize-none disabled:opacity-50 px-3.5 pt-3.5 pb-2 outline-none placeholder:text-white/25"
+          />
+          {/* Toolbar row */}
+          <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-1">
+            <ModelPicker
+              value={model}
+              options={availableModels}
+              disabled={disabled}
+              onChange={onChangeModel}
+            />
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {mic.supported ? (
+                <button
+                  onClick={mic.toggleMic}
+                  disabled={disabled || busy || mic.transcribing}
+                  className={`h-10 w-10 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                    mic.listening
+                      ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
+                      : 'text-white/50 hover:text-white hover:bg-white/[0.08]'
+                  }`}
+                  aria-label={mic.listening ? 'Stop dictation' : 'Start dictation'}
+                  title={mic.listening ? 'Stop dictation' : 'Speak to type (local Whisper)'}
+                >
+                  {mic.listening ? (
+                    <span className="relative inline-flex">
+                      <Mic size={14} />
+                      <span className="absolute -inset-1 rounded-full bg-rose-400/40 animate-ping" />
+                    </span>
+                  ) : mic.transcribing ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Mic size={14} />
+                  )}
+                </button>
               ) : (
-                <Mic size={14} />
+                <button
+                  disabled
+                  className="h-10 w-10 flex items-center justify-center rounded-lg text-white/30 cursor-not-allowed"
+                  aria-label="Mic unavailable"
+                  title="This browser doesn't support MediaRecorder"
+                >
+                  <MicOff size={14} />
+                </button>
               )}
-            </button>
-          ) : (
-            <button
-              disabled
-              className="p-2 rounded-lg bg-white/[0.03] text-white/30 cursor-not-allowed"
-              aria-label="Mic unavailable"
-              title="This browser doesn't support MediaRecorder"
-            >
-              <MicOff size={14} />
-            </button>
-          )}
-          {busy || voicePlaying ? (
-            <button
-              onClick={onStop}
-              className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-rose-100 bg-rose-500/25 hover:bg-rose-500/35 transition-colors"
-              title={busy ? 'Stop generating (Esc)' : 'Stop voice (Esc)'}
-              aria-label="Stop"
-            >
-              <Square size={13} fill="currentColor" />
-              Stop
-            </button>
-          ) : (
-            <button
-              onClick={submit}
-              disabled={disabled || !text.trim()}
-              className="btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <Send size={14} />
-              Send
-            </button>
-          )}
+              {busy || voicePlaying ? (
+                <button
+                  onClick={onStop}
+                  className="inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium text-rose-100 bg-rose-500/25 hover:bg-rose-500/35 transition-colors"
+                  title={busy ? 'Stop generating (Esc)' : 'Stop voice (Esc)'}
+                  aria-label="Stop"
+                >
+                  <Square size={13} fill="currentColor" />
+                  Stop
+                </button>
+              ) : (
+                <button
+                  onClick={submit}
+                  disabled={disabled || !text.trim()}
+                  className="btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed h-10 w-10 p-0"
+                >
+                  <Send size={14} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -962,7 +975,7 @@ export default function Chat() {
                 className="text-base font-semibold tracking-tight truncate cursor-text min-w-0"
                 title={conversation ? 'Double-click to rename — drag to select text' : ''}
               >
-                {conversation?.title || 'Ask FlowMap AI'}
+                {conversation?.title || 'Ask Flow.AI'}
               </h1>
               {conversation ? (
                 <>
@@ -1004,22 +1017,33 @@ export default function Chat() {
           </div>
         ) : null}
 
-        <div
-          ref={scrollRef}
-          className="flex-1 overflow-auto px-6 py-6"
-          style={{
-            background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)',
-          }}
-        >
-          {!conversation && messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center py-8">
-              <div className="w-12 h-12 rounded-full bg-[color:var(--color-bg-glass-strong)] border border-[color:var(--color-border-default)] flex items-center justify-center mb-4">
-                <Sparkles size={20} className="text-[color:var(--color-topic)]" />
+        {(!conversation && messages.length === 0) ? (
+          /* ── Centered empty state ──────────────────────────────────────── */
+          <div
+            className="flex-1 flex flex-col items-center justify-center px-6 overflow-auto"
+            style={{ background: 'radial-gradient(ellipse 40% 30% at 50% 30%, rgba(20,184,166,0.07) 0%, transparent 70%), linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)' }}
+          >
+            <div className="w-full max-w-[780px] flex flex-col items-center gap-5 pb-10">
+              {/* Branding */}
+              <div className="flex flex-col items-center gap-2 mb-2">
+                <h1 className="text-4xl font-light tracking-tight">What would you like to research?</h1>
+                <p className="text-sm text-[color:var(--color-text-tertiary)] text-center max-w-lg">
+                  Search across your documents, topics, signals, and saved content.
+                </p>
               </div>
-              <h2 className="text-lg font-semibold">Ask anything about your knowledge base</h2>
-              <p className="text-sm text-[color:var(--color-text-tertiary)] mt-2 max-w-md">
-                Flow AI searches across your documents, topics, signals, and saved content to answer your questions.
-              </p>
+
+              {/* Composer — centered */}
+              <div className="w-full">
+                <Composer
+                  onSend={handleSend}
+                  onStop={stopAll}
+                  disabled={ollamaOff}
+                  busy={busy}
+                  voicePlaying={voicePlaying}
+                />
+              </div>
+
+              {/* Starter prompts */}
               <StarterPromptGrid
                 docs={allDocs}
                 userTopics={allUserTopics}
@@ -1027,14 +1051,23 @@ export default function Chat() {
                 signals={starterSignals}
                 onSend={handleSend}
               />
+
               {allDocs.length === 0 ? (
-                <p className="text-[12px] text-[color:var(--color-text-tertiary)] mt-6">
-                  Add some documents first via the <Link to="/documents" className="underline text-white">Documents page</Link>.
+                <p className="text-[12px] text-[color:var(--color-text-tertiary)]">
+                  Add documents first via the <Link to="/documents" className="underline text-white">Documents page</Link>.
                 </p>
               ) : null}
             </div>
-          ) : (
-            <>
+          </div>
+        ) : (
+          /* ── Conversation mode ─────────────────────────────────────────── */
+          <>
+            <div
+              ref={scrollRef}
+              className="flex-1 overflow-auto py-6"
+              style={{ background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)' }}
+            >
+              <div className="max-w-3xl mx-auto px-6">
               {messages.map((m, i) => (
                 <React.Fragment key={m.id}>
                   <MessageBubble message={m} />
@@ -1061,17 +1094,20 @@ export default function Chat() {
                 </div>
               ) : null}
               {retrievedHint.length > 0 && (busy || streamingText) ? <CitedDocsHint retrieved={retrievedHint} /> : null}
-            </>
-          )}
-        </div>
+              </div>
+            </div>
 
-        <Composer
-          onSend={handleSend}
-          onStop={stopAll}
-          disabled={ollamaOff}
-          busy={busy}
-          voicePlaying={voicePlaying}
-        />
+            <div className="max-w-3xl mx-auto w-full">
+              <Composer
+                onSend={handleSend}
+                onStop={stopAll}
+                disabled={ollamaOff}
+                busy={busy}
+                voicePlaying={voicePlaying}
+              />
+            </div>
+          </>
+        )}
       </main>
     </div>
   )

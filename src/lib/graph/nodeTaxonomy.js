@@ -1,17 +1,29 @@
+// Tier describes where each node type sits in the data-flow hierarchy:
+//   structure  → the organising layer (what is tracked)
+//   entity     → real-world actors that produce or are associated with content
+//   content    → consumed artefacts that flow into the graph
+//   intelligence → derived knowledge that FlowMap generates over time
 export const NODE_TYPES = [
-  { id: 'topic',         label: 'Topic',        color: '#d946ef' },
-  { id: 'concept',       label: 'Concept',      color: '#94a3b8' },
-  { id: 'tool',          label: 'Tool',         color: '#06b6d4' },
-  { id: 'company',       label: 'Company',      color: '#3b82f6' },
-  { id: 'creator',       label: 'Creator',      color: '#14b8a6' },
-  { id: 'video',         label: 'Video',        color: '#ec4899' },
-  { id: 'article',       label: 'Article',      color: '#6366f1' },
-  { id: 'social_post',   label: 'Social Post',  color: '#8b5cf6' },
-  { id: 'tag',           label: 'Tag',          color: '#64748b' },
-  { id: 'learning_path', label: 'Learning',     color: '#10b981' },
-  { id: 'memory',        label: 'Memory',       color: '#a855f7' },
-  { id: 'signal',        label: 'Signal',       color: '#f43f5e' },
-  { id: 'document',      label: 'Document',     color: '#22d3ee' },
+  { id: 'topic',         label: 'Topic',        color: '#d946ef', tier: 'structure'     },
+  { id: 'concept',       label: 'Concept',      color: '#94a3b8', tier: 'structure'     },
+  { id: 'tag',           label: 'Tag',          color: '#64748b', tier: 'structure'     },
+  { id: 'creator',       label: 'Creator',      color: '#14b8a6', tier: 'entity'        },
+  { id: 'company',       label: 'Company',      color: '#3b82f6', tier: 'entity'        },
+  { id: 'video',         label: 'Video',        color: '#ec4899', tier: 'content'       },
+  { id: 'article',       label: 'Article',      color: '#6366f1', tier: 'content'       },
+  { id: 'social_post',   label: 'Social Post',  color: '#8b5cf6', tier: 'content'       },
+  { id: 'document',      label: 'Document',     color: '#22d3ee', tier: 'content'       },
+  { id: 'tool',          label: 'Tool',         color: '#06b6d4', tier: 'content'       },
+  { id: 'memory',        label: 'Memory',       color: '#a855f7', tier: 'intelligence'  },
+  { id: 'signal',        label: 'Signal',       color: '#f43f5e', tier: 'intelligence'  },
+  { id: 'learning_path', label: 'Learning',     color: '#10b981', tier: 'intelligence'  },
+]
+
+export const TIERS = [
+  { id: 'structure',    label: 'Structure',    description: 'What is tracked'          },
+  { id: 'entity',       label: 'Entities',     description: 'Who produces content'     },
+  { id: 'content',      label: 'Content',      description: 'What flows into the graph' },
+  { id: 'intelligence', label: 'Intelligence', description: 'What FlowMap derives'     },
 ]
 
 const BY_ID = Object.fromEntries(NODE_TYPES.map((t) => [t.id, t]))

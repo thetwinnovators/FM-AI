@@ -54,9 +54,9 @@ export const OLLAMA_CONFIG = {
   // upgrades (~5GB each).
   model: _modelOverride || 'llama3.2:3b',
 
-  // Per-request timeout. Local models take a few seconds for short prompts;
-  // be generous for longer summary jobs.
-  timeoutMs: 60_000,
+  // Per-request timeout. Raised to 5 min to allow long code-generation
+  // responses to stream to completion without the abort timer firing.
+  timeoutMs: 300_000,
 }
 
 export function setOllamaEnabled(enabled) {

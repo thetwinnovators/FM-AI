@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, LayoutDashboard, Brain, FileText, MessageSquare, Compass } from 'lucide-react'
+import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity } from 'lucide-react'
 
 // Nav is grouped into sections separated by hairline dividers in the rail.
 // Order: workspace shortcuts → broad exploration → personal collections → AI assistant.
@@ -10,13 +10,14 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/discover', label: 'Discover',       icon: Compass         },
+    { to: '/signals',  label: 'Latest Signals', icon: Activity        },
   ],
   [
     { to: '/topics',    label: 'My Topics',     icon: BookOpen        },
     { to: '/documents', label: 'My Documents',  icon: FileText        },
   ],
   [
-    { to: '/chat',      label: 'Ask FlowAI',    icon: MessageSquare   },
+    { to: '/chat',      label: 'Ask Flow.AI',   icon: Bot             },
   ],
 ]
 
@@ -64,16 +65,26 @@ export default function LeftRail() {
         ))}
       </nav>
 
-      <div className="mt-auto px-2 pt-4 border-t border-[color:var(--color-border-subtle)]">
-        <div className="flex items-center gap-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-[color:var(--color-topic)]/25 flex items-center justify-center text-xs font-semibold">
-            JU
-          </div>
-          <div className="leading-tight">
-            <div className="text-sm font-medium">JenoU</div>
-            <div className="text-[11px] text-[color:var(--color-text-tertiary)]">researcher</div>
-          </div>
-        </div>
+      <div className="mt-auto">
+        <NavLink
+          to="/connections"
+          className={({ isActive }) =>
+            [
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+              isActive
+                ? 'text-[color:var(--color-text-primary)]'
+                : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-bg-glass)] hover:text-[color:var(--color-text-primary)]',
+            ].join(' ')
+          }
+          style={({ isActive }) => isActive ? {
+            background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(217,70,239,0.22) 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+          } : undefined}
+        >
+          <Plug size={17} />
+          <span>Connections</span>
+        </NavLink>
+
       </div>
     </aside>
   )

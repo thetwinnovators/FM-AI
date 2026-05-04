@@ -2,7 +2,7 @@ import { searchHackerNews } from './hackerNews.js'
 import { searchReddit } from './reddit.js'
 import { searchYouTube } from './youtube.js'
 import { searchWeb } from './web.js'
-import { searchSearxng, searchSearxngVideos } from './searxng.js'
+import { searchSearxng, searchSearxngVideos, searchSearxngPdfs } from './searxng.js'
 import { searchWikipedia } from './wikipedia.js'
 import { searchNews } from './news.js'
 import { classify, CATEGORIES, CATEGORY_LABELS } from './classify.js'
@@ -29,6 +29,9 @@ async function fetchOneQuery(q, intent, signal) {
     // works without a local instance. Bumped from 8 to 15 so generic queries
     // surface meaningfully more web pages even when SearXNG is offline.
     tasks.push(['Web',         searchWeb(q, 15, signal)])
+    // PDF documents — SearXNG `filetype:pdf` filter surfaces research papers,
+    // whitepapers, and academic PDFs. Runs in parallel with the article lane.
+    tasks.push(['PDFs',        searchSearxngPdfs(q, 10, signal)])
     // Hacker News, Reddit, and Wikipedia are intentionally disabled — too
     // much community / encyclopedia noise. Re-enable by uncommenting if you
     // want them back; their adapters are still imported.

@@ -34,6 +34,8 @@ export interface RankedResult {
     date?:        string
     topicTags?:   string[]
     confidence?:  number
+    docId?:       string   // parent document ID for chunk results
+    url?:         string   // source URL (external articles, ingested web docs)
   }
 }
 
@@ -129,6 +131,8 @@ function score(
       date:        c.date,
       topicTags:   c.topicTags,
       confidence:  c.confidence,
+      docId:       c.docId,
+      url:         c.url,
     },
   }
 }

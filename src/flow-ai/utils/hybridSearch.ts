@@ -37,9 +37,11 @@ export interface SearchCandidate {
   hasKeyPoints?:boolean
   wordCount?:   number
   hasUrl?:      boolean
+  url?:         string   // source URL (external article, video, ingested web doc)
   topicTags?:   string[]
   confidence?:  number   // 0–100, signals only
   sourceLabel?: string   // "YouTube", "Document", "Signal", …
+  docId?:       string   // parent document ID (set on chunk candidates)
 
   // scores — set progressively during the pipeline
   vector?:        number[]

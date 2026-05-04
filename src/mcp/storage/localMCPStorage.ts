@@ -39,15 +39,6 @@ const SEED_INTEGRATIONS: MCPIntegration[] = [
     scopes: ['send_message', 'send_document'],
   },
   {
-    id: 'integ_google_workspace',
-    type: 'google-workspace',
-    name: 'Google Workspace',
-    description: 'Create Docs, append Sheets, schedule calendar events, send Gmail.',
-    status: 'disconnected',
-    updatedAt: new Date().toISOString(),
-    scopes: ['docs.create', 'sheets.append', 'calendar.create', 'gmail.send'],
-  },
-  {
     id: 'integ_figma',
     type: 'figma',
     name: 'Figma',
@@ -57,21 +48,85 @@ const SEED_INTEGRATIONS: MCPIntegration[] = [
     scopes: ['file.read', 'canvas.write'],
   },
   {
-    id: 'integ_canva',
-    type: 'canva',
-    name: 'Canva',
-    description: 'Create and modify presentations, social graphics, and design assets.',
+    id: 'integ_google_drive',
+    type: 'google-drive',
+    name: 'Google Drive',
+    description: 'Browse, upload, and organize files. Attach Drive links to research notes.',
     status: 'disconnected',
     updatedAt: new Date().toISOString(),
-    scopes: ['design.create', 'design.edit'],
+    scopes: ['drive.read', 'drive.upload'],
   },
   {
-    id: 'integ_generic_mcp',
-    type: 'generic-mcp',
-    name: 'Generic MCP Server',
-    description: 'Connect any MCP-compatible server to FlowMap.',
+    id: 'integ_gmail',
+    type: 'gmail',
+    name: 'Gmail',
+    description: 'Send research summaries, drafts, and reports directly from FlowMap.',
     status: 'disconnected',
     updatedAt: new Date().toISOString(),
+    scopes: ['gmail.send', 'gmail.read'],
+  },
+  {
+    id: 'integ_google_calendar',
+    type: 'google-calendar',
+    name: 'Google Calendar',
+    description: 'Schedule research sessions, reminders, and deadlines from FlowMap.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['calendar.read', 'calendar.create'],
+  },
+  {
+    id: 'integ_google_slides',
+    type: 'google-slides',
+    name: 'Google Slides',
+    description: 'Export research summaries and topic overviews as presentation decks.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['slides.create', 'slides.edit'],
+  },
+  {
+    id: 'integ_youtube',
+    type: 'youtube',
+    name: 'YouTube',
+    description: 'Save videos to topics, pull transcripts, and track creator signals.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['youtube.read', 'youtube.save'],
+  },
+  {
+    id: 'integ_google_docs',
+    type: 'google-docs',
+    name: 'Google Docs',
+    description: 'Create, edit, and sync research notes and summaries with Google Docs.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['docs.create', 'docs.edit'],
+  },
+  {
+    id: 'integ_higgsfield',
+    type: 'higgsfield',
+    name: 'Higgsfield AI',
+    description: 'Generate AI video content from research topics and summaries.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['video.generate'],
+  },
+  {
+    id: 'integ_instagram',
+    type: 'instagram',
+    name: 'Instagram',
+    description: 'Track creator posts, monitor hashtag trends, and save content to topics.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['instagram.read'],
+  },
+  {
+    id: 'integ_facebook',
+    type: 'facebook',
+    name: 'Facebook',
+    description: 'Monitor pages, groups, and trend signals from your Facebook feed.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['facebook.read'],
   },
 ]
 
@@ -116,9 +171,22 @@ function makeSeedTelegramMessages(): TelegramCommandMessage[] {
   ]
 }
 
+// IDs that have been retired and should be removed from existing storage.
+const REMOVED_IDS = new Set(['integ_google_workspace', 'integ_canva', 'integ_generic_mcp'])
+
 function seedOnce(): void {
   const integrations = read<MCPIntegration[]>(KEYS.integrations, [])
-  if (integrations.length === 0) write(KEYS.integrations, SEED_INTEGRATIONS)
+  if (integrations.length === 0) {
+    write(KEYS.integrations, SEED_INTEGRATIONS)
+  } else {
+    // Purge retired integrations, then merge any new seed entries.
+    const pruned  = integrations.filter((i) => !REMOVED_IDS.has(i.id))
+    const existingIds = new Set(pruned.map((i) => i.id))
+    const missing = SEED_INTEGRATIONS.filter((s) => !existingIds.has(s.id))
+    if (pruned.length !== integrations.length || missing.length > 0) {
+      write(KEYS.integrations, [...pruned, ...missing])
+    }
+  }
 
   const messages = read<TelegramCommandMessage[]>(KEYS.telegramMessages, [])
   if (messages.length === 0) write(KEYS.telegramMessages, makeSeedTelegramMessages())

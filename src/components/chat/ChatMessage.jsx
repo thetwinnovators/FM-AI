@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Copy, Check, ExternalLink } from 'lucide-react'
+import { Highlight, themes } from 'prism-react-renderer'
 
 // ─── Block parser ────────────────────────────────────────────────────────────
 
@@ -224,10 +225,27 @@ function CodeBlock({ lang, code }) {
           )}
         </div>
       </div>
-      {/* Code body */}
-      <pre className="px-4 py-3 overflow-x-auto font-mono text-sm text-stone-300 leading-relaxed whitespace-pre m-0">
-        <code>{code}</code>
-      </pre>
+      {/* Code body — syntax highlighted */}
+      <Highlight
+        theme={themes.oneDark}
+        code={code}
+        language={lang || 'text'}
+      >
+        {({ tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className="px-4 py-3 font-mono text-sm leading-relaxed whitespace-pre-wrap break-words m-0 max-h-[640px] overflow-y-auto"
+            style={{ background: 'transparent' }}
+          >
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
     </div>
   )
 }

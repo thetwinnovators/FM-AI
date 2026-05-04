@@ -109,9 +109,20 @@ export default function SummaryModal({ open, topic, items, onClose }) {
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1200)
-    } catch { /* clipboard might be blocked */ }
+    } catch {
+      try {
+        const el = document.createElement('textarea')
+        el.value = text
+        el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+        document.body.appendChild(el)
+        el.focus()
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      } catch { /* truly blocked */ }
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
   }
 
   function handleAddToMemory() {

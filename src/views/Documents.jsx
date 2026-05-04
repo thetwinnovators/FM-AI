@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, FolderPlus, Plus, Inbox, Upload, CheckSquare, Square, X, Trash2, ChevronRight } from 'lucide-react'
+import { FileText, FolderPlus, Plus, Inbox, Upload, CheckSquare, Square, X, Trash2, ChevronRight, FolderInput } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import PasteDocumentModal from '../components/document/PasteDocumentModal.jsx'
@@ -44,6 +44,9 @@ export default function Documents() {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState(() => new Set())
   const [activeFolderId, setActiveFolderId] = useState(null)
+  const [showMoveMenu, setShowMoveMenu] = useState(false)
+  const moveMenuRef = useRef(null)
+  const moveBtnRef = useRef(null)
   const [renamingFolderId, setRenamingFolderId] = useState(null)
   const draggedDocId = useRef(null)
 
@@ -59,7 +62,30 @@ export default function Documents() {
   function exitSelectMode() {
     setSelectMode(false)
     setSelectedIds(new Set())
+    setShowMoveMenu(false)
   }
+
+  function bulkMove(targetFolderId) {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    ids.forEach((id) => updateDocument(id, { folderId: targetFolderId || null }))
+    setShowMoveMenu(false)
+    exitSelectMode()
+  }
+
+  // Close move-menu when clicking outside it
+  useEffect(() => {
+    if (!showMoveMenu) return
+    function onPointerDown(e) {
+      if (
+        moveMenuRef.current?.contains(e.target) ||
+        moveBtnRef.current?.contains(e.target)
+      ) return
+      setShowMoveMenu(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [showMoveMenu])
 
   async function askBulkDelete() {
     const ids = [...selectedIds]
@@ -229,6 +255,52 @@ export default function Documents() {
               >
                 <CheckSquare size={13} /> Select visible
               </button>
+              <div className="relative">
+                <button
+                  ref={moveBtnRef}
+                  onClick={() => setShowMoveMenu((v) => !v)}
+                  disabled={selectedIds.size === 0}
+                  className="btn text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  title="Move selected documents to a folder"
+                >
+                  <FolderInput size={13} /> Move to…
+                </button>
+                {showMoveMenu ? (
+                  <div
+                    ref={moveMenuRef}
+                    className="absolute right-0 top-full mt-1 z-50 w-52 rounded-xl overflow-hidden shadow-xl"
+                    style={{
+                      background: 'linear-gradient(160deg,rgba(15,17,28,0.97) 0%,rgba(8,10,18,0.99) 100%)',
+                      border: '1px solid rgba(255,255,255,0.11)',
+                      backdropFilter: 'blur(32px)',
+                    }}
+                  >
+                    <div className="py-1">
+                      <p className="text-[10px] uppercase tracking-wide text-white/40 font-medium px-3 pt-2 pb-1">
+                        Move {selectedIds.size} doc{selectedIds.size === 1 ? '' : 's'} to
+                      </p>
+                      <button
+                        onClick={() => bulkMove(null)}
+                        className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/[0.07] flex items-center gap-2"
+                      >
+                        <span className="text-white/40">📂</span> Unfiled (root)
+                      </button>
+                      {allFolders.filter(f => f.name !== 'AI Memory').map((folder) => (
+                        <button
+                          key={folder.id}
+                          onClick={() => bulkMove(folder.id)}
+                          className="w-full text-left px-3 py-2 text-sm text-white/80 hover:bg-white/[0.07] flex items-center gap-2"
+                        >
+                          <span className="text-white/40">📁</span> {folder.name}
+                        </button>
+                      ))}
+                      {allFolders.filter(f => f.name !== 'AI Memory').length === 0 ? (
+                        <p className="text-[11px] text-white/30 px-3 pb-2">No folders yet — create one first.</p>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <button
                 onClick={askBulkDelete}
                 disabled={selectedIds.size === 0}
@@ -262,7 +334,7 @@ export default function Documents() {
               </button>
               <button
                 onClick={() => bulkInputRef.current?.click()}
-                className="btn text-sm"
+                className="btn btn-primary text-sm"
                 title="Upload .txt, .md, .pdf, .docx, .xlsx, .pptx, or .eml"
               >
                 <Upload size={13} /> Upload file(s)

@@ -29,6 +29,9 @@ function matchesHost(host, list, suffixes = []) {
 // over `sourceType`.
 export function deriveSourceType(item) {
   if (item.sourceType) return item.sourceType
+  if (item.type === 'pdf') return 'pdf'
+  // Catch PDF URLs that slipped through without an explicit type (e.g. from SearXNG general)
+  if (/\.pdf(\?[^#]*)?$/i.test(item.url || '')) return 'pdf'
   if (item.type === 'video') return 'video'
   if (item.type === 'social_post') return 'community'
   const host = hostOf(item.url || '')

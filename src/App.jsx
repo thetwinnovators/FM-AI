@@ -4,6 +4,8 @@ import LeftRail from './components/layout/LeftRail.jsx'
 import TopBar from './components/layout/TopBar.jsx'
 import ConfirmProvider from './components/ui/ConfirmProvider.jsx'
 import BackToTop from './components/ui/BackToTop.jsx'
+import { useStore } from './store/useStore.js'
+import { useIngestionWorker } from './flow-ai/hooks/useIngestionWorker.js'
 import Discover from './views/Discover.jsx'
 import Search from './views/Search.jsx'
 import Topics from './views/Topics.jsx'
@@ -49,11 +51,23 @@ function AnimatedRoutes() {
   )
 }
 
+/**
+ * Mounts the background ingestion worker once the store is available.
+ * Kept as a separate component so the worker only activates inside the
+ * React tree where useStore is valid.
+ */
+function IngestionWorker() {
+  const { documents, documentContents } = useStore()
+  useIngestionWorker(documents, documentContents)
+  return null
+}
+
 export default function App() {
   const mainRef = useRef(null)
   return (
     <BrowserRouter>
       <ConfirmProvider>
+        <IngestionWorker />
         <div className="flex h-full">
           <LeftRail />
           <div className="flex flex-col flex-1 min-w-0">

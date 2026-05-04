@@ -28,6 +28,8 @@ const MEMORY_TYPE_LABEL: Record<string, string> = {
 export interface ContextBlock {
   memoryType:    string
   id:            string
+  /** For chunk candidates this is the parent document ID; same as id otherwise. */
+  docId:         string
   title:         string
   relevance:     number    // 0–1
   date?:         string    // ISO date, human-formatted
@@ -36,6 +38,7 @@ export interface ContextBlock {
   confidence?:   number    // 0–100, for signals
   summary:       string    // the actual content shown to the model
   slug?:         string    // topic slug (for /topic/{slug} links)
+  url?:          string    // external source URL (articles, videos, ingested web docs)
 }
 
 // ─── configuration ────────────────────────────────────────────────────────────
@@ -65,6 +68,8 @@ function toBlocks(results: RankedResult[], _analysis: QueryAnalysis): ContextBlo
   return results.map((r): ContextBlock => ({
     memoryType:   MEMORY_TYPE_LABEL[r.type] ?? 'document-memory',
     id:           r.id,
+    // Chunk candidates carry their parent doc ID so links resolve correctly.
+    docId:        r.metadata.docId ?? r.id,
     title:        r.title,
     relevance:    Math.round(r.relevanceScore * 100) / 100,
     date:         r.metadata.date ? humanDate(r.metadata.date) : undefined,
@@ -73,6 +78,7 @@ function toBlocks(results: RankedResult[], _analysis: QueryAnalysis): ContextBlo
     confidence:   r.metadata.confidence,
     summary:      r.snippet.slice(0, MAX_CHARS_PER_BLOCK),
     slug:         r.type === 'topic' ? toSlug(r.title) : undefined,
+    url:          r.metadata.url,
   }))
 }
 
@@ -140,13 +146,14 @@ export function formatForPrompt(blocks: ContextBlock[]): string {
       b.memoryType === 'behavior-memory' ? 'MEMORY'   :
       'ITEM'
 
-    // Include the correct SPA link inline in the header so the model
-    // never needs to guess or hallucinate the path.
-    let link = ''
-    if (b.memoryType === 'document-memory') link = `  (/documents/${b.id})`
-    else if (b.memoryType === 'topic-memory' && b.slug) link = `  (/topic/${b.slug})`
+    // Primary link in the header — prefer external source URL for web content;
+    // fall back to internal SPA path for locally-pasted documents and topics.
+    let headerLink = ''
+    if (b.url)                                          headerLink = `  (${b.url})`
+    else if (b.memoryType === 'document-memory')        headerLink = `  (/documents/${b.docId})`
+    else if (b.memoryType === 'topic-memory' && b.slug) headerLink = `  (/topic/${b.slug})`
 
-    const header = `${typeLabel}: "${b.title}"${link}`
+    const header = `${typeLabel}: "${b.title}"${headerLink}`
 
     // Compact meta line — only populate fields that have values
     const meta: string[] = [`relevance: ${b.relevance}`]
@@ -155,7 +162,15 @@ export function formatForPrompt(blocks: ContextBlock[]): string {
     if (b.confidence !== undefined) meta.push(`confidence: ${b.confidence}/100`)
     if (b.topicTags?.length)        meta.push(`tags: ${b.topicTags.join(', ')}`)
 
-    return [header, meta.join(' | '), b.summary].join('\n')
+    // When both a source URL and an internal doc link exist, expose both so
+    // the model can use whichever makes more sense (cite source OR navigate in app).
+    const lines: string[] = [header, meta.join(' | ')]
+    if (b.url && b.memoryType === 'document-memory') {
+      lines.push(`FlowMap link: /documents/${b.docId}`)
+    }
+    lines.push(b.summary)
+
+    return lines.join('\n')
   })
 
   return parts.join('\n\n')

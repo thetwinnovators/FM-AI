@@ -386,44 +386,7 @@ export default function QuickChatLauncher() {
         onPointerDown={onHeaderPointerDown}
       >
         <Sparkles size={14} className="text-[color:var(--color-creator)]" />
-        <span className="text-sm font-medium text-white">Talk to FlowMap</span>
-        {/* Inline model picker */}
-        <div ref={modelPickerRef} className="relative ml-1">
-          <button
-            type="button"
-            onClick={() => availableModels.length > 0 && setModelPickerOpen((v) => !v)}
-            className="text-[11px] text-white/40 hover:text-white/70 transition-colors inline-flex items-center gap-1"
-            title={availableModels.length === 0 ? 'No models discovered' : 'Switch model'}
-          >
-            · {model}
-            {availableModels.length > 1 && <ChevronDown size={10} className={`transition-transform ${modelPickerOpen ? 'rotate-180' : ''}`} />}
-          </button>
-          {modelPickerOpen && availableModels.length > 0 && (
-            <div
-              className="absolute left-0 top-full mt-1 z-50 min-w-[180px] rounded-lg border border-white/10 py-1 overflow-auto max-h-[200px]"
-              style={{
-                background: 'linear-gradient(160deg, rgba(15,17,28,0.97) 0%, rgba(8,10,18,0.99) 100%)',
-                backdropFilter: 'blur(40px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-                boxShadow: '0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
-              }}
-            >
-              {availableModels.map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => onChangeModel(m)}
-                  className={`w-full px-3 py-1.5 text-[11px] text-left flex items-center gap-2 hover:bg-white/[0.06] transition-colors ${
-                    m === model ? 'text-[color:var(--color-creator)]' : 'text-white/80'
-                  }`}
-                >
-                  <Check size={10} className={m === model ? 'opacity-100' : 'opacity-0'} />
-                  <span className="truncate">{m}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        <span className="text-sm font-medium text-white">Ask Flow.AI</span>
         <span className="ml-auto inline-flex items-center gap-1">
           {messages.length > 0 ? (
             <button
@@ -465,74 +428,117 @@ export default function QuickChatLauncher() {
         {micError ? (
           <p className="text-[11px] text-amber-300/80 px-1">{micError}</p>
         ) : null}
-        <div className="flex items-end gap-2">
+        {/* Unified input box — textarea + buttons inside one container */}
+        <div className="flex flex-col rounded-lg bg-white/[0.05] focus-within:bg-white/[0.07] transition-colors border border-white/[0.07] focus-within:border-white/[0.12]">
           <textarea
             ref={inputRef}
             value={draft}
             onChange={(e) => { setDraft(e.target.value); micBaseTextRef.current = e.target.value }}
             onKeyDown={onKeyDown}
-            rows={1}
+            rows={2}
             placeholder={
               listening ? 'Listening… click mic again to transcribe'
               : transcribing ? 'Transcribing with Whisper…'
-              : 'Ask FlowMap…  (Enter to send, Shift+Enter for newline)'
+              : 'Ask FlowMap…'
             }
-            className="flex-1 text-[13px] leading-relaxed text-white/90 bg-white/[0.05] rounded-lg px-3 outline-none focus:bg-white/[0.07] placeholder:text-white/30 resize-none"
-            style={{ height: 48, minHeight: 48, maxHeight: 48 }}
+            className="w-full text-[13px] leading-relaxed text-white/90 bg-transparent px-3 pt-3 pb-1 outline-none placeholder:text-white/25 resize-none"
           />
-          {speechSupported ? (
-            <button
-              onClick={toggleMic}
-              disabled={busy || transcribing}
-              className={`px-3 py-2 self-end rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-                listening
-                  ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
-                  : 'bg-white/[0.05] text-white/70 hover:text-white hover:bg-white/[0.08]'
-              }`}
-              aria-label={listening ? 'Stop dictation' : 'Start dictation'}
-              title={listening ? 'Stop dictation' : 'Speak to type'}
-            >
-              {listening ? (
-                <span className="relative inline-flex">
-                  <Mic size={13} />
-                  <span className="absolute -inset-1 rounded-full bg-rose-400/40 animate-ping" />
-                </span>
-              ) : transcribing ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <Mic size={13} />
+          <div className="flex items-center justify-between gap-1 px-2 pb-2">
+            {/* Model picker — bottom left */}
+            <div ref={modelPickerRef} className="relative">
+              <button
+                type="button"
+                onClick={() => availableModels.length > 0 && setModelPickerOpen((v) => !v)}
+                className="inline-flex items-center gap-1 text-[10px] text-white/35 hover:text-white/60 transition-colors"
+                title={availableModels.length === 0 ? 'No models discovered' : 'Switch model'}
+              >
+                <Sparkles size={9} className="flex-shrink-0" />
+                <span className="truncate max-w-[120px]">{model}</span>
+                {availableModels.length > 1 && <ChevronDown size={9} className={`flex-shrink-0 transition-transform ${modelPickerOpen ? 'rotate-180' : ''}`} />}
+              </button>
+              {modelPickerOpen && availableModels.length > 0 && (
+                <div
+                  className="absolute left-0 bottom-full mb-1 z-50 min-w-[180px] rounded-lg border border-white/10 py-1 overflow-auto max-h-[200px]"
+                  style={{
+                    background: 'linear-gradient(160deg, rgba(15,17,28,0.97) 0%, rgba(8,10,18,0.99) 100%)',
+                    backdropFilter: 'blur(40px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+                    boxShadow: '0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)',
+                  }}
+                >
+                  {availableModels.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => onChangeModel(m)}
+                      className={`w-full px-3 py-1.5 text-[11px] text-left flex items-center gap-2 hover:bg-white/[0.06] transition-colors ${
+                        m === model ? 'text-[color:var(--color-creator)]' : 'text-white/80'
+                      }`}
+                    >
+                      <Check size={10} className={m === model ? 'opacity-100' : 'opacity-0'} />
+                      <span className="truncate">{m}</span>
+                    </button>
+                  ))}
+                </div>
               )}
-            </button>
-          ) : (
-            <button
-              disabled
-              className="px-3 py-2 self-end rounded-lg bg-white/[0.03] text-white/30 cursor-not-allowed"
-              aria-label="Mic unavailable"
-              title="This browser doesn't support speech recognition"
-            >
-              <MicOff size={13} />
-            </button>
-          )}
-          {busy || voicePlaying ? (
-            <button
-              onClick={stopAll}
-              className="px-3 py-2 self-end rounded-lg text-rose-100 bg-rose-500/25 hover:bg-rose-500/35 transition-colors inline-flex items-center justify-center"
-              aria-label="Stop"
-              title={busy ? 'Stop generating (Esc)' : 'Stop voice (Esc)'}
-            >
-              <Square size={13} fill="currentColor" />
-            </button>
-          ) : (
-            <button
-              onClick={() => send()}
-              disabled={!draft.trim()}
-              className="btn btn-primary px-3 py-2 self-end disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Send"
-              title="Send (Enter)"
-            >
-              <Send size={13} />
-            </button>
-          )}
+            </div>
+            {/* Right-side buttons */}
+            <div className="flex items-center gap-1">
+            {speechSupported ? (
+              <button
+                onClick={toggleMic}
+                disabled={busy || transcribing}
+                className={`p-1.5 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+                  listening
+                    ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
+                    : 'text-white/40 hover:text-white hover:bg-white/[0.08]'
+                }`}
+                aria-label={listening ? 'Stop dictation' : 'Start dictation'}
+                title={listening ? 'Stop dictation' : 'Speak to type'}
+              >
+                {listening ? (
+                  <span className="relative inline-flex">
+                    <Mic size={13} />
+                    <span className="absolute -inset-1 rounded-full bg-rose-400/40 animate-ping" />
+                  </span>
+                ) : transcribing ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <Mic size={13} />
+                )}
+              </button>
+            ) : (
+              <button
+                disabled
+                className="p-1.5 rounded-md text-white/20 cursor-not-allowed"
+                aria-label="Mic unavailable"
+                title="This browser doesn't support speech recognition"
+              >
+                <MicOff size={13} />
+              </button>
+            )}
+            {busy || voicePlaying ? (
+              <button
+                onClick={stopAll}
+                className="p-1.5 rounded-md text-rose-100 bg-rose-500/25 hover:bg-rose-500/35 transition-colors"
+                aria-label="Stop"
+                title={busy ? 'Stop generating (Esc)' : 'Stop voice (Esc)'}
+              >
+                <Square size={13} fill="currentColor" />
+              </button>
+            ) : (
+              <button
+                onClick={() => send()}
+                disabled={!draft.trim()}
+                className="btn btn-primary px-2.5 py-1.5 text-[12px] disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Send"
+                title="Send (Enter)"
+              >
+                <Send size={12} />
+              </button>
+            )}
+            </div>
+          </div>
         </div>
       </footer>
     </div>

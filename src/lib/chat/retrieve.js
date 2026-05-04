@@ -409,9 +409,15 @@ export async function retrieveWithPipeline(input, signal) {
 
     // Map to the flat { id, title, snippet } shape expected by the context panel
     // and CitedDocsHint. Only document/save types have /documents/:id routes.
+    // Use metadata.docId (parent document) for chunk results so the link
+    // routes to the correct /documents/:id page, not to a chunk ID.
     const legacyRetrieved = output.results
       .filter((r) => r.type === 'document' || r.type === 'save')
-      .map((r) => ({ id: r.id, title: r.title, snippet: r.snippet }))
+      .map((r) => ({
+        id:      r.metadata.docId ?? r.id,
+        title:   r.title,
+        snippet: r.snippet,
+      }))
 
     return {
       results:         output.results,

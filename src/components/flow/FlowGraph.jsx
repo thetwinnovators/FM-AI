@@ -363,7 +363,7 @@ export default function FlowGraph({
 
         const fs = 9 * Math.max(0.65, 1 + p.depth * 0.13) * dpr
         ctx.fillStyle = dim ? `rgba(${MUTED[0]},${MUTED[1]},${MUTED[2]},0.55)` : `rgba(255,255,255,${0.55 * dofAlpha})`
-        ctx.font = `500 ${fs}px Inter, system-ui, sans-serif`
+        ctx.font = `500 ${fs}px Montserrat, system-ui, sans-serif`
         ctx.textAlign = 'center'
         ctx.fillText(p.label, p.sx, p.sy + p.r + fs * 1.35)
       }
@@ -384,11 +384,11 @@ export default function FlowGraph({
           else ctx.rect(tx, ty, w, 60 * dpr)
           ctx.fill(); ctx.stroke()
           ctx.fillStyle = meta.color
-          ctx.font = `600 ${10 * dpr}px Inter`
+          ctx.font = `600 ${10 * dpr}px Montserrat`
           ctx.textAlign = 'left'
           ctx.fillText(meta.label.toUpperCase(), tx + 10 * dpr, ty + 16 * dpr)
           ctx.fillStyle = 'rgba(255,255,255,0.95)'
-          ctx.font = `600 ${12 * dpr}px Inter`
+          ctx.font = `600 ${12 * dpr}px Montserrat`
           ctx.fillText(h.label, tx + 10 * dpr, ty + 32 * dpr)
         }
       }

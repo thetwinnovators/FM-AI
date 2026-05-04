@@ -1,6 +1,6 @@
 import { useParams, Link } from 'react-router-dom'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Bookmark, BookmarkCheck, ChevronLeft, Loader2, AlertCircle, Sparkles, Trash2, LinkIcon, Pencil, Save, X, FilePlus } from 'lucide-react'
+import { Bookmark, BookmarkCheck, ChevronLeft, Loader2, AlertCircle, Sparkles, Trash2, LinkIcon, Pencil, Save, X, FilePlus, LayoutGrid, List, Play, FileText, EyeOff, MessageSquare } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
@@ -16,6 +16,105 @@ import SummaryModal from '../components/topic/SummaryModal.jsx'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { fetchAll, groupByCategory, isRecent } from '../lib/search/aggregate.js'
 import { buildTopicContext } from '../lib/search/topicContext.js'
+import { getOgImage } from '../lib/search/ogImage.js'
+
+// ─── content list card (list-view row) ───────────────────────────────────────
+
+function ContentListCard({ item, onOpen, isFirst, isLast }) {
+  const { isSaved, toggleSave, dismiss } = useStore()
+  const { creatorById } = useSeed()
+  const saved = isSaved(item.id)
+
+  const [imageUrl, setImageUrl]     = useState(item.thumbnail || null)
+  const [imageFailed, setImageFailed] = useState(false)
+
+  // Lazy-fetch OG image for articles that don't already have a thumbnail
+  useEffect(() => {
+    if (item.type !== 'article' || imageUrl || !item.url) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      getOgImage(item.url).then((url) => { if (!cancelled && url) setImageUrl(url) })
+    }, Math.random() * 2000)
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [item.url, item.type, imageUrl])
+
+  const showImage   = imageUrl && !imageFailed
+  const creator     = item.type === 'video' ? creatorById?.(item.creatorId) : null
+  const sourceLabel = creator?.name ?? item.source ?? ''
+
+  const radius = isFirst && isLast ? 'rounded-xl'
+    : isFirst ? 'rounded-t-xl rounded-b-none'
+    : isLast  ? 'rounded-t-none rounded-b-xl'
+    : 'rounded-none'
+
+  const TypeIcon = item.type === 'video' ? Play
+    : item.type === 'social_post' ? MessageSquare
+    : FileText
+
+  return (
+    <article
+      onClick={() => onOpen?.(item)}
+      className={`px-4 py-3 flex items-center gap-3 cursor-pointer bg-white/[0.03] hover:bg-white/[0.07] transition-colors group ${radius}`}
+    >
+      {/* thumbnail */}
+      <div className="w-[80px] h-[48px] rounded-lg overflow-hidden relative shrink-0 bg-black/30 flex items-center justify-center">
+        {showImage ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <TypeIcon size={14} className="text-white/25" />
+        )}
+        {item.type === 'video' && showImage && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/25">
+            <Play size={11} className="text-white" />
+          </div>
+        )}
+      </div>
+
+      {/* source + title + summary */}
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] uppercase tracking-wide text-white/30 truncate mb-0.5">{sourceLabel}</p>
+        <p className="text-sm font-medium text-white/85 truncate leading-snug">{item.title}</p>
+        {item.summary ? (
+          <p className="text-[11px] text-white/40 truncate leading-relaxed mt-0.5">{item.summary}</p>
+        ) : null}
+      </div>
+
+      {/* date + actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        {item.publishedAt ? (
+          <span className="text-[10px] text-white/25 hidden lg:block">{item.publishedAt}</span>
+        ) : null}
+        <div
+          className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => dismiss(item.id)}
+            className="p-1 rounded hover:bg-white/5 text-white/30 hover:text-rose-400/70 transition-colors"
+            aria-label="Hide" title="Don't show again"
+          >
+            <EyeOff size={12} />
+          </button>
+          <button
+            onClick={() => toggleSave(item.id, item)}
+            className="p-1 rounded hover:bg-white/5 text-white/30 transition-colors"
+            aria-label={saved ? 'Unsave' : 'Save'}
+          >
+            {saved
+              ? <BookmarkCheck size={13} className="text-[color:var(--color-topic)]" />
+              : <Bookmark size={13} />}
+          </button>
+        </div>
+      </div>
+    </article>
+  )
+}
 
 const TABS = [
   { id: 'all',         label: 'All'      },
@@ -86,6 +185,13 @@ export default function Topic() {
   }
 
   const [tab, setTab] = useState('all')
+  const [viewMode, setViewMode] = useState(
+    () => localStorage.getItem('flowmap.topic.viewMode') ?? 'grid',
+  )
+  function handleViewMode(mode) {
+    setViewMode(mode)
+    localStorage.setItem('flowmap.topic.viewMode', mode)
+  }
   const [openVideo, setOpenVideo] = useState(null)
   const [openArticle, setOpenArticle] = useState(null)
   const [showIngest, setShowIngest] = useState(false)
@@ -289,70 +395,7 @@ export default function Topic() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
-        {/* Main content */}
-        <section>
-          {/* Tabs */}
-          <div className="flex gap-1 mb-4 border-b border-[color:var(--color-border-subtle)] flex-wrap">
-            {TABS.map((t) => {
-              const count =
-                t.id === 'all'   ? sourceItems.length
-                : t.id === 'saved' ? sourceItems.filter((c) => isSaved(c.id)).length
-                : sourceItems.filter((c) => c.type === t.id).length
-              return (
-                <button
-                  key={t.id}
-                  onClick={() => setTab(t.id)}
-                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                    tab === t.id
-                      ? 'border-[color:var(--color-topic)] text-white'
-                      : 'border-transparent text-[color:var(--color-text-tertiary)] hover:text-white'
-                  }`}
-                >
-                  {t.label} <span className="text-[11px] text-[color:var(--color-text-tertiary)]">{count}</span>
-                </button>
-              )
-            })}
-            {isUser && live.status === 'loading' ? (
-              <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-tertiary)] py-2">
-                <Loader2 size={12} className="animate-spin" /> fetching live results…
-              </span>
-            ) : null}
-          </div>
-
-          {/* Errors */}
-          {isUser && live.errors.length > 0 ? (
-            <div className="mb-4 space-y-1">
-              {live.errors.map((err, i) => (
-                <div key={i} className="text-[11px] text-amber-300/80 inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 mr-2">
-                  <AlertCircle size={11} /> {err.source}: {err.error}
-                </div>
-              ))}
-            </div>
-          ) : null}
-
-          {/* Grid */}
-          {items.length === 0 ? (
-            isUser && live.status === 'loading' ? (
-              <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] p-4 h-32 animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">No items in this tab.</p>
-            )
-          ) : (
-            <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
-              {items.map((it) =>
-                it.type === 'video' ? <VideoCard key={it.id} item={it} onOpen={open} /> :
-                it.type === 'article' ? <ArticleCard key={it.id} item={it} onOpen={open} /> :
-                <SocialPostCard key={it.id} item={it} onOpen={open} />
-              )}
-            </div>
-          )}
-        </section>
-
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
         {/* Side rail — always visible, sticks below the hero on lg+. Order is
             fixed: Summary, Related Topics, Tools, Concepts. Cards render with
             an empty state when the topic has no entries for that section. */}
@@ -417,6 +460,111 @@ export default function Topic() {
             )}
           </div>
         </aside>
+
+        {/* Main content */}
+        <section>
+          {/* Tabs + view toggle */}
+          <div className="flex gap-1 mb-4 border-b border-[color:var(--color-border-subtle)] flex-wrap">
+            {TABS.map((t) => {
+              const count =
+                t.id === 'all'   ? sourceItems.length
+                : t.id === 'saved' ? sourceItems.filter((c) => isSaved(c.id)).length
+                : sourceItems.filter((c) => c.type === t.id).length
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    tab === t.id
+                      ? 'border-[color:var(--color-topic)] text-white'
+                      : 'border-transparent text-[color:var(--color-text-tertiary)] hover:text-white'
+                  }`}
+                >
+                  {t.label} <span className="text-[11px] text-[color:var(--color-text-tertiary)]">{count}</span>
+                </button>
+              )
+            })}
+            <div className="ml-auto flex items-center gap-2 pb-1 self-end">
+              {isUser && live.status === 'loading' ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-tertiary)]">
+                  <Loader2 size={12} className="animate-spin" /> fetching…
+                </span>
+              ) : null}
+              <div className="flex items-center gap-px bg-white/[0.04] rounded-lg p-0.5 border border-white/[0.06]">
+                {[
+                  { mode: 'grid', Icon: LayoutGrid, title: 'Card view' },
+                  { mode: 'list', Icon: List,       title: 'List view' },
+                ].map(({ mode, Icon, title }) => (
+                  <button
+                    key={mode}
+                    title={title}
+                    onClick={() => handleViewMode(mode)}
+                    className={`flex items-center justify-center w-6 h-6 rounded transition-colors ${
+                      viewMode === mode
+                        ? 'bg-white/[0.10] text-white/90'
+                        : 'text-white/35 hover:text-white/65'
+                    }`}
+                  >
+                    <Icon size={13} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Errors */}
+          {isUser && live.errors.length > 0 ? (
+            <div className="mb-4 space-y-1">
+              {live.errors.map((err, i) => (
+                <div key={i} className="text-[11px] text-amber-300/80 inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 mr-2">
+                  <AlertCircle size={11} /> {err.source}: {err.error}
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {/* Content */}
+          {items.length === 0 ? (
+            isUser && live.status === 'loading' ? (
+              viewMode === 'grid' ? (
+                <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="rounded-2xl border border-[color:var(--color-border-subtle)] bg-[color:var(--color-bg-glass)] p-4 h-32 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-px max-w-[760px]">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className={`h-[60px] bg-white/[0.03] animate-pulse ${i === 0 ? 'rounded-t-xl' : i === 7 ? 'rounded-b-xl' : ''}`} />
+                  ))}
+                </div>
+              )
+            ) : (
+              <p className="text-sm text-[color:var(--color-text-tertiary)] py-12 text-center">No items in this tab.</p>
+            )
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
+              {items.map((it) =>
+                it.type === 'video' ? <VideoCard key={it.id} item={it} onOpen={open} /> :
+                it.type === 'article' ? <ArticleCard key={it.id} item={it} onOpen={open} /> :
+                <SocialPostCard key={it.id} item={it} onOpen={open} />
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-px max-w-[760px]">
+              {items.map((it, idx) => (
+                <ContentListCard
+                  key={it.id}
+                  item={it}
+                  onOpen={open}
+                  isFirst={idx === 0}
+                  isLast={idx === items.length - 1}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
       </div>
 
       <VideoPlayerModal item={openVideo} onClose={() => setOpenVideo(null)} />

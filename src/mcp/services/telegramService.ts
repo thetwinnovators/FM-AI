@@ -33,3 +33,36 @@ export async function testTelegramConnection(): Promise<{
 export function getTelegramMessages(): TelegramCommandMessage[] {
   return localMCPStorage.listTelegramMessages()
 }
+
+/** Calls getUpdates to find the chat ID of whoever last messaged the bot. */
+export async function detectTelegramChatId(
+  token: string,
+): Promise<{ chatId: string | null; error?: string }> {
+  try {
+    const res = await fetch(
+      `https://api.telegram.org/bot${token}/getUpdates?limit=10`,
+    )
+    const data = (await res.json()) as {
+      ok: boolean
+      description?: string
+      result?: Array<{
+        update_id: number
+        message?: { chat?: { id?: number }; from?: { first_name?: string } }
+      }>
+    }
+    if (!data.ok) {
+      return { chatId: null, error: data.description ?? 'Telegram API error' }
+    }
+    const update = (data.result ?? []).find((u) => u.message?.chat?.id)
+    if (!update?.message?.chat?.id) {
+      return {
+        chatId: null,
+        error:
+          'No messages found. Open Telegram, find your bot, and send it any message — then click Detect again.',
+      }
+    }
+    return { chatId: String(update.message.chat.id) }
+  } catch (e) {
+    return { chatId: null, error: (e as Error).message }
+  }
+}

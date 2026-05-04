@@ -75,6 +75,10 @@ export default function Memory() {
 
   const followedSeed = topics.filter((t) => follows[t.id])
   const userTopicList = Object.values(userTopics)
+  const allFollowed = [
+    ...followedSeed.map((t) => ({ ...t, _kind: 'seed' })),
+    ...userTopicList.map((t) => ({ ...t, _kind: 'user' })),
+  ]
   const visibleSeedMemory = (seedMemory || []).filter((m) => !isMemoryDismissed(m.id))
   const allMemory      = [...visibleSeedMemory, ...Object.values(memoryEntries)]
   const identityMemory = allMemory.filter((m) => m.isIdentityPinned === true)
@@ -150,49 +154,54 @@ export default function Memory() {
             </p>
           </div>
         ) : (
-          <ul className="space-y-2 max-w-[760px]">
-            {followedSeed.map((t) => (
-              <li key={t.id} className="glass-panel p-4 flex items-center justify-between">
-                <Link to={`/topic/${t.slug}`} className="flex items-center gap-3 hover:underline flex-1 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-[color:var(--color-topic)] flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{t.name}</div>
-                    <div className="text-[11px] text-[color:var(--color-text-tertiary)] truncate">{t.summary}</div>
-                  </div>
-                </Link>
-                <button
-                  onClick={() => askUnfollow(t)}
-                  className="btn text-xs flex-shrink-0"
-                  aria-label="Unfollow"
-                >
-                  <BookmarkX size={13} /> Unfollow
-                </button>
-              </li>
-            ))}
-            {userTopicList.map((t) => (
-              <li key={t.id} className="glass-panel p-4 flex items-center justify-between">
-                <Link to={`/topic/${t.slug}`} className="flex items-center gap-3 hover:underline flex-1 min-w-0">
-                  <span className="w-2 h-2 rounded-full bg-[color:var(--color-topic)] flex-shrink-0" />
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate inline-flex items-center gap-2">
-                      {t.name}
-                      <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium text-[color:var(--color-creator)] px-1.5 py-0.5 rounded border border-[color:var(--color-creator)]/30 bg-[color:var(--color-creator)]/10">
-                        <Sparkles size={9} /> saved
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-[color:var(--color-text-tertiary)] truncate">{t.summary}</div>
-                  </div>
-                </Link>
-                <button
-                  onClick={() => askRemoveUserTopic(t)}
-                  className="btn text-xs flex-shrink-0 text-rose-300 hover:text-rose-200 hover:border-rose-400/40"
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-        )
+            <ul className="flex flex-col gap-px max-w-[760px]">
+              {allFollowed.map((t, idx) => {
+                const isFirst = idx === 0
+                const isLast  = idx === allFollowed.length - 1
+                const radius  = isFirst && isLast
+                  ? 'rounded-xl'
+                  : isFirst
+                    ? 'rounded-t-xl rounded-b-none'
+                    : isLast
+                      ? 'rounded-t-none rounded-b-xl'
+                      : 'rounded-none'
+                return (
+                  <li key={t.id} className={`bg-white/[0.03] hover:bg-white/[0.07] transition-colors p-4 flex items-center justify-between ${radius}`}>
+                    <Link to={`/topic/${t.slug}`} className="flex items-center gap-3 hover:underline flex-1 min-w-0">
+                      <span className="w-2 h-2 rounded-full bg-[color:var(--color-topic)] flex-shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium truncate inline-flex items-center gap-2">
+                          {t.name}
+                          {t._kind === 'user' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium text-[color:var(--color-creator)] px-1.5 py-0.5 rounded border border-[color:var(--color-creator)]/30 bg-[color:var(--color-creator)]/10">
+                              <Sparkles size={9} /> saved
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-[color:var(--color-text-tertiary)] truncate">{t.summary}</div>
+                      </div>
+                    </Link>
+                    {t._kind === 'seed' ? (
+                      <button
+                        onClick={() => askUnfollow(t)}
+                        className="btn text-xs flex-shrink-0"
+                        aria-label="Unfollow"
+                      >
+                        <BookmarkX size={13} /> Unfollow
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => askRemoveUserTopic(t)}
+                        className="btn text-xs flex-shrink-0 text-rose-300 hover:text-rose-200 hover:border-rose-400/40"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
+          )
       )}
 
       {tab === 'memory' && (

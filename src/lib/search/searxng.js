@@ -97,6 +97,16 @@ export async function searchSearxngVideos(query, limit = 8, signal) {
   return searchSearxng(query, limit, signal, { category: 'videos' })
 }
 
+// Dedicated PDF lane — appends `filetype:pdf` so SearXNG's engines filter to
+// document results. Returns items with `type: 'pdf'` so they surface in the
+// PDF tab and open directly in a new tab rather than the article reader.
+export async function searchSearxngPdfs(query, limit = 10, signal) {
+  const items = await searchSearxng(`${query.trim()} filetype:pdf`, limit, signal)
+  return items.map((it) =>
+    it ? { ...it, type: 'pdf', sourceType: 'pdf', id: it.id.replace(/^searxng_/, 'searxng_pdf_') } : it
+  ).filter(Boolean)
+}
+
 function toItem(r, category) {
   if (!r?.url) return null
   let host = ''

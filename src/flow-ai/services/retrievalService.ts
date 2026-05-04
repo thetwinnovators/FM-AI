@@ -17,6 +17,7 @@
 
 import { getEmbedding, hashText, embeddableText } from '../utils/embeddings.js'
 import { embeddingStore }                          from '../storage/embeddingStore.js'
+import { chunkDocument, CHUNK_THRESHOLD_CHARS }    from './chunkingService.js'
 import {
   type SearchCandidate,
   scoreKeyword,
@@ -128,28 +129,59 @@ function buildCandidates(input: RetrievalInput): SearchCandidate[] {
 }
 
 function buildDocumentCandidates(input: RetrievalInput): SearchCandidate[] {
-  return Object.values(input.documents).map((doc) => {
+  const candidates: SearchCandidate[] = []
+
+  for (const doc of Object.values(input.documents)) {
     const content   = input.documentContents[doc.id]
-    const plainText = content?.plainText ?? ''
-    const body      = [doc.title, doc.summary, doc.excerpt, plainText].filter(Boolean).join(' ')
-    const snippet   = buildSnippet(
+    const plainText = (content?.plainText ?? '').trim()
+
+    // ── Long documents: emit one candidate per chunk ───────────────────────
+    if (plainText.length >= CHUNK_THRESHOLD_CHARS) {
+      const chunks = chunkDocument(doc.id, plainText)
+      for (const chunk of chunks) {
+        candidates.push({
+          id:          chunk.id,
+          type:        'document' as const,
+          title:       doc.title || 'Untitled document',
+          snippet:     chunk.text.slice(0, 300),
+          searchBody:  `${doc.title} ${chunk.text}`,
+          date:        doc.updatedAt ?? doc.createdAt,
+          hasSummary:  Boolean(doc.summary),
+          wordCount:   chunk.wordCount,
+          hasUrl:      Boolean(doc.url),
+          url:         doc.url ?? undefined,
+          sourceLabel: doc.sourceType ?? 'Document',
+          topicTags:   doc.tags ?? [],
+          docId:       doc.id,
+        })
+      }
+      continue
+    }
+
+    // ── Short documents: single candidate (existing behaviour) ─────────────
+    const body    = [doc.title, doc.summary, doc.excerpt, plainText].filter(Boolean).join(' ')
+    const snippet = buildSnippet(
       doc.title,
       doc.summary ?? doc.excerpt ?? plainText.slice(0, 300),
     )
-    return {
-      id:           doc.id,
-      type:         'document' as const,
-      title:        doc.title || 'Untitled document',
+    candidates.push({
+      id:          doc.id,
+      type:        'document' as const,
+      title:       doc.title || 'Untitled document',
       snippet,
-      searchBody:   body,
-      date:         doc.updatedAt ?? doc.createdAt,
-      hasSummary:   Boolean(doc.summary),
-      wordCount:    doc.wordCount ?? 0,
-      hasUrl:       Boolean(doc.url),
-      sourceLabel:  doc.sourceType ?? 'Document',
-      topicTags:    doc.tags ?? [],
-    }
-  })
+      searchBody:  body,
+      date:        doc.updatedAt ?? doc.createdAt,
+      hasSummary:  Boolean(doc.summary),
+      wordCount:   doc.wordCount ?? 0,
+      hasUrl:      Boolean(doc.url),
+      url:         doc.url ?? undefined,
+      sourceLabel: doc.sourceType ?? 'Document',
+      topicTags:   doc.tags ?? [],
+      docId:       doc.id,
+    })
+  }
+
+  return candidates
 }
 
 function buildMemoryCandidates(input: RetrievalInput): SearchCandidate[] {
@@ -227,6 +259,7 @@ function buildSaveCandidates(input: RetrievalInput): SearchCandidate[] {
         saved:       true,
         hasSummary:  Boolean(item.summary),
         hasUrl:      Boolean(item.url),
+        url:         item.url ?? undefined,
         sourceLabel: item.source ?? 'Saved',
       }
     })

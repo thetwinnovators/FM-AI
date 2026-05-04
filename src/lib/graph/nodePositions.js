@@ -44,26 +44,38 @@ export function generatePositions(nodes) {
   })
 
   // Other nodes evenly distributed on a sphere shell around memory.
-  // Slight per-type radial bias so types form soft "layers" while staying spherical.
+  // Four distinct radial shells reflecting the node taxonomy tiers —
+  // tighter jitter keeps shell boundaries clean while the Fibonacci
+  // distribution maintains the spherical shape.
+  //
+  //  Shell 1 · Intelligence  (signal, learning_path)  r ≈ 0.68–0.74
+  //  Shell 2 · Structure     (tag, concept, topic)     r ≈ 0.84–0.93
+  //  Shell 3 · Entity        (creator, company)        r ≈ 1.04–1.13
+  //  Shell 4 · Content       (tool…article)            r ≈ 1.18–1.28
   const TYPE_RADIAL_BIAS = {
-    topic:         1.00,
-    concept:       0.92,
-    tool:          0.96,
-    company:       1.06,
-    creator:       1.04,
-    video:         0.86,
-    article:       0.84,
-    social_post:   0.88,
-    tag:           0.78,
-    learning_path: 0.94,
-    signal:        1.10,
+    // ── Intelligence shell (innermost — derived knowledge near the core) ──
+    signal:        0.68,
+    learning_path: 0.70,
+    // ── Structure shell — organisational backbone ────────────────────────
+    tag:           0.84,
+    concept:       0.86,
+    topic:         0.90,
+    // ── Entity shell — content producers ────────────────────────────────
+    creator:       1.05,
+    company:       1.07,
+    // ── Content shell (outermost — consumed artifacts) ───────────────────
+    tool:          1.18,
+    social_post:   1.20,
+    document:      1.22,
+    video:         1.23,
+    article:       1.25,
   }
 
   otherNodes.forEach((n, i) => {
     const rng = pseudoRandom(n.id)
     const dir = fibSpherePoint(i, Math.max(1, N))
     const radialBias = TYPE_RADIAL_BIAS[n.type] ?? 1.0
-    const jitter = 0.92 + rng() * 0.16
+    const jitter = 0.95 + rng() * 0.10   // ±5 % — tight enough to preserve shell separation
     const r = SPHERE_RADIUS * radialBias * jitter
     positioned.push({
       ...n,

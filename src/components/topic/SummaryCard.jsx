@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Sparkles, RefreshCw, FileText, AlertCircle } from 'lucide-react'
+import { Sparkles, RefreshCw, FileText, AlertCircle, Copy, Check } from 'lucide-react'
 import { OLLAMA_CONFIG } from '../../lib/llm/ollamaConfig.js'
 import { topicStats, itemSignature, generateTopicOverview } from '../../lib/chat/summarize.js'
 import { useStore } from '../../store/useStore.js'
@@ -46,6 +46,28 @@ export default function SummaryCard({ topic, items, onGenerate }) {
 
   const [running, setRunning] = useState(false)
   const [error, setError] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  async function handleCopy() {
+    const text = cached?.overview
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      try {
+        const el = document.createElement('textarea')
+        el.value = text
+        el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+        document.body.appendChild(el)
+        el.focus()
+        el.select()
+        document.execCommand('copy')
+        document.body.removeChild(el)
+      } catch { /* truly blocked — still show feedback */ }
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1800)
+  }
 
   async function refreshOverview() {
     if (!topic?.id || !OLLAMA_CONFIG.enabled || items.length === 0 || running) return
@@ -84,17 +106,40 @@ export default function SummaryCard({ topic, items, onGenerate }) {
         <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium">
           Summary
         </h3>
-        {OLLAMA_CONFIG.enabled ? (
-          <button
-            onClick={refreshOverview}
-            disabled={running}
-            className="p-1 rounded-md text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
-            title="Regenerate overview"
-            aria-label="Regenerate overview"
-          >
-            <RefreshCw size={11} className={running ? 'animate-spin' : ''} />
-          </button>
-        ) : null}
+        <div className="flex items-center gap-0.5">
+          {cached?.overview ? (
+            <button
+              onClick={handleCopy}
+              className={`rounded-md transition-all flex items-center gap-1
+                ${copied
+                  ? 'px-1.5 py-0.5 bg-emerald-500/15 border border-emerald-400/25 text-emerald-400'
+                  : 'p-1 text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06]'
+                }`}
+              title={copied ? 'Copied!' : 'Copy summary'}
+              aria-label="Copy summary"
+            >
+              {copied ? (
+                <>
+                  <Check size={20} style={{ animation: 'copiedPop 0.2s cubic-bezier(0.34,1.56,0.64,1) both' }} />
+                  <span className="text-[10px] font-medium" style={{ animation: 'copiedFade 0.2s ease both' }}>Copied</span>
+                </>
+              ) : (
+                <Copy size={20} />
+              )}
+            </button>
+          ) : null}
+          {OLLAMA_CONFIG.enabled ? (
+            <button
+              onClick={refreshOverview}
+              disabled={running}
+              className="p-1 rounded-md text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
+              title="Regenerate overview"
+              aria-label="Regenerate overview"
+            >
+              <RefreshCw size={20} className={running ? 'animate-spin' : ''} />
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <p className="text-[12px] text-white/85 leading-relaxed">
@@ -116,7 +161,7 @@ export default function SummaryCard({ topic, items, onGenerate }) {
           {cached?.overview ? (
             <p
               className="text-white/85 leading-relaxed"
-              style={{ fontFamily: '"Plus Jakarta Sans", "Inter", system-ui, sans-serif', fontSize: '14px', fontWeight: 400, fontStyle: 'normal' }}
+              style={{ fontFamily: '"Montserrat", system-ui, sans-serif', fontSize: '14px', fontWeight: 400, fontStyle: 'normal' }}
             >
               {cached.overview}
               {isStale ? (

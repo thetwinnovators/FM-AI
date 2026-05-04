@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, ChevronRight, ArrowRight, Play, BookOpen, MessageCircle, ExternalLink } from 'lucide-react'
-import { NODE_TYPES, getTypeMeta } from '../../lib/graph/nodeTaxonomy.js'
+import { NODE_TYPES, TIERS, getTypeMeta } from '../../lib/graph/nodeTaxonomy.js'
 
 function getNodeCta(node) {
   if (!node) return null
@@ -36,6 +36,11 @@ export default function GlassSidebar({
     type: t,
     items: nodes.filter((n) => n.type === t.id),
   })).filter((g) => g.items.length)
+
+  const tiered = TIERS.map((tier) => ({
+    tier,
+    groups: grouped.filter((g) => g.type.tier === tier.id),
+  })).filter((t) => t.groups.length)
 
   function toggleGroup(id) {
     setOpenGroups((cur) => {
@@ -172,36 +177,46 @@ export default function GlassSidebar({
             </div>
           )
         ) : (
-          <div className="space-y-1">
-            {grouped.map(({ type, items }) => {
-              const open = openGroups.has(type.id)
-              return (
-                <div key={type.id}>
-                  <button
-                    onClick={() => toggleGroup(type.id)}
-                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: type.color }} />
-                    <span className="text-[10px] uppercase tracking-wide font-semibold text-white/70 flex-1 text-left">{type.label}</span>
-                    <span className="text-[10px] text-white/40">{items.length}</span>
-                    <ChevronRight size={12} className={`text-white/30 transition-transform ${open ? 'rotate-90' : ''}`} />
-                  </button>
-                  {open ? (
-                    <div className="ml-3 pl-2 border-l border-white/5 space-y-0.5 my-1">
-                      {items.map((n) => (
-                        <button
-                          key={n.id}
-                          onClick={() => setSelectedNodeId(n.id)}
-                          className="w-full text-left text-[11px] text-white/70 hover:text-white px-2 py-1 rounded hover:bg-white/5 truncate"
-                        >
-                          {n.label}
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
+          <div className="space-y-3">
+            {tiered.map(({ tier, groups }) => (
+              <div key={tier.id}>
+                <div className="flex items-center gap-2 px-2 py-1">
+                  <span className="text-[9px] uppercase tracking-widest font-bold text-white/30">{tier.label}</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
                 </div>
-              )
-            })}
+                <div className="space-y-0.5">
+                  {groups.map(({ type, items }) => {
+                    const open = openGroups.has(type.id)
+                    return (
+                      <div key={type.id}>
+                        <button
+                          onClick={() => toggleGroup(type.id)}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: type.color }} />
+                          <span className="text-[10px] uppercase tracking-wide font-semibold text-white/70 flex-1 text-left">{type.label}</span>
+                          <span className="text-[10px] text-white/40">{items.length}</span>
+                          <ChevronRight size={12} className={`text-white/30 transition-transform ${open ? 'rotate-90' : ''}`} />
+                        </button>
+                        {open ? (
+                          <div className="ml-3 pl-2 border-l border-white/5 space-y-0.5 my-1">
+                            {items.map((n) => (
+                              <button
+                                key={n.id}
+                                onClick={() => setSelectedNodeId(n.id)}
+                                className="w-full text-left text-[11px] text-white/70 hover:text-white px-2 py-1 rounded hover:bg-white/5 truncate"
+                              >
+                                {n.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

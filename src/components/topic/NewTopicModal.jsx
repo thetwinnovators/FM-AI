@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { X, BookOpen, Plus, Check } from 'lucide-react'
+import { X, BookOpen, Plus, Check, Sparkles } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 
 const LIQUID_GLASS = {
@@ -16,7 +16,7 @@ const LIQUID_GLASS = {
     'inset 0 -1px 0 rgba(255,255,255,0.05)',
 }
 
-export default function NewTopicModal({ open, onClose }) {
+export default function NewTopicModal({ open, onClose, prefill = null }) {
   const navigate = useNavigate()
   const { addUserTopic } = useStore()
 
@@ -25,10 +25,17 @@ export default function NewTopicModal({ open, onClose }) {
   const [query, setQuery] = useState('')
   const [queryTouched, setQueryTouched] = useState(false)
 
+  // Re-populate form whenever the modal opens OR the prefill changes while open.
+  // Both deps are intentional: if the parent sets prefill and open in the same
+  // render batch they both land here; if they arrive in separate renders the
+  // prefill dep ensures the form still syncs even when open was already true.
   useEffect(() => {
     if (!open) return
-    setName(''); setSummary(''); setQuery(''); setQueryTouched(false)
-  }, [open])
+    setName(prefill?.name ?? '')
+    setSummary(prefill?.summary ?? '')
+    setQuery(prefill?.query ?? '')
+    setQueryTouched(!!prefill?.query)
+  }, [open, prefill])
 
   useEffect(() => {
     if (!open) return
@@ -46,14 +53,18 @@ export default function NewTopicModal({ open, onClose }) {
 
   function handleSave() {
     if (!canSave) return
-    const created = addUserTopic({
-      name: trimmedName,
-      summary: summary.trim() || null,
-      query: effectiveQuery || trimmedName,
-      source: 'query',
-    })
-    onClose()
-    if (created?.slug) navigate(`/topic/${created.slug}`)
+    try {
+      const created = addUserTopic({
+        name: trimmedName,
+        summary: summary.trim() || null,
+        query: effectiveQuery || trimmedName,
+        source: 'query',
+      })
+      onClose()
+      if (created?.slug) navigate(`/topic/${created.slug}`)
+    } catch (err) {
+      console.error('[NewTopicModal] handleSave failed:', err)
+    }
   }
 
   return createPortal(
@@ -74,6 +85,12 @@ export default function NewTopicModal({ open, onClose }) {
           <div className="flex items-center gap-2.5">
             <BookOpen size={16} className="text-[color:var(--color-topic)]" />
             <h2 className="text-base font-semibold text-white">New topic</h2>
+            {prefill && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 border border-purple-500/25">
+                <Sparkles size={9} />
+                AI recommended
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="btn p-2" aria-label="Close"><X size={14} /></button>
         </header>

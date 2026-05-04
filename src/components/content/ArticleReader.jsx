@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X, ExternalLink, Bookmark, BookmarkCheck, FileText, Loader2, BookOpen } from 'lucide-react'
+import { X, ExternalLink, Bookmark, BookmarkCheck, FileText, Loader2, BookOpen, FilePlus, Check } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { getMeta } from '../../lib/search/ogImage.js'
 import { fetchCleanArticle, clearCachedArticle, getCachedArticle } from '../../lib/search/articleReader.js'
@@ -20,7 +20,7 @@ const LIQUID_GLASS = {
 }
 
 export default function ArticleReader({ item, onClose }) {
-  const { isSaved, toggleSave, recordView } = useStore()
+  const { isSaved, toggleSave, recordView, addDocument } = useStore()
   const [meta, setMeta] = useState(null)
   const [metaStatus, setMetaStatus] = useState('idle')
   const [imageFailed, setImageFailed] = useState(false)
@@ -29,6 +29,7 @@ export default function ArticleReader({ item, onClose }) {
   // returns garbage on a particular site.
   const [reader, setReader] = useState(null)
   const [readerStatus, setReaderStatus] = useState('idle') // idle | loading | done | error
+  const [savedToDoc, setSavedToDoc] = useState(false)
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
@@ -60,6 +61,7 @@ export default function ArticleReader({ item, onClose }) {
       setReader(null)
       setReaderStatus('idle')
     }
+    setSavedToDoc(false)
   }, [item?.id])
 
   async function loadSiteContent() {
@@ -86,6 +88,18 @@ export default function ArticleReader({ item, onClose }) {
     if (item?.url) clearCachedArticle(item.url)
     setReader(null)
     setReaderStatus('idle')
+  }
+
+  function saveToDocument() {
+    if (!reader?.content || savedToDoc) return
+    addDocument({
+      title:      item.title || '',
+      plainText:  reader.content,
+      sourceType: 'web',
+      url:        item.url || null,
+      fileName:   null,
+    })
+    setSavedToDoc(true)
   }
 
   // Lazy-fetch full article metadata (description + image) for richer modal content.
@@ -238,20 +252,29 @@ export default function ArticleReader({ item, onClose }) {
             Reader view · summary by curator
           </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={loadSiteContent}
-              disabled={readerStatus === 'loading' || readerStatus === 'done'}
-              className="btn text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              title={readerStatus === 'done' ? 'Already loaded' : 'Pull the cleaned article body from the source'}
-            >
-              {readerStatus === 'loading' ? (
-                <><Loader2 size={13} className="animate-spin" /> Loading…</>
-              ) : readerStatus === 'done' ? (
-                <><BookOpen size={13} /> Loaded</>
-              ) : (
-                <><BookOpen size={13} /> Load site content</>
-              )}
-            </button>
+            {readerStatus === 'done' ? (
+              <button
+                onClick={saveToDocument}
+                disabled={savedToDoc}
+                className="btn text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title={savedToDoc ? 'Already saved to Documents' : 'Save full article to My Documents'}
+              >
+                {savedToDoc
+                  ? <><Check size={13} className="text-emerald-400" /> Saved</>
+                  : <><FilePlus size={13} /> Save to Docs</>}
+              </button>
+            ) : (
+              <button
+                onClick={loadSiteContent}
+                disabled={readerStatus === 'loading'}
+                className="btn text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Pull the cleaned article body from the source"
+              >
+                {readerStatus === 'loading'
+                  ? <><Loader2 size={13} className="animate-spin" /> Loading…</>
+                  : <><BookOpen size={13} /> Load site content</>}
+              </button>
+            )}
             <a href={item.url} target="_blank" rel="noreferrer" className="btn btn-primary">
               Open original <ExternalLink size={13} />
             </a>

@@ -248,9 +248,20 @@ export default function Document() {
                 onClick={async () => {
                   try {
                     await navigator.clipboard.writeText(content.plainText)
-                    setCopied(true)
-                    setTimeout(() => setCopied(false), 1500)
-                  } catch {}
+                  } catch {
+                    try {
+                      const el = document.createElement('textarea')
+                      el.value = content.plainText
+                      el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
+                      document.body.appendChild(el)
+                      el.focus()
+                      el.select()
+                      document.execCommand('copy')
+                      document.body.removeChild(el)
+                    } catch { /* truly blocked */ }
+                  }
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium text-gray-500 hover:text-gray-800 hover:bg-slate-200 transition-colors"
                 title="Copy content"
