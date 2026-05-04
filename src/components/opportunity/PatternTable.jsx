@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, ArrowUpDown, CheckCircle2, LightbulbOff } from 'lucide-react'
+import { Loader2, ArrowUpDown, Lightbulb, LightbulbOff } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'score',     label: 'Score' },
@@ -134,7 +134,7 @@ export default function PatternTable({
                   <td className="px-4 py-2.5 capitalize font-medium text-white/70 max-w-[200px] truncate">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isHighPotential
-                        ? <CheckCircle2  className="w-3.5 h-3.5 text-teal-400 flex-shrink-0"   title="Above-average opportunity score" />
+                        ? <Lightbulb className="w-3.5 h-3.5 flex-shrink-0 text-teal-400" style={{ filter: 'drop-shadow(0 0 4px rgb(45 212 191 / 0.8))' }} title="Above-average opportunity score" />
                         : <LightbulbOff className="w-3.5 h-3.5 text-white/15 flex-shrink-0"   title="Below-average opportunity score" />
                       }
                       <span className="truncate">{cluster.clusterName}</span>
