@@ -40,7 +40,7 @@ async function pLimit<T>(
 function mapRedditItem(item: any, _query: string): RawSearchResult | null {
   try {
     const title = item.title ?? item.raw?.title ?? ''
-    const body  = item.selftext ?? item.raw?.selftext ?? item.body ?? ''
+    const body  = item.summary ?? item.selftext ?? item.raw?.selftext ?? item.body ?? ''
     const url   = item.url ?? item.raw?.url ?? ''
     if (!url) return null
     return {

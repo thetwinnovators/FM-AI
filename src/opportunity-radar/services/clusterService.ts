@@ -88,14 +88,19 @@ export class KeywordClusterer implements IClusterer {
       }
 
       if (bestIdx >= 0) {
-        const c      = clusters[bestIdx]
-        c.signalIds.push(signal.id)
-        c.signalCount = c.signalIds.length
-        c.termFrequency = updateTermFrequency(c.termFrequency, signal.keyTerms)
-        c.clusterName   = buildClusterName(c.termFrequency)
-        c.updatedAt     = now
-        if (signal.detectedAt < c.firstDetected) c.firstDetected = signal.detectedAt
-        if (signal.detectedAt > c.lastDetected)  c.lastDetected  = signal.detectedAt
+        const c = clusters[bestIdx]
+        // Guard: skip re-processing signals already assigned to this cluster.
+        // The caller passes allSignals (old + new) so without this check old
+        // signal IDs would be pushed again, inflating signalCount and termFrequency.
+        if (!c.signalIds.includes(signal.id)) {
+          c.signalIds.push(signal.id)
+          c.signalCount = c.signalIds.length
+          c.termFrequency = updateTermFrequency(c.termFrequency, signal.keyTerms)
+          c.clusterName   = buildClusterName(c.termFrequency)
+          c.updatedAt     = now
+          if (signal.detectedAt < c.firstDetected) c.firstDetected = signal.detectedAt
+          if (signal.detectedAt > c.lastDetected)  c.lastDetected  = signal.detectedAt
+        }
       } else {
         const tf = updateTermFrequency({}, signal.keyTerms)
         clusters.push({
