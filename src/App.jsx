@@ -17,6 +17,7 @@ import Documents from './views/Documents.jsx'
 import Document from './views/Document.jsx'
 import Chat from './views/Chat.jsx'
 import Signals from './views/Signals.jsx'
+import OpportunityRadar from './views/OpportunityRadar.jsx'
 import MCPIntegrationsPage from './mcp/pages/MCPIntegrationsPage.jsx'
 import MCPIntegrationDetailPage from './mcp/pages/MCPIntegrationDetailPage.jsx'
 import MCPToolCatalogPage from './mcp/pages/MCPToolCatalogPage.jsx'
@@ -32,6 +33,7 @@ function AnimatedRoutes() {
         <Route path="/flow" element={<FlowMap />} />
         <Route path="/discover" element={<Discover />} />
         <Route path="/signals" element={<Signals />} />
+        <Route path="/radar" element={<OpportunityRadar />} />
         <Route path="/search" element={<Search />} />
         <Route path="/topics" element={<Topics />} />
         <Route path="/topic/:slug" element={<Topic />} />

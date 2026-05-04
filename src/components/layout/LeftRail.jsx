@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity } from 'lucide-react'
+import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar } from 'lucide-react'
 
 // Nav is grouped into sections separated by hairline dividers in the rail.
 // Order: workspace shortcuts → broad exploration → personal collections → AI assistant.
@@ -10,7 +10,8 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/discover', label: 'Discover',       icon: Compass         },
-    { to: '/signals',  label: 'Latest Signals', icon: Activity        },
+    { to: '/signals',  label: 'Latest Signals',    icon: Activity        },
+    { to: '/radar',    label: 'Opportunity Radar', icon: Radar           },
   ],
   [
     { to: '/topics',    label: 'My Topics',     icon: BookOpen        },
