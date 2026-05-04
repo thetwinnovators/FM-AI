@@ -112,15 +112,18 @@ export default function PatternTable({
               <th className="px-3 py-2.5 font-medium text-right">Signals</th>
               <th className="px-3 py-2.5 font-medium text-right">Sources</th>
               <th className="px-3 py-2.5 font-medium">Last seen</th>
-              <th className="px-3 py-2.5 font-medium text-right">Score</th>
+              <th className="px-3 py-2.5 font-medium">Score</th>
               <th className="px-3 py-2.5 font-medium">Status</th>
               <th className="px-3 py-2.5 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((cluster, i) => {
+            {(() => {
+              const maxScore = Math.max(...rows.map((c) => c.opportunityScore), 1)
+              return rows.map((cluster, i) => {
               const existingConcept = concepts.find((c) => c.clusterId === cluster.id)
               const isGenerating    = generatingFor === cluster.id
+              const barPct          = Math.round((cluster.opportunityScore / maxScore) * 100)
               return (
                 <tr
                   key={cluster.id}
@@ -132,8 +135,18 @@ export default function PatternTable({
                   <td className="px-3 py-2.5 text-right text-white/50">{cluster.signalCount}</td>
                   <td className="px-3 py-2.5 text-right text-white/50">{cluster.sourceDiversity}</td>
                   <td className="px-3 py-2.5 text-white/40">{formatDate(cluster.lastDetected)}</td>
-                  <td className="px-3 py-2.5 text-right text-white/70 font-mono">
-                    {Math.round(cluster.opportunityScore)}
+                  <td className="px-3 py-2.5 min-w-[90px]">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1 rounded-full bg-white/5 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-teal-400/70 transition-all"
+                          style={{ width: `${barPct}%` }}
+                        />
+                      </div>
+                      <span className="text-white/70 font-mono text-right w-6 flex-shrink-0">
+                        {Math.round(cluster.opportunityScore)}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-3 py-2.5">
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_COLORS[cluster.status] ?? 'text-white/30'}`}>
@@ -163,7 +176,9 @@ export default function PatternTable({
                   </td>
                 </tr>
               )
-            })}
+              )
+            })
+            })()}
           </tbody>
         </table>
       </div>
