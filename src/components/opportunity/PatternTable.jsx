@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Loader2, ArrowUpDown } from 'lucide-react'
+import { Loader2, ArrowUpDown, CheckCircle2 } from 'lucide-react'
 
 const SORT_OPTIONS = [
   { value: 'score',     label: 'Score' },
@@ -119,18 +119,28 @@ export default function PatternTable({
           </thead>
           <tbody>
             {(() => {
-              const maxScore = Math.max(...rows.map((c) => c.opportunityScore), 1)
+              const maxScore  = Math.max(...rows.map((c) => c.opportunityScore), 1)
+              const meanScore = rows.reduce((s, c) => s + c.opportunityScore, 0) / (rows.length || 1)
               return rows.map((cluster, i) => {
               const existingConcept = concepts.find((c) => c.clusterId === cluster.id)
               const isGenerating    = generatingFor === cluster.id
               const barPct          = Math.round((cluster.opportunityScore / maxScore) * 100)
+              const isHighPotential = cluster.opportunityScore > meanScore
               return (
                 <tr
                   key={cluster.id}
                   className={`border-b border-white/[0.03] ${i % 2 === 0 ? 'bg-white/[0.01]' : ''} hover:bg-white/[0.04] transition-colors`}
                 >
                   <td className="px-4 py-2.5 capitalize font-medium text-white/70 max-w-[200px] truncate">
-                    {cluster.clusterName}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      {isHighPotential && (
+                        <CheckCircle2
+                          className="w-3.5 h-3.5 text-teal-400 flex-shrink-0"
+                          title="Above-average opportunity score"
+                        />
+                      )}
+                      <span className="truncate">{cluster.clusterName}</span>
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 text-right text-white/50">{cluster.signalCount}</td>
                   <td className="px-3 py-2.5 text-right text-white/50">{cluster.sourceDiversity}</td>
