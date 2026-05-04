@@ -40,6 +40,7 @@ export default function ConceptView({ concept, onClose }) {
   const evidenceSummary = concept.evidenceSummary ?? {}
   const sourceBreakdown = evidenceSummary.sourceBreakdown ?? {}
   const topQuotes       = evidenceSummary.topQuotes ?? []
+  const painPoints      = concept.painPoints ?? []
 
   return (
     <div className="mt-3 rounded-xl border border-white/8 bg-white/[0.025] overflow-hidden">
@@ -98,13 +99,13 @@ export default function ConceptView({ concept, onClose }) {
         </div>
 
         {/* Pain points */}
-        {concept.painPoints.length > 0 && (
+        {painPoints.length > 0 && (
           <div className="mb-5">
             <h3 className="text-xs font-semibold text-white/40 uppercase tracking-wide mb-1.5">
               Recurring Pain Points
             </h3>
             <ul className="flex flex-wrap gap-1.5">
-              {concept.painPoints.map(({ point, frequency }) => (
+              {painPoints.map(({ point, frequency }) => (
                 <li key={point} className="text-[11px] px-2 py-0.5 rounded-full bg-white/[0.04] text-white/60 border border-white/8">
                   {point} <span className="text-white/30">×{frequency}</span>
                 </li>
