@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 
 // retrieve.js has no imports — it is a self-contained module.
 // No mocks needed for these pure function tests.
-import { buildIdentityBlock, buildTaskState } from '../retrieve.js'
+import { buildIdentityBlock, buildTaskState, classifyIntent } from '../retrieve.js'
 
 // ─── buildIdentityBlock ───────────────────────────────────────────────────────
 
@@ -119,5 +119,50 @@ describe('buildTaskState', () => {
     const result = buildTaskState(msgs, 'continue')
     expect(result).toContain('Here is a multi')
     expect(result.match(/"([^"]+)"/)[1]).not.toContain('\n')
+  })
+})
+
+// ─── classifyIntent — tool_use ────────────────────────────────────────────────
+describe('classifyIntent — tool_use', () => {
+  it('detects send + telegram as tool_use', () => {
+    expect(classifyIntent('send a message to @channel on telegram saying hi')).toBe('tool_use')
+  })
+
+  it('detects post + figma as tool_use', () => {
+    expect(classifyIntent('post this design note to figma')).toBe('tool_use')
+  })
+
+  it('detects create + google docs as tool_use', () => {
+    expect(classifyIntent('create a google docs document from my summary')).toBe('tool_use')
+  })
+
+  it('detects "use [tool]" phrase as tool_use', () => {
+    expect(classifyIntent('use telegram to notify the team')).toBe('tool_use')
+  })
+
+  it('detects "via gmail" phrase as tool_use', () => {
+    expect(classifyIntent('draft a report and send it via gmail')).toBe('tool_use')
+  })
+
+  it('detects schedule + calendar as tool_use', () => {
+    expect(classifyIntent('schedule a reminder on google calendar for tomorrow')).toBe('tool_use')
+  })
+
+  it('detects fetch + drive as tool_use', () => {
+    expect(classifyIntent('fetch the latest file from google drive')).toBe('tool_use')
+  })
+
+  it('does NOT classify casual greeting as tool_use', () => {
+    expect(classifyIntent('hi')).toBe('casual_chat')
+    expect(classifyIntent('hey')).toBe('casual_chat')
+  })
+
+  it('does NOT classify a plain knowledge question as tool_use', () => {
+    expect(classifyIntent('what is n8n?')).not.toBe('tool_use')
+  })
+
+  it('does NOT classify a telegram-mentioning knowledge question as tool_use', () => {
+    // mentions telegram but no imperative action verb
+    expect(classifyIntent('what is telegram used for?')).not.toBe('tool_use')
   })
 })
