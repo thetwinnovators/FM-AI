@@ -92,6 +92,8 @@ export function writeAgentResult(params: WriteAgentResultParams): void {
 
   const store = readStore()
   const entries = store.memoryEntries ?? {}
+  // MemoryEntry interface uses `text`; agent entries use `content` to match useStore.
+  // Cast bypasses the local interface — the retrieval pipeline and UI read `content`.
   entries[id] = entry as unknown as MemoryEntry
   writeStore({ ...store, memoryEntries: entries })
 }
