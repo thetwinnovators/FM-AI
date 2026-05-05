@@ -212,11 +212,11 @@ export default function Topics() {
 
       {viewMode === 'grid' ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {sorted.map((t) => {
+          {sorted.map((t, idx) => {
             const followed = t.isUserAdded ? t.followed : isFollowing(t.id)
             const count = t.isUserAdded ? null : contentByTopic(t.id).length
             return (
-              <article key={t.id} className="glass-panel p-4 flex flex-col gap-3 [box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)] hover:[box-shadow:0_8px_40px_rgba(0,0,0,0.45),_inset_0_1px_0_rgba(255,255,255,0.06)] transition-shadow">
+              <article key={t.id} className="fm-fade-up glass-panel p-4 flex flex-col gap-3 [box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)] hover:[box-shadow:0_8px_40px_rgba(0,0,0,0.45),_inset_0_1px_0_rgba(255,255,255,0.06)] transition-shadow" style={{ '--fm-delay': `${idx * 35}ms` }}>
                 <Link to={`/topic/${t.slug}`} className="block">
                   <TopicCover
                     slug={t.slug}
@@ -296,7 +296,8 @@ export default function Topics() {
               <article
                 key={t.id}
                 onClick={() => navigate(`/topic/${t.slug}`)}
-                className={`px-4 py-3 flex items-center gap-4 cursor-pointer bg-white/[0.03] hover:bg-white/[0.07] transition-colors ${radius}`}
+                className={`fm-fade-up px-4 py-3 flex items-center gap-4 cursor-pointer bg-white/[0.03] hover:bg-white/[0.07] transition-colors ${radius}`}
+                style={{ '--fm-delay': `${idx * 35}ms` }}
               >
                 {/* thumbnail */}
                 <div className="w-[72px] h-[46px] rounded-lg overflow-hidden relative shrink-0">

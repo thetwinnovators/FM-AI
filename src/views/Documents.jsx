@@ -491,26 +491,27 @@ export default function Documents() {
           style={{ gridTemplateColumns: 'repeat(auto-fill, 300px)' }}
         >
           {/* Regular folder cards — only shown in root view */}
-          {!activeFolderId ? regularFolders.map((folder) => (
-            <FolderCard
-              key={folder.id}
-              folder={folder}
-              docCount={docCountFor[folder.id] || 0}
-              isRenaming={renamingFolderId === folder.id}
-              onRenameStart={(id) => setRenamingFolderId(id)}
-              onRenameCommit={(id, name) => {
-                if (id && name) renameFolder(id, name)
-                setRenamingFolderId(null)
-              }}
-              onDelete={askRemoveFolder}
-              onClick={() => { setActiveFolderId(folder.id); setPage(1) }}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, folder.id)}
-            />
+          {!activeFolderId ? regularFolders.map((folder, i) => (
+            <div key={folder.id} className="fm-fade-up" style={{ '--fm-delay': `${i * 35}ms` }}>
+              <FolderCard
+                folder={folder}
+                docCount={docCountFor[folder.id] || 0}
+                isRenaming={renamingFolderId === folder.id}
+                onRenameStart={(id) => setRenamingFolderId(id)}
+                onRenameCommit={(id, name) => {
+                  if (id && name) renameFolder(id, name)
+                  setRenamingFolderId(null)
+                }}
+                onDelete={askRemoveFolder}
+                onClick={() => { setActiveFolderId(folder.id); setPage(1) }}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, folder.id)}
+              />
+            </div>
           )) : null}
 
           {/* Document cards */}
-          {visible.map((d) => {
+          {visible.map((d, i) => {
             const topicNames = (d.topics || []).map(topicNameFor).filter(Boolean)
             const isSelected = selectMode && selectedIds.has(d.id)
 
@@ -565,7 +566,8 @@ export default function Documents() {
                   e.dataTransfer.setData('docId', d.id)
                   e.dataTransfer.effectAllowed = 'move'
                 } : undefined}
-                className={`rounded-lg overflow-hidden border transition-colors flex flex-col group shadow-sm relative ${
+                style={{ '--fm-delay': `${i * 35}ms` }}
+                className={`fm-fade-up rounded-lg overflow-hidden border transition-colors flex flex-col group shadow-sm relative ${
                   isSelected
                     ? 'border-teal-400 ring-2 ring-teal-400/40 bg-slate-50'
                     : selectMode

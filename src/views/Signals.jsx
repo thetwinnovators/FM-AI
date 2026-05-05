@@ -1150,21 +1150,24 @@ export default function Signals() {
                 <>
                   {viewMode === 'grid' ? (
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      {pagedSignals.map((s) => (
-                        <SignalCard key={s.id} signal={s} topics={topics} onPin={handlePin} onMute={handleMute} onDetail={setDetailSignal} />
+                      {pagedSignals.map((s, i) => (
+                        <div key={s.id} className="fm-fade-up" style={{ '--fm-delay': `${i * 35}ms` }}>
+                          <SignalCard signal={s} topics={topics} onPin={handlePin} onMute={handleMute} onDetail={setDetailSignal} />
+                        </div>
                       ))}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {pagedSignals.map((s) => (
-                        <SignalListCard
-                          key={s.id}
-                          signal={s}
-                          topics={topics}
-                          onPin={handlePin}
-                          onMute={handleMute}
-                          onDetail={setDetailSignal}
-                        />
+                      {pagedSignals.map((s, i) => (
+                        <div key={s.id} className="fm-fade-up" style={{ '--fm-delay': `${i * 35}ms` }}>
+                          <SignalListCard
+                            signal={s}
+                            topics={topics}
+                            onPin={handlePin}
+                            onMute={handleMute}
+                            onDetail={setDetailSignal}
+                          />
+                        </div>
                       ))}
                     </div>
                   )}

@@ -8,14 +8,16 @@ import MemoryAddForm from '../components/memory/MemoryAddForm.jsx'
 import SavedItemsGrid from '../components/memory/SavedItemsGrid.jsx'
 import AddedUrlsGrid from '../components/memory/AddedUrlsGrid.jsx'
 import BackupPanel from '../components/memory/BackupPanel.jsx'
+import KnowledgeOverview from '../components/memory/KnowledgeOverview.jsx'
 import UrlIngestModal from '../components/ingest/UrlIngestModal.jsx'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 
 const TABS = [
-  { id: 'saved',    label: 'Saved items'      },
-  { id: 'added',    label: 'Added URLs'       },
-  { id: 'followed', label: 'Followed topics'  },
-  { id: 'memory',   label: 'Memory entries'   },
+  { id: 'overview', label: 'Overview'          },
+  { id: 'saved',    label: 'Saved items'       },
+  { id: 'added',    label: 'Added URLs'        },
+  { id: 'followed', label: 'Followed topics'   },
+  { id: 'memory',   label: 'Memory entries'    },
   { id: 'sources',  label: 'Source preferences' },
 ]
 
@@ -34,7 +36,7 @@ export default function Memory() {
     userTopics, removeUserTopic, manualContent, pinMemoryAsIdentity,
   } = useStore()
 
-  const [tab, setTab] = useState('saved')
+  const [tab, setTab] = useState('overview')
   const [showAdd, setShowAdd] = useState(false)
   const [showIngest, setShowIngest] = useState(false)
   const [catFilter, setCatFilter] = useState('all')
@@ -99,7 +101,7 @@ export default function Memory() {
 
   return (
     <div className="p-6">
-      <header className="mb-6 flex items-start justify-between gap-4">
+      <header className="mb-6 flex items-start justify-between gap-4 fm-fade-up" style={{ '--fm-delay': '0ms' }}>
         <div>
           <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
             <Brain size={20} className="text-[color:var(--color-topic)]" /> Knowledge Base
@@ -113,7 +115,7 @@ export default function Memory() {
         </button>
       </header>
 
-      <div className="flex gap-1 mb-6 border-b border-[color:var(--color-border-subtle)] flex-wrap">
+      <div className="flex gap-1 mb-6 border-b border-[color:var(--color-border-subtle)] flex-wrap fm-fade-up" style={{ '--fm-delay': '50ms' }}>
         {TABS.map((t) => {
           const count =
             t.id === 'saved'    ? savedCount :
@@ -137,6 +139,8 @@ export default function Memory() {
           )
         })}
       </div>
+
+      {tab === 'overview' && <KnowledgeOverview />}
 
       {tab === 'saved' && <SavedItemsGrid />}
 
@@ -166,7 +170,7 @@ export default function Memory() {
                       ? 'rounded-t-none rounded-b-xl'
                       : 'rounded-none'
                 return (
-                  <li key={t.id} className={`bg-white/[0.03] hover:bg-white/[0.07] transition-colors p-4 flex items-center justify-between ${radius}`}>
+                  <li key={t.id} className={`fm-fade-up bg-white/[0.03] hover:bg-white/[0.07] transition-colors p-4 flex items-center justify-between ${radius}`} style={{ '--fm-delay': `${idx * 35}ms` }}>
                     <Link to={`/topic/${t.slug}`} className="flex items-center gap-3 hover:underline flex-1 min-w-0">
                       <span className="w-2 h-2 rounded-full bg-[color:var(--color-topic)] flex-shrink-0" />
                       <div className="min-w-0">

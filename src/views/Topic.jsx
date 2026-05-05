@@ -49,6 +49,7 @@ function ContentListCard({ item, onOpen, isFirst, isLast }) {
 
   const TypeIcon = item.type === 'video' ? Play
     : item.type === 'social_post' ? MessageSquare
+    : item.type === 'pdf' ? FileText   // PDF uses same FileText icon, distinct from article
     : FileText
 
   return (
@@ -120,6 +121,7 @@ const TABS = [
   { id: 'all',         label: 'All'      },
   { id: 'video',       label: 'Videos'   },
   { id: 'article',     label: 'Articles' },
+  { id: 'pdf',         label: 'PDFs'     },
   { id: 'social_post', label: 'Posts'    },
   { id: 'saved',       label: 'Saved'    },
 ]
@@ -544,22 +546,25 @@ export default function Topic() {
             )
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
-              {items.map((it) =>
-                it.type === 'video' ? <VideoCard key={it.id} item={it} onOpen={open} /> :
-                it.type === 'article' ? <ArticleCard key={it.id} item={it} onOpen={open} /> :
-                <SocialPostCard key={it.id} item={it} onOpen={open} />
-              )}
+              {items.map((it, i) => (
+                <div key={it.id} className="fm-fade-up" style={{ '--fm-delay': `${i * 35}ms` }}>
+                  {it.type === 'video' ? <VideoCard item={it} onOpen={open} /> :
+                  it.type === 'article' || it.type === 'pdf' ? <ArticleCard item={it} onOpen={open} /> :
+                  <SocialPostCard item={it} onOpen={open} />}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-col gap-px max-w-[760px]">
               {items.map((it, idx) => (
-                <ContentListCard
-                  key={it.id}
-                  item={it}
-                  onOpen={open}
-                  isFirst={idx === 0}
-                  isLast={idx === items.length - 1}
-                />
+                <div key={it.id} className="fm-fade-up" style={{ '--fm-delay': `${idx * 35}ms` }}>
+                  <ContentListCard
+                    item={it}
+                    onOpen={open}
+                    isFirst={idx === 0}
+                    isLast={idx === items.length - 1}
+                  />
+                </div>
               ))}
             </div>
           )}
