@@ -51,10 +51,14 @@ export function extractTopicLabel(
 
   // 3. Stripped user query — remove leading question words, keep the topic
   const stripped = userMessage
-    .replace(/^(what|how|why|when|where|who|which|can you|could you|tell me|explain|describe|summarize|walk me through|talk about|show me|find|search for|look up)\s+(is|are|was|were|does|do|did|a|an|the|me|about)?\s*/i, '')
+    .replace(/^(what'?s?|how|why|when|where|who|which|can you|could you|tell me|explain|describe|summarize|walk me through|talk about|show me|find|search for|look up)\s+(is|are|was|were|does|do|did|a|an|the|me|about|new|happening|going on|latest)?\s*/i, '')
     .replace(/[?.,!;:]+$/, '')
     .trim()
-  if (stripped.length >= 4 && stripped.length <= 60) return stripped
+  // Reject if still looks like a full question (>6 words) — it means the
+  // strip didn't find a clean noun phrase and we'd get the whole query as the
+  // topic, which produces mechanical "Can you be more specific about X?" chips.
+  const wordCount = stripped.split(/\s+/).filter(Boolean).length
+  if (stripped.length >= 4 && stripped.length <= 50 && wordCount <= 6) return stripped
 
   // 4. Opening clause of the response — first 6 words, skipping common openers
   const firstLine = assistantText.replace(/\n[\s\S]*/, '').trim()
@@ -111,9 +115,9 @@ const INTENT_TEMPLATES: Record<string, Array<(t: string | null) => string>> = {
     (t) => t ? `What are the most important aspects of ${t}?`       : 'What are the most important aspects of this?',
   ],
   unclear: [
-    (t) => t ? `Can you be more specific about ${t}?`               : 'Can you be more specific here?',
-    (t) => t ? `Give me a practical example of ${t}`                : 'Can you give me a practical example?',
-    (t) => t ? `What else should I know about ${t}?`                : 'What else should I know about this?',
+    (_) => 'What topics have I been researching lately?',
+    (_) => 'What are my latest signals and patterns?',
+    (_) => 'What should I focus on next in my research?',
   ],
   casual_chat: [
     (_) => 'What topics am I currently tracking?',

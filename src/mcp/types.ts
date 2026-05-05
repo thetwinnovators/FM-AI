@@ -10,6 +10,7 @@ export type IntegrationType =
   | 'instagram'
   | 'facebook'
   | 'figma'
+  | 'flowmap'
 
 export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pending'
 

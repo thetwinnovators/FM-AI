@@ -1,58 +1,69 @@
 import { searchReddit }     from '../../lib/search/reddit.js'
 import { searchHackerNews } from '../../lib/search/hackerNews.js'
 import { searchYouTube }    from '../../lib/search/youtube.js'
+import { searchStackOverflow } from '../../lib/search/stackOverflow.js'
+import { searchGitHubIssues }  from '../../lib/search/github.js'
+import { searchSite }          from '../../lib/search/siteSearch.js'
 import { PAIN_QUERIES }     from '../constants/painQueries.js'
 import type { RawSearchResult } from './signalExtractor.js'
 
-export type ScanSource = 'reddit' | 'hackernews' | 'youtube'
+export type ScanSource =
+  | 'reddit' | 'hackernews' | 'youtube'
+  | 'stackoverflow' | 'github'
+  | 'producthunt' | 'indiehackers' | 'g2' | 'capterra'
+  | 'twitter' | 'linkedin' | 'discord'
+
+export const SOURCE_LABELS: Record<ScanSource, string> = {
+  reddit:       'Reddit',
+  hackernews:   'Hacker News',
+  youtube:      'YouTube',
+  stackoverflow: 'Stack Overflow',
+  github:       'GitHub',
+  producthunt:  'Product Hunt',
+  indiehackers: 'Indie Hackers',
+  g2:           'G2',
+  capterra:     'Capterra',
+  twitter:      'Twitter/X',
+  linkedin:     'LinkedIn',
+  discord:      'Discord',
+}
+
+// Subset of pain queries used for site: SearXNG sources (fewer = less hammering)
+const SITE_PAIN_QUERIES = PAIN_QUERIES.slice(0, 6)
 
 export interface ScanProgress {
-  source:    ScanSource
-  status:    'running' | 'done' | 'error'
+  source:      ScanSource
+  status:      'running' | 'done' | 'error'
   resultCount?: number
-  error?:    string
+  error?:      string
 }
 
 type ProgressCallback = (p: ScanProgress) => void
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Run at most `concurrency` promises at a time from a list of factories. */
 async function pLimit<T>(
   factories: Array<() => Promise<T>>,
   concurrency: number,
 ): Promise<T[]> {
   const results: T[] = new Array(factories.length)
   let idx = 0
-
   async function worker() {
     while (idx < factories.length) {
       const i = idx++
       results[i] = await factories[i]()
     }
   }
-
   const workers = Array.from({ length: Math.min(concurrency, factories.length) }, worker)
   await Promise.all(workers)
   return results
 }
 
-function mapRedditItem(item: any, _query: string): RawSearchResult | null {
+function mapRedditItem(item: any): RawSearchResult | null {
   try {
     const title = item.title ?? item.raw?.title ?? ''
     const body  = item.summary ?? item.selftext ?? item.raw?.selftext ?? item.body ?? ''
     const url   = item.url ?? item.raw?.url ?? ''
     if (!url) return null
-    return {
-      title,
-      body,
-      url,
-      source:      'reddit',
-      author:      item.author ?? item.raw?.author,
-      publishedAt: item.created_utc
-        ? new Date(item.created_utc * 1000).toISOString()
-        : item.publishedAt,
-    }
+    return { title, body, url, source: 'reddit', author: item.author ?? item.raw?.author, publishedAt: item.created_utc ? new Date(item.created_utc * 1000).toISOString() : item.publishedAt }
   } catch { return null }
 }
 
@@ -61,14 +72,7 @@ function mapHNItem(item: any): RawSearchResult | null {
     const title = item.title ?? ''
     const body  = item.story_text ?? item.comment_text ?? item.text ?? ''
     const url   = item.url ?? `https://news.ycombinator.com/item?id=${item.objectID}`
-    return {
-      title,
-      body,
-      url,
-      source:      'hackernews',
-      author:      item.author ?? item.raw?.author,
-      publishedAt: item.created_at ?? item.publishedAt,
-    }
+    return { title, body, url, source: 'hackernews', author: item.author ?? item.raw?.author, publishedAt: item.created_at ?? item.publishedAt }
   } catch { return null }
 }
 
@@ -78,53 +82,66 @@ function mapYouTubeItem(item: any): RawSearchResult | null {
     const body  = item.description ?? item.raw?.description ?? ''
     const url   = item.url ?? item.raw?.url ?? ''
     if (!url) return null
-    return {
-      title,
-      body,
-      url,
-      source:      'youtube',
-      author:      item.author ?? item.raw?.author,
-      publishedAt: item.publishedAt ?? item.raw?.publishedAt,
-    }
+    return { title, body, url, source: 'youtube', author: item.author ?? item.raw?.author, publishedAt: item.publishedAt ?? item.raw?.publishedAt }
   } catch { return null }
 }
 
-// ── Source runners ────────────────────────────────────────────────────────────
+function mapGenericItem(item: any, source: string): RawSearchResult | null {
+  try {
+    const title = item.title ?? ''
+    const body  = item.summary ?? item.body ?? item.description ?? ''
+    const url   = item.url ?? item.raw?.url ?? ''
+    if (!url) return null
+    return { title, body, url, source, author: item.author ?? null, publishedAt: item.publishedAt ?? null }
+  } catch { return null }
+}
 
-async function runSource(
-  source: ScanSource,
-  onProgress: ProgressCallback,
-): Promise<RawSearchResult[]> {
+// SearXNG site: sources use a smaller query set to reduce request volume
+const SITE_SOURCES = new Set<ScanSource>(['producthunt', 'indiehackers', 'g2', 'capterra', 'twitter', 'linkedin', 'discord'])
+
+async function runSource(source: ScanSource, onProgress: ProgressCallback): Promise<RawSearchResult[]> {
   onProgress({ source, status: 'running' })
   const abortController = new AbortController()
   const results: RawSearchResult[] = []
+  const queries = SITE_SOURCES.has(source) ? SITE_PAIN_QUERIES : PAIN_QUERIES
 
   try {
-    const factories = PAIN_QUERIES.map((query) => async () => {
+    const factories = queries.map((query) => async (): Promise<RawSearchResult[]> => {
       try {
-        let items: any[] = []
         if (source === 'reddit') {
           const raw = await searchReddit(query, { limit: 10 }, abortController.signal)
-          items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.data ?? [])
-          return items.map((i: any) => mapRedditItem(i, query)).filter((x): x is RawSearchResult => x !== null)
-        } else if (source === 'hackernews') {
+          const items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.data ?? [])
+          return items.map((i: any) => mapRedditItem(i)).filter((x): x is RawSearchResult => x !== null)
+        }
+        if (source === 'hackernews') {
           const raw = await searchHackerNews(query, 10, abortController.signal)
-          items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.hits ?? [])
+          const items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.hits ?? [])
           return items.map(mapHNItem).filter((x): x is RawSearchResult => x !== null)
-        } else {
+        }
+        if (source === 'youtube') {
           const raw = await searchYouTube(query, 10, abortController.signal)
-          items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.data ?? [])
+          const items = Array.isArray(raw) ? raw : (raw?.results ?? raw?.data ?? [])
           return items.map(mapYouTubeItem).filter((x): x is RawSearchResult => x !== null)
         }
+        if (source === 'stackoverflow') {
+          const raw = await searchStackOverflow(query, 10, abortController.signal)
+          return (Array.isArray(raw) ? raw : []).map((i: any) => mapGenericItem(i, 'stackoverflow')).filter((x): x is RawSearchResult => x !== null)
+        }
+        if (source === 'github') {
+          const raw = await searchGitHubIssues(query, 10, abortController.signal)
+          return (Array.isArray(raw) ? raw : []).map((i: any) => mapGenericItem(i, 'github')).filter((x): x is RawSearchResult => x !== null)
+        }
+        // SearXNG site: sources
+        const raw = await searchSite(source as string, query, 8, abortController.signal)
+        return (Array.isArray(raw) ? raw : []).map((i: any) => mapGenericItem(i, source)).filter((x): x is RawSearchResult => x !== null)
       } catch {
-        return [] as RawSearchResult[]
+        return []
       }
     })
 
     const batches = await pLimit(factories, 5)
     for (const batch of batches) results.push(...batch)
 
-    // Deduplicate by URL
     const seen = new Set<string>()
     const deduped = results.filter((r) => {
       if (seen.has(r.url)) return false
@@ -140,22 +157,21 @@ async function runSource(
   }
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+export const ALL_SOURCES: ScanSource[] = [
+  'reddit', 'hackernews', 'youtube',
+  'stackoverflow', 'github',
+  'producthunt', 'indiehackers', 'g2', 'capterra',
+  'twitter', 'linkedin', 'discord',
+]
 
-/**
- * Run all pain queries across Reddit, then HN, then YouTube.
- * Source-sequential, max 5 concurrent queries per source.
- */
 export async function runPainSearch(
-  sources: ScanSource[] = ['reddit', 'hackernews', 'youtube'],
+  sources: ScanSource[] = ALL_SOURCES,
   onProgress: ProgressCallback = () => {},
 ): Promise<RawSearchResult[]> {
   const all: RawSearchResult[] = []
-
   for (const source of sources) {
     const sourceResults = await runSource(source, onProgress)
     all.push(...sourceResults)
   }
-
   return all
 }

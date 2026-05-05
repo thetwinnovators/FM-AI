@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check } from 'lucide-react'
+import { renderInlineText } from '../chat/ChatMessage.jsx'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { streamChat } from '../../lib/llm/ollama.js'
@@ -40,6 +41,7 @@ export default function QuickChatLauncher() {
   const abortRef = useRef(null)
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
+  const atBottomRef = useRef(true) // true while the scroll container is near the bottom
   const dragRef = useRef(null)
   const recorderRef = useRef(null)            // MediaRecorder controller from stt.js
   const transcribingRef = useRef(false)
@@ -66,11 +68,19 @@ export default function QuickChatLauncher() {
   const allDocs = useMemo(() => Object.values(documents || {}), [documents])
 
   // Auto-focus the input when the panel opens; auto-scroll to bottom on
-  // each new chunk during streaming.
+  // each new chunk during streaming — but only when the user hasn't scrolled up.
   useEffect(() => { if (open) inputRef.current?.focus() }, [open])
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    if (atBottomRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
   }, [messages, streaming])
+
+  function onScrollMessages(e) {
+    const el = e.currentTarget
+    // Consider "at bottom" when within 100 px of the end (covers rounding/sub-pixel gaps).
+    atBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 100
+  }
 
   // Subscribe to TTS playing state so the Stop button can react to voice-only
   // activity (e.g. a finished stream that's still being read aloud).
@@ -139,6 +149,7 @@ export default function QuickChatLauncher() {
     setMessages(nextHistory)
     setDraft('')
     micBaseTextRef.current = ''
+    atBottomRef.current = true // always follow new messages the user sends
     setBusy(true)
     setStreaming('')
 
@@ -321,7 +332,7 @@ export default function QuickChatLauncher() {
   // through; the button itself opts back in.
   if (!open) {
     return (
-      <div className="absolute bottom-4 right-4 z-30 pointer-events-none">
+      <div className="absolute bottom-4 right-4 z-[9999] pointer-events-none">
         <button
           onClick={() => setOpen(true)}
           className="pointer-events-auto group relative inline-flex items-center justify-center w-12 h-12 rounded-full text-white transition-transform hover:-translate-y-[2px] hover:scale-[1.04]"
@@ -358,8 +369,8 @@ export default function QuickChatLauncher() {
   // so the panel pops up over the Network section. Once dragged, switch to
   // viewport-fixed coords so the user can park it anywhere on screen.
   const panelPos = pos
-    ? { position: 'fixed', left: pos.left, top: pos.top, zIndex: 50 }
-    : { position: 'absolute', bottom: 16, right: 16, zIndex: 50 }
+    ? { position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }
+    : { position: 'absolute', bottom: 16, right: 16, zIndex: 9999 }
 
   return (
     <div style={panelPos}>
@@ -407,7 +418,12 @@ export default function QuickChatLauncher() {
         </span>
       </header>
 
-      <div ref={scrollRef} className="flex-1 overflow-auto px-4 py-3 space-y-3 min-h-[80px]">
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-auto px-4 py-3 space-y-3 min-h-[80px]"
+        onScroll={onScrollMessages}
+        onWheel={(e) => e.stopPropagation()}
+      >
         {messages.length === 0 && !streaming ? (
           <p className="text-[13px] text-white/45">
             Ask anything about your topics, documents, or memory. Replies use the same retrieval as the main chat — and will speak aloud if Voice responses is on.
@@ -546,18 +562,49 @@ export default function QuickChatLauncher() {
   )
 }
 
+// Strip any fake absolute FlowMap URLs the model generates despite instructions.
+// e.g. https://flowmap.com/discover → /discover
+// FlowMap is a local app with no hosted domain — all internal links are relative paths.
+function normalizeFlowMapUrls(text) {
+  return text.replace(/https?:\/\/flowmap\.[a-z]+(\.[a-z]+)?(\/[^)\s"']*)?/gi, (_, _tld, path) => path || '/')
+}
+
 function Bubble({ role, text, streaming }) {
   const isUser = role === 'user'
+  if (!text) {
+    return (
+      <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed ${isUser ? 'bg-[rgba(94,234,212,0.18)] text-white' : 'bg-white/[0.05] text-white/90'}`}>
+          {streaming ? <span className="text-white/40 italic">…</span> : null}
+        </div>
+      </div>
+    )
+  }
+
+  // User messages: plain text, no markdown parsing needed
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white">
+          {text}
+        </div>
+      </div>
+    )
+  }
+
+  // Assistant messages: normalize fake URLs, then render inline markdown
+  // (bold, italic, code, links) preserving line breaks.
+  const normalized = normalizeFlowMapUrls(text)
+  const lines = normalized.split('\n')
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed whitespace-pre-wrap ${
-          isUser
-            ? 'bg-[rgba(94,234,212,0.18)] text-white'
-            : 'bg-white/[0.05] text-white/90'
-        }`}
-      >
-        {text || (streaming ? <span className="text-white/40 italic">…</span> : null)}
+    <div className="flex justify-start">
+      <div className="max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed bg-white/[0.05] text-white/90">
+        {lines.map((line, i) => (
+          <span key={i}>
+            {renderInlineText(line)}
+            {i < lines.length - 1 && <br />}
+          </span>
+        ))}
       </div>
     </div>
   )

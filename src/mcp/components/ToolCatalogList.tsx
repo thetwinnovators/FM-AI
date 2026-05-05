@@ -41,14 +41,14 @@ export function ToolCatalogList({ tools, integrationName }: Props) {
   }
 
   return (
-    <div className="grid grid-cols-3 gap-4 items-start">
+    <div className="flex flex-wrap gap-4 items-start">
       {groups.map(([integId, groupTools]) => {
         const label = integrationName ? integrationName(integId) : integId
 
         return (
           <div
             key={integId}
-            className="rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4"
+            className="w-[400px] rounded-2xl bg-white/[0.03] border border-white/[0.07] p-4"
           >
             {/* Group header */}
             <div className="flex items-center gap-2 mb-3">
@@ -59,8 +59,8 @@ export function ToolCatalogList({ tools, integrationName }: Props) {
             </div>
 
             {/* Tool rows */}
-            <div className="space-y-1.5">
-              {groupTools.map((tool) => {
+            <div className="flex flex-col gap-px">
+              {groupTools.map((tool, idx) => {
                 const badgeClass = tool.riskLevel
                   ? RISK_COLORS[tool.riskLevel]
                   : MODE_LABELS[tool.permissionMode].color
@@ -68,11 +68,21 @@ export function ToolCatalogList({ tools, integrationName }: Props) {
                   ? tool.riskLevel.charAt(0).toUpperCase() + tool.riskLevel.slice(1)
                   : MODE_LABELS[tool.permissionMode].label
 
+                const isFirst = idx === 0
+                const isLast  = idx === groupTools.length - 1
+                const radius  = isFirst && isLast
+                  ? 'rounded-xl'
+                  : isFirst
+                    ? 'rounded-t-xl rounded-b-none'
+                    : isLast
+                      ? 'rounded-t-none rounded-b-xl'
+                      : 'rounded-none'
+
                 return (
                   <Link
                     key={tool.id}
                     to={`/connections/tools/${tool.id}`}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.07] hover:border-white/[0.10] transition-colors"
+                    className={`flex items-center gap-2.5 px-3 py-2.5 bg-white/[0.03] hover:bg-white/[0.07] transition-colors ${radius}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

@@ -6,6 +6,7 @@ import ConfirmProvider from './components/ui/ConfirmProvider.jsx'
 import BackToTop from './components/ui/BackToTop.jsx'
 import { useStore } from './store/useStore.js'
 import { useIngestionWorker } from './flow-ai/hooks/useIngestionWorker.js'
+import { useMemoryIndex } from './memory-index/useMemoryIndex.js'
 import Discover from './views/Discover.jsx'
 import Search from './views/Search.jsx'
 import Topics from './views/Topics.jsx'
@@ -64,12 +65,20 @@ function IngestionWorker() {
   return null
 }
 
+// Runs in the background — generates memory-index.json + memory-index.md
+// whenever relevant localStorage keys change. No visible UI; pure side-effect.
+function MemoryIndexUpdater() {
+  useMemoryIndex()
+  return null
+}
+
 export default function App() {
   const mainRef = useRef(null)
   return (
     <BrowserRouter>
       <ConfirmProvider>
         <IngestionWorker />
+        <MemoryIndexUpdater />
         <div className="flex h-full">
           <LeftRail />
           <div className="flex flex-col flex-1 min-w-0">

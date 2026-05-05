@@ -118,6 +118,33 @@ function FacebookIcon() {
   )
 }
 
+function FlowMapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="fm" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#6366f1" />
+          <stop offset="100%" stopColor="#8b5cf6" />
+        </linearGradient>
+      </defs>
+      {/* central hub */}
+      <circle cx="12" cy="12" r="3.2" fill="url(#fm)" />
+      {/* satellite nodes */}
+      <circle cx="4.5"  cy="7"    r="2" fill="#6366f1" opacity=".75" />
+      <circle cx="19.5" cy="7"    r="2" fill="#8b5cf6" opacity=".75" />
+      <circle cx="4.5"  cy="17"   r="2" fill="#8b5cf6" opacity=".75" />
+      <circle cx="19.5" cy="17"   r="2" fill="#6366f1" opacity=".75" />
+      <circle cx="12"   cy="2.5"  r="1.6" fill="#a78bfa" opacity=".7" />
+      {/* edges */}
+      <line x1="12" y1="12" x2="4.5"  y2="7"    stroke="#6366f1" strokeWidth="1.2" opacity=".5" />
+      <line x1="12" y1="12" x2="19.5" y2="7"    stroke="#6366f1" strokeWidth="1.2" opacity=".5" />
+      <line x1="12" y1="12" x2="4.5"  y2="17"   stroke="#8b5cf6" strokeWidth="1.2" opacity=".5" />
+      <line x1="12" y1="12" x2="19.5" y2="17"   stroke="#8b5cf6" strokeWidth="1.2" opacity=".5" />
+      <line x1="12" y1="12" x2="12"   y2="2.5"  stroke="#a78bfa" strokeWidth="1.2" opacity=".5" />
+    </svg>
+  )
+}
+
 function FigmaIcon() {
   return (
     <svg width="18" height="27" viewBox="0 0 38 57" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -144,6 +171,7 @@ function IntegrationIcon({ type }: { type: IntegrationType }) {
   if (type === 'higgsfield')      return <HiggsfieldIcon />
   if (type === 'instagram')       return <InstagramIcon />
   if (type === 'facebook')        return <FacebookIcon />
+  if (type === 'flowmap')         return <FlowMapIcon />
   const emoji = TYPE_EMOJI[type]
   if (emoji) return <span>{emoji}</span>
   return <Plug size={16} className="text-white/50" />

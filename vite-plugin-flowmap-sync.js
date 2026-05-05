@@ -15,6 +15,10 @@ const FILE_DIR = join(homedir(), '.flowmap')
 const FILE_PATH = join(FILE_DIR, 'state.json')
 const MAX_BODY_BYTES = 10 * 1024 * 1024 // 10 MB cap — way above any realistic personal-tool snapshot
 
+// Memory-index output paths (project root, not ~/.flowmap)
+const MEM_JSON_PATH = join(process.cwd(), 'memory-index.json')
+const MEM_MD_PATH   = join(process.cwd(), 'memory-index.md')
+
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = []
@@ -37,6 +41,47 @@ export default function flowmapSyncPlugin() {
   return {
     name: 'flowmap-state-sync',
     configureServer(server) {
+      // ── /api/memory-index  (POST only) ─────────────────────────────────────────
+      // Receives { index: MemoryIndex, markdown: string } from the browser,
+      // writes memory-index.json and memory-index.md to the project root.
+      server.middlewares.use('/api/memory-index', async (req, res, next) => {
+        if (req.url && req.url !== '/' && req.url !== '') return next()
+
+        res.setHeader('Content-Type', 'application/json')
+
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'method not allowed' }))
+          return
+        }
+
+        try {
+          const body = await readBody(req)
+          let parsed
+          try { parsed = JSON.parse(body) } catch {
+            res.statusCode = 400
+            res.end(JSON.stringify({ error: 'body is not valid JSON' }))
+            return
+          }
+
+          const { index, markdown } = parsed
+
+          if (index) {
+            writeFileSync(MEM_JSON_PATH, JSON.stringify(index, null, 2), 'utf8')
+          }
+          if (markdown) {
+            writeFileSync(MEM_MD_PATH, markdown, 'utf8')
+          }
+
+          res.statusCode = 200
+          res.end(JSON.stringify({ ok: true, jsonPath: MEM_JSON_PATH, mdPath: MEM_MD_PATH }))
+        } catch (err) {
+          res.statusCode = 500
+          res.end(JSON.stringify({ error: String(err?.message || err) }))
+        }
+      })
+
+      // ── /api/state  (GET + PUT) ─────────────────────────────────────────────────
       server.middlewares.use('/api/state', async (req, res, next) => {
         // Forward anything that isn't this exact path (Vite middleware splits)
         if (req.url && req.url !== '/' && req.url !== '') return next()

@@ -28,9 +28,12 @@ export interface OpportunityCluster {
   firstDetected:    string
   lastDetected:     string
   termFrequency:    Record<string, number>
-  opportunityScore: number
-  isBuildable:      boolean
-  status:           'emerging' | 'validated' | 'concept_generated' | 'archived'
+  opportunityScore:    number
+  isBuildable:         boolean
+  status:              'emerging' | 'validated' | 'concept_generated' | 'archived'
+  // Set by the AI opportunity filter after each scan
+  aiValidated?:        boolean        // undefined = not yet evaluated, true = approved, false = rejected
+  aiRejectionReason?:  string
   createdAt:        string
   updatedAt:        string
 }

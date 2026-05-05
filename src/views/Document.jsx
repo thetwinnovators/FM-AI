@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Sparkles, Trash2, Save, Pencil, Plus, RefreshCw, Loader2, Copy, Check, Download } from 'lucide-react'
+import { ChevronLeft, Sparkles, Trash2, Save, Pencil, Plus, RefreshCw, Loader2, Copy, Check, Download, Wand2 } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { OLLAMA_CONFIG } from '../lib/llm/ollamaConfig.js'
+import { generateResponse } from '../lib/llm/ollama.js'
 import FileTypeChip from '../components/document/FileTypeChip.jsx'
 
 function formatDate(iso) {
@@ -27,6 +28,8 @@ export default function Document() {
   const [titleDraft, setTitleDraft] = useState('')
   const [tagsInput, setTagsInput] = useState('')
   const [tagsTouched, setTagsTouched] = useState(false)
+  const [autoSelecting, setAutoSelecting] = useState(false)
+  const [autoSelectResult, setAutoSelectResult] = useState(null) // null | number
 
   // Sync drafts when the underlying doc changes
   useEffect(() => {
@@ -55,9 +58,12 @@ export default function Document() {
   if (!meta) {
     return (
       <div className="p-6">
-        <Link to="/documents" className="text-sm text-[color:var(--color-text-tertiary)] hover:text-white inline-flex items-center gap-1">
-          <ChevronLeft size={14} /> Back to documents
-        </Link>
+        <button
+          onClick={() => navigate(-1)}
+          className="text-sm text-[color:var(--color-text-tertiary)] hover:text-white inline-flex items-center gap-1"
+        >
+          <ChevronLeft size={14} /> Back
+        </button>
         <h1 className="text-2xl font-semibold mt-4">Document not found</h1>
       </div>
     )
@@ -91,13 +97,76 @@ export default function Document() {
     }
   }
 
+  // Auto-select topics using Ollama. Sends document context + full topic list to
+  // the local LLM and asks it to return only the names of relevant topics.
+  // Falls back gracefully if Ollama is off or unavailable.
+  async function autoSelectTopics() {
+    if (autoSelecting) return
+    setAutoSelecting(true)
+    setAutoSelectResult(null)
+
+    const unlinked = allTopics.filter((t) => !(meta.topics || []).includes(t.id))
+    if (unlinked.length === 0) {
+      setAutoSelecting(false)
+      setAutoSelectResult(0)
+      setTimeout(() => setAutoSelectResult(null), 2500)
+      return
+    }
+
+    // Build a compact document snapshot for the prompt
+    const docSnap = [
+      `Title: ${meta.title || '(untitled)'}`,
+      meta.summary ? `Summary: ${meta.summary}` : meta.excerpt ? `Excerpt: ${meta.excerpt}` : '',
+      (meta.tags || []).length ? `Tags: ${meta.tags.join(', ')}` : '',
+      content?.plainText ? `Content (excerpt): ${content.plainText.slice(0, 1200)}` : '',
+    ].filter(Boolean).join('\n')
+
+    const topicList = unlinked.map((t) => t.name).join(', ')
+
+    const prompt =
+      `You are a document tagging assistant. Given the document below, select which topics from the provided list are genuinely relevant to its content.\n\n` +
+      `Rules:\n` +
+      `- Only select topics that are clearly discussed or directly relevant to the document.\n` +
+      `- Do NOT select topics that are only tangentially related or merely share a word.\n` +
+      `- Return ONLY a comma-separated list of exact topic names from the list. Nothing else — no explanation, no numbers, no punctuation other than commas.\n` +
+      `- If nothing is relevant, return the single word: NONE\n\n` +
+      `DOCUMENT:\n${docSnap}\n\n` +
+      `AVAILABLE TOPICS:\n${topicList}\n\n` +
+      `RELEVANT TOPICS:`
+
+    let newIds = []
+
+    if (OLLAMA_CONFIG.enabled) {
+      const response = await generateResponse(prompt, { temperature: 0.1 })
+      if (response && response.trim().toUpperCase() !== 'NONE') {
+        // Normalise: lower-case, trim each name, then match back to topic IDs
+        const returned = response.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+        const nameMap = new Map(unlinked.map((t) => [t.name.toLowerCase(), t.id]))
+        for (const name of returned) {
+          const id = nameMap.get(name)
+          if (id) newIds.push(id)
+        }
+      }
+    }
+
+    if (newIds.length > 0) {
+      updateDocument(meta.id, { topics: [...(meta.topics || []), ...newIds] })
+    }
+    setAutoSelecting(false)
+    setAutoSelectResult(newIds.length)
+    setTimeout(() => setAutoSelectResult(null), 3000)
+  }
+
   const linkedTopicIds = new Set(meta.topics || [])
 
   return (
     <div className="p-6">
-      <Link to="/documents" className="text-sm text-[color:var(--color-text-tertiary)] hover:text-white inline-flex items-center gap-1 mb-4">
-        <ChevronLeft size={14} /> Back to documents
-      </Link>
+      <button
+        onClick={() => navigate(-1)}
+        className="text-sm text-[color:var(--color-text-tertiary)] hover:text-white inline-flex items-center gap-1 mb-4"
+      >
+        <ChevronLeft size={14} /> Back
+      </button>
 
       <header className="glass-panel p-6 mb-6">
         <div className="flex items-center gap-2 mb-3">
@@ -150,8 +219,40 @@ export default function Document() {
         )}
 
         <div className="mt-4">
-          <div className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-2">
-            Topics
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium">
+              Topics
+            </div>
+            {allTopics.length > 0 ? (
+              <button
+                onClick={autoSelectTopics}
+                disabled={autoSelecting || !OLLAMA_CONFIG.enabled}
+                className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border transition-colors disabled:cursor-not-allowed ${
+                  autoSelecting
+                    ? 'border-white/10 text-white/30'
+                    : autoSelectResult === null
+                    ? 'border-[color:var(--color-border-subtle)] text-[color:var(--color-text-tertiary)] hover:text-white hover:border-white/20'
+                    : autoSelectResult > 0
+                    ? 'border-teal-400/30 text-teal-400 bg-teal-400/5'
+                    : 'border-white/10 text-white/30'
+                }`}
+                title={
+                  !OLLAMA_CONFIG.enabled
+                    ? 'Enable Ollama in the gear menu to use AI topic selection'
+                    : 'Auto-match topics using AI'
+                }
+              >
+                {autoSelecting ? (
+                  <><Loader2 size={10} className="animate-spin" /> Thinking…</>
+                ) : autoSelectResult === null ? (
+                  <><Wand2 size={10} /> Auto-select</>
+                ) : autoSelectResult > 0 ? (
+                  <><Check size={10} /> {autoSelectResult} added</>
+                ) : (
+                  <><Check size={10} /> No matches</>
+                )}
+              </button>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {allTopics.map((t) => {

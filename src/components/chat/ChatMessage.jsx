@@ -46,12 +46,26 @@ export function parseBlocks(content) {
       continue
     }
 
-    // List — consecutive lines starting with -  *  or  N.
-    if (/^\s*([-*]|\d+\.)\s+/.test(line)) {
+    // List — consecutive lines starting with -  *  +  or  N.
+    if (/^\s*([-*+]|\d+\.)\s+/.test(line)) {
       const ordered = /^\s*\d+\./.test(line)
+      const itemText = line.replace(/^\s*([-*+]|\d+\.)\s+/, '')
+
+      // Numbered item whose entire content is **Bold text** or **Bold text:**
+      // → treat as a section heading rather than a list item
+      if (ordered && /^\*\*[^*]+\*\*:?\s*$/.test(itemText)) {
+        const headingText = itemText.replace(/^\*\*/, '').replace(/\*\*:?\s*$/, '')
+        blocks.push({ type: 'heading', level: 3, text: headingText })
+        i++
+        continue
+      }
+
       const items = []
-      while (i < lines.length && /^\s*([-*]|\d+\.)\s+/.test(lines[i])) {
-        items.push(lines[i].replace(/^\s*([-*]|\d+\.)\s+/, ''))
+      while (i < lines.length && /^\s*([-*+]|\d+\.)\s+/.test(lines[i])) {
+        // Stop if list marker type switches (ordered ↔ unordered)
+        const lineOrdered = /^\s*\d+\./.test(lines[i])
+        if (lineOrdered !== ordered) break
+        items.push(lines[i].replace(/^\s*([-*+]|\d+\.)\s+/, ''))
         i++
       }
       blocks.push({ type: 'list', ordered, items })
@@ -87,7 +101,7 @@ export function parseBlocks(content) {
 // path, inline code, bold (**), italic (* or _).
 const INLINE_RE = /\[([^\]]+)\]\(([^)\s]+)\)|(https?:\/\/[^\s<>"')\]]+)|(\/(?:topics|documents|discover|memory|chat|education|search)(?:\/[A-Za-z0-9_-]+)?|\/topic\/[A-Za-z0-9_-]+)|`([^`]+)`|\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_/g
 
-function renderInlineText(text) {
+export function renderInlineText(text) {
   if (!text) return null
   const parts = []
   let last = 0
@@ -264,8 +278,8 @@ export default function ChatMessage({ content }) {
 
           case 'heading':
             return block.level === 1
-              ? <h2 key={idx} className="text-2xl font-semibold text-white/90 mt-4 mb-2 first:mt-0">{renderInlineText(block.text)}</h2>
-              : <h3 key={idx} className="text-xl font-semibold text-white/80 mt-3 mb-1.5 first:mt-0">{renderInlineText(block.text)}</h3>
+              ? <h2 key={idx} className="text-2xl font-bold text-white mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h2>
+              : <h3 key={idx} className="text-xl font-bold text-white mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h3>
 
           case 'list':
             return block.ordered

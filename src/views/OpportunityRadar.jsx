@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Radar } from 'lucide-react'
+import { Radar, Trash2, Play, Loader2 } from 'lucide-react'
 import RadarTopCard  from '../components/opportunity/RadarTopCard.jsx'
 import PatternTable  from '../components/opportunity/PatternTable.jsx'
 import ConceptView   from '../components/opportunity/ConceptView.jsx'
@@ -9,7 +9,9 @@ import { runPainSearch }  from '../opportunity-radar/services/painSearchService.
 import { extractSignals } from '../opportunity-radar/services/signalExtractor.js'
 import { KeywordClusterer } from '../opportunity-radar/services/clusterService.js'
 import { getTop3, scoreCluster, applyBuildabilityFilter } from '../opportunity-radar/services/opportunityScorer.js'
+import { aiValidateClusters } from '../opportunity-radar/services/aiOpportunityFilter.js'
 import { generateConcept } from '../opportunity-radar/services/conceptGenerator.js'
+import { ALL_SOURCES, SOURCE_LABELS } from '../opportunity-radar/services/painSearchService.js'
 
 const SCAN_STALE_MS = 6 * 60 * 60 * 1000   // 6 hours
 
@@ -31,6 +33,7 @@ export default function OpportunityRadar() {
   const [concepts,       setConcepts]       = useState(() => radarStorage.loadConcepts())
   const [meta,           setMeta]           = useState(() => radarStorage.loadMeta())
   const [scanning,       setScanning]       = useState(false)
+  const [aiValidating,   setAiValidating]   = useState(false)
   const [progress,       setProgress]       = useState([])
   const [activeConceptId, setActiveConceptId] = useState(null)
   const [evidenceClusterId, setEvidenceClusterId] = useState(null)
@@ -48,7 +51,7 @@ export default function OpportunityRadar() {
 
     try {
       const rawResults = await runPainSearch(
-        ['reddit', 'hackernews', 'youtube'],
+        ALL_SOURCES,
         (p) => setProgress((prev) => {
           const existing = prev.findIndex((x) => x.source === p.source)
           if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
@@ -72,7 +75,28 @@ export default function OpportunityRadar() {
         return { ...withB, opportunityScore: scoreCluster(withB, allSignals) }
       })
 
-      radarStorage.saveClusters(scored)
+      // AI opportunity filter — Ollama decides which clusters are genuinely
+      // addressable with software before they reach the user's table.
+      setAiValidating(true)
+      let validated = scored
+      try {
+        const validations = await aiValidateClusters(scored, allSignals)
+        const validationMap = new Map(validations.map((v) => [v.clusterId, v]))
+        validated = scored.map((c) => {
+          const v = validationMap.get(c.id)
+          return {
+            ...c,
+            aiValidated:         v ? v.keep : undefined,
+            aiRejectionReason:   v && !v.keep ? v.reason : undefined,
+          }
+        })
+      } catch (err) {
+        console.warn('[OpportunityRadar] AI validation failed, keeping all clusters', err)
+      } finally {
+        setAiValidating(false)
+      }
+
+      radarStorage.saveClusters(validated)
       const newMeta = {
         lastScanAt:     new Date().toISOString(),
         totalSignals:   allSignals.length,
@@ -82,7 +106,7 @@ export default function OpportunityRadar() {
       radarStorage.saveMeta(newMeta)
 
       setSignals(allSignals)
-      setClusters(scored)
+      setClusters(validated)
       setConcepts(radarStorage.loadConcepts())
       setMeta(newMeta)
     } catch (err) {
@@ -100,6 +124,18 @@ export default function OpportunityRadar() {
     if (isStale) triggerScan()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── Reset ───────────────────────────────────────────────────────────────────
+
+  function handleReset() {
+    if (!window.confirm('Clear all signals, patterns, and concepts? This cannot be undone.')) return
+    radarStorage.clearAll()
+    setSignals([])
+    setClusters([])
+    setConcepts([])
+    setMeta(null)
+    setProgress([])
+  }
 
   // ── Concept generation ──────────────────────────────────────────────────────
 
@@ -141,29 +177,75 @@ export default function OpportunityRadar() {
             </span>
           )}
         </div>
-        <button
-          onClick={triggerScan}
-          disabled={scanning}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-400/20
-            hover:bg-teal-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
-        >
-          <RefreshCw className={`w-4 h-4 ${scanning ? 'animate-spin' : ''}`} />
-          {scanning ? 'Scanning…' : '↻ Run Scan'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleReset}
+            disabled={scanning}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] text-white/40 border border-white/10
+              hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-400/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+            title="Clear all signals, patterns, and concepts"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Reset
+          </button>
+          <button
+            onClick={triggerScan}
+            disabled={scanning}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-400/20
+              hover:bg-teal-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+          >
+            {scanning ? 'Scanning…' : <><Play className="w-3.5 h-3.5" fill="currentColor" />Run Scan Now</>}
+          </button>
+        </div>
       </div>
 
       {/* Scan progress */}
-      {scanning && progress.length > 0 && (
-        <div className="flex gap-3 mb-4 flex-wrap">
-          {progress.map((p) => (
-            <span key={p.source} className={`text-xs px-2 py-1 rounded-full ${
-              p.status === 'done'    ? 'bg-green-400/10 text-green-400' :
-              p.status === 'error'  ? 'bg-red-400/10 text-red-400' :
-              'bg-white/5 text-white/40'
-            }`}>
-              {p.source} {p.status === 'done' ? `✓ ${p.resultCount}` : p.status === 'error' ? '✗' : '…'}
+      {scanning && (
+        <div className="mb-6">
+          {/* Overall progress bar */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-teal-400/70 transition-all duration-500"
+                style={{
+                  width: `${ALL_SOURCES.length === 0 ? 0 : Math.round(
+                    (progress.filter(p => p.status === 'done' || p.status === 'error').length / ALL_SOURCES.length) * 100
+                  )}%`
+                }}
+              />
+            </div>
+            <span className="text-xs text-white/40 flex-shrink-0">
+              {progress.filter(p => p.status === 'done' || p.status === 'error').length} / {ALL_SOURCES.length} sources
             </span>
-          ))}
+          </div>
+          {/* Per-source badges */}
+          <div className="flex gap-2 flex-wrap">
+            {ALL_SOURCES.map((src) => {
+              const p = progress.find(x => x.source === src)
+              const status = p?.status ?? 'pending'
+              return (
+                <span key={src} className={`text-xs px-2 py-1 rounded-full ${
+                  status === 'done'    ? 'bg-green-400/10 text-green-400' :
+                  status === 'error'  ? 'bg-red-400/10 text-red-400' :
+                  status === 'running' ? 'bg-teal-400/10 text-teal-300 animate-pulse' :
+                  'bg-white/5 text-white/20'
+                }`}>
+                  {SOURCE_LABELS[src] ?? src}
+                  {status === 'done' ? ` ✓${p?.resultCount ? ` ${p.resultCount}` : ''}` :
+                   status === 'error' ? ' ✗' :
+                   status === 'running' ? ' …' : ''}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* AI validation step — shown after sources complete */}
+      {aiValidating && (
+        <div className="mb-6 flex items-center gap-2 text-xs text-purple-300/80">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          AI reviewing patterns for software buildability…
         </div>
       )}
 

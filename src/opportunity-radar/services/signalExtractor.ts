@@ -72,7 +72,7 @@ export interface RawSearchResult {
   title:       string
   body:        string
   url:         string
-  source:      'reddit' | 'hackernews' | 'youtube'
+  source:      string
   author?:     string
   publishedAt?: string
 }

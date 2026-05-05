@@ -3,6 +3,7 @@ import { classifyQueryIntent, isFreshnessSensitiveQuery } from '../lib/search/qu
 import { generateSummary } from '../lib/llm/ollama.js'
 import { OLLAMA_CONFIG } from '../lib/llm/ollamaConfig.js'
 import { pullFromDisk, pushToDisk } from '../lib/sync/fileSync.js'
+import { notifyWrite } from '../memory-index/memoryService.js'
 
 export const STORAGE_KEY = 'flowmap.v1'
 
@@ -100,6 +101,7 @@ function persist(next) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   } catch {}
+  notifyWrite(STORAGE_KEY)
   listeners.forEach((fn) => fn())
   schedulePush()
 }
@@ -130,6 +132,7 @@ export async function pullSyncedState() {
         lastPulledModified = res.lastModified
         memoryState = { ...EMPTY, ...res.data }
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryState)) } catch {}
+        notifyWrite(STORAGE_KEY)
         listeners.forEach((fn) => fn())
       }
       setSyncStatus({ status: 'synced', lastModified: res.lastModified, error: null })
@@ -687,6 +690,15 @@ export function useStore() {
     return msg
   }, [])
 
+  // Patch arbitrary fields on an existing message (e.g. attach followUpSuggestions after generation).
+  const patchChatMessage = useCallback((conversationId, messageId, patch) => {
+    const cur = memoryState
+    const list = cur.chatMessages?.[conversationId]
+    if (!list) return
+    const updated = list.map((m) => m.id === messageId ? { ...m, ...patch } : m)
+    persist({ ...cur, chatMessages: { ...cur.chatMessages, [conversationId]: updated } })
+  }, [])
+
   const conversationById = useCallback((id) => memoryState.conversations?.[id] || null, [])
   const chatMessagesFor = useCallback((id) => memoryState.chatMessages?.[id] || [], [])
   const allConversationsSorted = useCallback(() =>
@@ -755,7 +767,7 @@ export function useStore() {
     addDocument, updateDocument, removeDocument, documentById, documentContentById, documentsForTopic, requestSummary,
     addFolder, renameFolder, removeFolder, ensureFolderByName,
     setTopicSummary, clearTopicSummary,
-    createConversation, updateConversation, deleteConversation, addChatMessage,
+    createConversation, updateConversation, deleteConversation, addChatMessage, patchChatMessage,
     conversationById, chatMessagesFor, allConversationsSorted,
     isSaved, isFollowing, isDismissed, viewCount, recentSearches,
   }

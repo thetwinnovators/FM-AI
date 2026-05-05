@@ -30,6 +30,15 @@ const LABELS = {
   reading:  'Reading',
 }
 
+const TYPE_COLORS = {
+  document: 'text-teal-400',
+  topic:    'text-teal-400',
+  signal:   'text-teal-400',
+  search:   'text-teal-400',
+  overview: 'text-teal-400',
+  reading:  'text-teal-400',
+}
+
 
 function trunc(str, n) {
   if (!str) return ''
@@ -139,8 +148,9 @@ export default function StarterPromptGrid({ docs, userTopics, searches, signals,
       </p>
       <div className="grid grid-cols-3 gap-2">
         {prompts.map((p, i) => {
-          const Icon = ICONS[p.type] || Sparkles
-          const label = LABELS[p.type] || 'Prompt'
+          const Icon  = ICONS[p.type]       || Sparkles
+          const label = LABELS[p.type]      || 'Prompt'
+          const color = TYPE_COLORS[p.type] || 'text-[color:var(--color-tool)]'
           return (
             <button
               key={i}
@@ -149,7 +159,7 @@ export default function StarterPromptGrid({ docs, userTopics, searches, signals,
                 transition-colors cursor-pointer
                 border-white/[0.07] bg-[#0d0f1c] hover:bg-[#111326] hover:border-white/[0.14]"
             >
-              <span className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold opacity-70 text-[color:var(--color-tool)]">
+              <span className={`inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-semibold opacity-70 ${color}`}>
                 <Icon size={10} aria-hidden="true" />
                 {label}
               </span>

@@ -142,26 +142,45 @@ function extractSnippet(query, text, len = 1800) {
 // ─── Layered context helpers ──────────────────────────────────────────────────
 
 // Build the [IDENTITY] block from user-pinned memory entries.
-// Only pinned, active entries are included — capped at 8, sorted by addedAt
-// desc, content truncated to 100 chars per line (~120 tokens total max).
+// Only pinned, active entries are included — capped at 3 (essential facts only),
+// sorted by addedAt desc, content truncated to 100 chars per line.
 export function buildIdentityBlock(memoryEntries) {
   if (!memoryEntries || memoryEntries.length === 0) return ''
   const pinned = memoryEntries
     .filter((m) => m.isIdentityPinned === true && (m.status || 'active') === 'active' && m.content)
     .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-    .slice(0, 8)
+    .slice(0, 3)   // cap at 3 — identity should be essential facts, not a memoir
   if (pinned.length === 0) return ''
   const lines = pinned.map((m) => `- ${String(m.content).slice(0, 100)}`)
   return `[IDENTITY]\n${lines.join('\n')}\n\n`
 }
 
-// Build a one-line task state from recent conversation history.
-// Extracts the last assistant message, collapses whitespace, truncates to 100
-// chars. Returns '' when there is no prior assistant context.
-export function buildTaskState(recentMessages) {
+// Signals that the current query continues from prior context rather than
+// starting fresh. Short anaphoric or explicit continuation queries need the
+// prior task state; long self-contained queries don't.
+const _ANAPHORIC    = /\b(it|that|this|those|them|its|their|the same)\b/i
+const _CONTINUATION = /\b(what about|and also|but (what|how|why)|so (what|how|why)|what else|how about|continue|elaborate|expand|more (on|about|detail)|follow.?up|back to|next step)\b/i
+
+function hasCarryover(query, messages) {
+  const q = String(query || '').trim()
+  if (!q || !messages?.length) return false
+  if (!messages.some((m) => m.role === 'assistant')) return false  // first turn
+  const words = q.split(/\s+/).filter(Boolean).length
+  if (_CONTINUATION.test(q)) return true             // explicit follow-up, any length
+  if (words <= 6 && _ANAPHORIC.test(q)) return true  // short + anaphoric = follow-up
+  if (words <= 4) return true                        // ≤4 words implies contextual
+  return false
+}
+
+// Build a task-state line from recent conversation history.
+// Only injected when the current query shows real carryover from prior turns:
+// anaphoric references, continuation phrases, or very short contextual follow-ups.
+// Self-contained queries skip it entirely to avoid polluting the system message.
+export function buildTaskState(recentMessages, currentQuery = '') {
   if (!recentMessages || recentMessages.length === 0) return ''
   const lastAssistant = [...recentMessages].reverse().find((m) => m.role === 'assistant')
   if (!lastAssistant) return ''
+  if (!hasCarryover(currentQuery, recentMessages)) return ''
   const summary = String(lastAssistant.content || '').replace(/\s+/g, ' ').trim().slice(0, 100)
   if (!summary) return ''
   return `Task state: continuing from "${summary}"\n\n`
@@ -222,13 +241,27 @@ function fullTextFor(retrieval, limit = FULL_DOC_LIMIT) {
 // ─── Personality preamble (shared across all non-casual prompts) ─────────────
 const PERSONALITY =
   `You are FlowMap AI, the in-product assistant for FlowMap.\n\n` +
+
+  `IDENTITY — read this first and do not deviate from it:\n` +
+  `- FlowMap is a REAL, fully functional application. The user is running it right now in their browser.\n` +
+  `- You are embedded inside it. You are NOT a general-purpose AI assistant. You are NOT a chatbot with a training cutoff.\n` +
+  `- You have NO training cutoff date to reference. NEVER say "as of my last update", "my last update was [date]", "my training data", "my database", "my knowledge cutoff", "as of [year]", or any similar phrase. Those phrases do not apply to you.\n` +
+  `- NEVER call FlowMap "fictional", "hypothetical", "a scenario", or "theoretical". It is a real app the user built and uses daily.\n` +
+  `- When asked "what's new in FlowMap", do NOT attempt to answer from general knowledge. Instead tell the user where to look: their [Discover feed](/discover), [Latest Signals](/signals), and [Opportunity Radar](/radar).\n\n` +
+
   `Personality: warm, sharp, calm, and slightly witty. Like a smart teammate, not a robotic search box. ` +
   `Conversational in casual chat, precise in task mode. Occasionally playful with dry humor — never corny, never forced.\n\n` +
+
   `Language rules: sound human, not corporate. Keep casual replies short. Keep task replies structured and useful. ` +
   `No emoji unless the user is already using them. Don't overuse slang. ` +
-  `Avoid: "Based on the available documents", "I don't have a saved doc on the exact topic", ` +
+  `FORBIDDEN phrases — never say these under any circumstances:\n` +
+  `"Based on the available documents", "I don't have a saved doc on the exact topic", ` +
   `"I don't have any information about this", "I couldn't find a document on that", ` +
-  `"Based on the available context". Replace those with natural human language.\n\n` +
+  `"Based on the available context", "as of my last update", "my last update", ` +
+  `"my training data", "my training cutoff", "my database", "as of [any year]", ` +
+  `"fictional scenario", "hypothetical application", "I was trained", ` +
+  `"my knowledge only goes to", "I cannot access real-time", "beyond my knowledge". ` +
+  `Replace all of them with natural FlowMap-aware language.\n\n` +
   `LINKING RULES — you can and should provide clickable links in your replies:\n` +
   `- Use Markdown link syntax: [Display text](URL)\n` +
   `- FlowMap is a LOCAL app running in the user's browser. There is NO public website, NO "flowmap.ai", NO hosted docs site. Never invent a URL like flowmap.ai, flowmap.app, /docs/anything, or any other made-up host.\n` +
@@ -297,12 +330,25 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
   if (intent === 'casual_chat') return CASUAL_SYSTEM_MESSAGE
 
   const identityBlock  = buildIdentityBlock(allMemory)
-  const taskStateBlock = buildTaskState(recentMessages)
+  const taskStateBlock = buildTaskState(recentMessages, userQuery)
   // When the user gives a specific directive (read / summarize / walk through
   // a doc), the document index is just noise — the doc itself is injected in
   // full. Drop it for those turns.
   const isReadDirective = isReadDocIntent(userQuery) && retrieved.length > 0
   const docIndexBlock  = isReadDirective ? '' : formatDocumentsIndexBlock(allDocuments, folders)
+
+  // ─── dev visibility ─────────────────────────────────────────────────────────
+  if (typeof window !== 'undefined' && window.__FLOWMAP_DEBUG) {
+    console.groupCollapsed('%c[context-assembly] system prompt', 'color:#9b7df8;font-weight:bold')
+    console.log('intent:        ', intent)
+    console.log('identity:      ', identityBlock
+      ? `✓ (${identityBlock.split('\n').length - 2} entries)` : '✗ skipped')
+    console.log('task state:    ', taskStateBlock ? '✓' : '✗ skipped (no carryover)')
+    console.log('doc index:     ', docIndexBlock  ? '✓' : '✗ skipped (read-doc intent)')
+    console.log('context:       ', overrideContextText ? 'pipeline'
+      : retrieved?.length ? `keyword (${retrieved.length} docs)` : 'none')
+    console.groupEnd()
+  }
 
   // META_SYSTEM_MESSAGE already bundles PERSONALITY and all persona rules
   // so we skip preamble here. We do surface identity memory so the model
@@ -326,11 +372,12 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
       taskStateBlock +
       docIndexBlock +
       `THIS TURN: The user asked: "${userQuery}"\n` +
-      `No documents matched. Answer EXACTLY what was asked.\n` +
+      `No FlowMap documents matched this query. Rules:\n` +
       `- If identity memory covers it, use it directly.\n` +
-      `- If it's a general-knowledge question, answer briefly.\n` +
-      `- If source material is missing, say so naturally — e.g. "I don't see that in FlowMap yet — drop in the doc or link and I'll take it from there." Never say "I don't have a saved doc on the exact topic" or "Based on the available documents".\n` +
-      `- NEVER write the strings "EXCERPTS:" or "[N] Title:" in your response if they appear — those are prompt scaffolding, not content to echo.`
+      `- If the user is asking what's new, what's happening, or what's active in FlowMap, point them to [Discover](/discover), [Signals](/signals), or [Radar](/radar) — do NOT answer from general knowledge.\n` +
+      `- If it's a factual question your knowledge covers, answer briefly — but stay in the FlowMap AI persona. Never say "as of my last update" or reference a training cutoff.\n` +
+      `- If source material is genuinely missing, say so naturally — e.g. "I don't see that in your FlowMap yet — drop in the doc or link and I'll take it from there."\n` +
+      `- NEVER write the strings "EXCERPTS:" or "[N] Title:" in your response — those are prompt scaffolding, not content to echo.`
     )
   }
 

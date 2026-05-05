@@ -9,6 +9,12 @@ export default defineConfig({
   server: {
     port: process.env.PORT ? Number(process.env.PORT) : 5173,
     strictPort: true,
+    watch: {
+      // memory-index.* are written by the Vite endpoint itself. Without this
+      // exclusion, every write triggers an HMR reload → app remounts → writes
+      // again → infinite loop.
+      ignored: ['**/memory-index.json', '**/memory-index.md'],
+    },
     proxy: {
       '/api/reddit': {
         target: 'https://www.reddit.com',
@@ -19,6 +25,16 @@ export default defineConfig({
         target: 'https://hn.algolia.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/hn/, ''),
+      },
+      '/api/stackexchange': {
+        target: 'https://api.stackexchange.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/stackexchange/, ''),
+      },
+      '/api/github': {
+        target: 'https://api.github.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/github/, ''),
       },
       // NOTE: 127.0.0.1 instead of `localhost` because Node's resolver on Windows
       // can pick ::1 (IPv6) first while Docker port mappings only bind on IPv4 →

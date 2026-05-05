@@ -5,6 +5,7 @@ import type {
   TelegramCommandMessage,
 } from '../types.js'
 import type { MCPStorage } from './mcpStorage.js'
+import { enqueue } from '../../memory-index/syncQueue.js'
 
 const KEYS = {
   integrations: 'fm_mcp_integrations',
@@ -26,6 +27,7 @@ function read<T>(key: string, fallback: T): T {
 
 function write<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
+  enqueue()
 }
 
 const SEED_INTEGRATIONS: MCPIntegration[] = [
@@ -127,6 +129,16 @@ const SEED_INTEGRATIONS: MCPIntegration[] = [
     status: 'disconnected',
     updatedAt: new Date().toISOString(),
     scopes: ['facebook.read'],
+  },
+  {
+    id: 'integ_flowmap',
+    type: 'flowmap',
+    name: 'FlowMap',
+    description: 'Automate your research graph — save articles, manage memory, search knowledge, and trigger topic sweeps.',
+    status: 'connected',
+    connectedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    scopes: ['topics.read', 'topics.write', 'memory.read', 'memory.write', 'search.read', 'saves.read', 'saves.write'],
   },
 ]
 

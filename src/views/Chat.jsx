@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { Plus, Send, MessageSquare, Sparkles, Loader2, Trash2, FileText, AlertCircle, Copy, Check, ChevronUp, ChevronDown, ChevronRight, Pencil, NotebookPen, Compass, Pin, PinOff, Mic, MicOff, Square } from 'lucide-react'
 import { useMicTranscription } from '../lib/voice/useMicTranscription.js'
 import { useStore } from '../store/useStore.js'
@@ -595,6 +595,7 @@ function CitedDocsHint({ retrieved }) {
 export default function Chat() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const confirm = useConfirm()
   const {
     documents, documentContents, folders,
@@ -602,7 +603,7 @@ export default function Chat() {
     memoryEntries, isMemoryDismissed,
     userTopics, isFollowing,
     userNotes,
-    createConversation, updateConversation, deleteConversation, addChatMessage,
+    createConversation, updateConversation, deleteConversation, addChatMessage, patchChatMessage,
     conversationById, chatMessagesFor,
     addMemory, addUserTopic,
     recentSearches,
@@ -801,6 +802,13 @@ export default function Chat() {
     // Try the flow-ai hybrid pipeline first (semantic + keyword + multi-signal
     // reranking). Falls back to keyword-only when Ollama is off, the pipeline
     // errors, or it finds nothing above the relevance threshold.
+    // Clear suggestions from the previous last assistant message so they don't
+    // linger once the user has moved on to a new query.
+    const prevMessages = chatMessagesFor(convId || id)
+    const prevLast = prevMessages.length ? prevMessages[prevMessages.length - 1] : null
+    if (prevLast?.role === 'assistant' && prevLast?.followUpSuggestions) {
+      patchChatMessage(convId || id, prevLast.id, { followUpSuggestions: null })
+    }
     setSuggestions(null)
     latestAssistantRef.current = ''
 
@@ -969,14 +977,33 @@ export default function Chat() {
       abortRef.current = null
     }
 
-    // Generate follow-up suggestions from the cleaned display text so the
-    // LLM never sees raw <fm-action> blocks as content to follow up on.
+    // Generate follow-up suggestions and persist them on the assistant message
+    // so they survive page reloads. Cleared when user sends another message or clicks one.
     if (assistantText.trim()) {
       const cleanedForSuggestions = assistantText.replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '').trim()
       latestAssistantRef.current = cleanedForSuggestions
-      generateFollowUps(text, cleanedForSuggestions, intent).then(setSuggestions).catch(() => {})
+      const latestMessages = chatMessagesFor(convId)
+      const assistantMsg = latestMessages[latestMessages.length - 1]
+      generateFollowUps(text, cleanedForSuggestions, intent).then((result) => {
+        setSuggestions(result)
+        if (assistantMsg?.id && result) {
+          patchChatMessage(convId, assistantMsg.id, { followUpSuggestions: result })
+        }
+      }).catch(() => {})
     }
   }
+
+  // Auto-send when arriving from "Enhance with FlowAI" on Opportunity Radar
+  const autoSendFiredRef = useRef(false)
+  useEffect(() => {
+    const msg = location.state?.autoSend
+    if (!msg || !id || autoSendFiredRef.current) return
+    autoSendFiredRef.current = true
+    // Clear state so back-navigation doesn't re-trigger
+    navigate(location.pathname, { replace: true, state: {} })
+    handleSend(msg)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   function handleSuggestionAction(action) {
     if (action === 'save-as-note') {
@@ -1136,11 +1163,15 @@ export default function Chat() {
                       onDeny={() => {}}
                     />
                   ) : null}
-                  {!busy && i === messages.length - 1 && m.role === 'assistant' && suggestions ? (
+                  {m.role === 'assistant' && (m.followUpSuggestions || (i === messages.length - 1 && suggestions)) ? (
                     <SuggestedPrompts
-                      questions={suggestions.questions}
-                      actions={suggestions.actions}
-                      onSend={(q) => { setSuggestions(null); handleSend(q) }}
+                      questions={(m.followUpSuggestions || suggestions)?.questions}
+                      actions={(m.followUpSuggestions || suggestions)?.actions}
+                      onSend={(q) => {
+                        patchChatMessage(id, m.id, { followUpSuggestions: null })
+                        setSuggestions(null)
+                        handleSend(q)
+                      }}
                       onAction={handleSuggestionAction}
                     />
                   ) : null}

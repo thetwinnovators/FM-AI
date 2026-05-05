@@ -1,5 +1,6 @@
 import type { PainSignal, OpportunityCluster, AppConcept, RadarScanMeta } from '../types.js'
 import { pullFromDisk, pushToDisk } from '../../lib/sync/fileSync.js'
+import { enqueue } from '../../memory-index/syncQueue.js'
 
 const KEYS = {
   signals:  'fm_radar_signals',
@@ -19,6 +20,7 @@ function read<T>(key: string, fallback: T): T {
 
 function write<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value))
+  enqueue()
 }
 
 let _syncTimer: ReturnType<typeof setTimeout> | null = null
@@ -107,11 +109,20 @@ export function saveMeta(meta: RadarScanMeta): void {
   scheduleSync()
 }
 
+// ── Reset ─────────────────────────────────────────────────────────────────────
+
+export function clearAll(): void {
+  Object.values(KEYS).forEach((k) => localStorage.removeItem(k))
+  enqueue()
+  scheduleSync()
+}
+
 const radarStorage = {
   loadSignals, saveSignals, appendSignals,
   loadClusters, saveClusters,
   loadConcepts, saveConcept, getConceptByClusterId,
   loadMeta, saveMeta,
+  clearAll,
 }
 
 export default radarStorage
