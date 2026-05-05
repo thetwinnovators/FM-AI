@@ -15,6 +15,8 @@ import { generateFollowUps } from '../flow-ai/services/followUpService.js'
 import SuggestedPrompts from '../components/chat/SuggestedPrompts.jsx'
 import StarterPromptGrid from '../components/chat/StarterPromptGrid.jsx'
 import ChatMessage from '../components/chat/ChatMessage.jsx'
+import AgentRunTimeline from '../components/chat/AgentRunTimeline.jsx'
+import { runAgentLoop } from '../flow-ai/services/agentLoopService.js'
 
 function relativeDate(iso) {
   if (!iso) return ''
@@ -653,6 +655,22 @@ export default function Chat() {
   const abortRef = useRef(null)
   const scrollRef = useRef(null)
 
+  const [agentSteps, setAgentSteps] = useState([])
+  const [pendingApproval, setPendingApproval] = useState(null)
+  const approvalResolveRef = useRef(null)
+
+  function onApproveHandler() {
+    approvalResolveRef.current?.approve()
+    approvalResolveRef.current = null
+    setPendingApproval(null)
+  }
+
+  function onDenyHandler() {
+    approvalResolveRef.current?.deny()
+    approvalResolveRef.current = null
+    setPendingApproval(null)
+  }
+
   // Single-shot interrupt — cancels the in-flight Ollama stream (whatever
   // text was generated so far stays in the chat) and silences any TTS.
   function stopAll() {
@@ -785,6 +803,45 @@ export default function Chat() {
     // errors, or it finds nothing above the relevance threshold.
     setSuggestions(null)
     latestAssistantRef.current = ''
+
+    // ── Agent loop (tool_use intent) ────────────────────────────────────────
+    if (intent === 'tool_use') {
+      const agentMemory = [
+        ...(seedMemory || []).filter((m) => !isMemoryDismissed(m.id)),
+        ...Object.values(memoryEntries || {}),
+      ]
+        .filter((m) => (m.status || 'active') === 'active' && m.content)
+        .map((m) => ({ category: String(m.category || 'note'), content: String(m.content) }))
+
+      setBusy(true)
+      setAgentSteps([])
+      setPendingApproval(null)
+
+      const onAgentEvent = (event) => {
+        if (event.type === 'awaiting_approval') {
+          setPendingApproval(event.pendingApproval)
+          approvalResolveRef.current = { approve: event.approve, deny: event.deny }
+          return
+        }
+        setAgentSteps((prev) => [...prev, event])
+      }
+
+      try {
+        const { steps, finalAnswer } = await runAgentLoop(text, {
+          ctrl,
+          memoryContext: agentMemory,
+          onEvent: onAgentEvent,
+        })
+        addChatMessage(convId, { role: 'assistant', content: finalAnswer, agentSteps: steps })
+      } finally {
+        setBusy(false)
+        setPendingApproval(null)
+        approvalResolveRef.current = null
+        abortRef.current = null
+      }
+      return
+    }
+    // ── Normal retrieval path continues ─────────────────────────────────────
 
     let pipelineResult = null
     let retrieved = []
@@ -1071,6 +1128,14 @@ export default function Chat() {
               {messages.map((m, i) => (
                 <React.Fragment key={m.id}>
                   <MessageBubble message={m} />
+                  {m.role === 'assistant' && m.agentSteps?.length > 0 ? (
+                    <AgentRunTimeline
+                      steps={m.agentSteps}
+                      pendingApproval={null}
+                      onApprove={() => {}}
+                      onDeny={() => {}}
+                    />
+                  ) : null}
                   {!busy && i === messages.length - 1 && m.role === 'assistant' && suggestions ? (
                     <SuggestedPrompts
                       questions={suggestions.questions}
@@ -1081,8 +1146,18 @@ export default function Chat() {
                   ) : null}
                 </React.Fragment>
               ))}
+              {/* Live agent run — shown while the loop is executing */}
+              {busy && agentSteps.length > 0 ? (
+                <AgentRunTimeline
+                  steps={agentSteps}
+                  pendingApproval={pendingApproval}
+                  onApprove={onApproveHandler}
+                  onDeny={onDenyHandler}
+                  isRunning={true}
+                />
+              ) : null}
               {streamingText ? <MessageBubble message={{ role: 'assistant', content: streamingText }} /> : null}
-              {busy && !streamingText ? (
+              {busy && !streamingText && agentSteps.length === 0 ? (
                 <div className="flex justify-start mb-4">
                   <div className="rounded-2xl px-4 py-3 bg-white/[0.05]">
                     <div className="flex items-center gap-1.5">
