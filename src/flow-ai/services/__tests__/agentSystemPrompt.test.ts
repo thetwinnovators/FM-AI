@@ -43,6 +43,7 @@ describe('buildAgentSystemPrompt', () => {
     expect(prompt).toContain('"thought"')
     expect(prompt).toContain('"action"')
     expect(prompt).toContain('"toolId"')
+    expect(prompt).toContain('"toolInput"')
     expect(prompt).toContain('"answer"')
   })
 
@@ -54,10 +55,12 @@ describe('buildAgentSystemPrompt', () => {
     expect(prompt).not.toContain('gdocs_create')
   })
 
-  it('includes tool displayName and description in catalog', () => {
+  it('includes tool displayName, description, and riskLevel in catalog', () => {
     const prompt = buildAgentSystemPrompt()
     expect(prompt).toContain('Send Telegram Message')
     expect(prompt).toContain('Send a message to a Telegram channel')
+    expect(prompt).toContain('risk:')
+    expect(prompt).toContain('write')
   })
 
   it('includes memory context when provided', () => {
