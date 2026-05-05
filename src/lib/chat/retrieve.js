@@ -65,17 +65,17 @@ const TASK_KEYWORDS = /\b(write|draft|create|make|build|design|plan|outline|stru
 // Matches messages that direct the AI to act via a named integration.
 // Requires BOTH an action verb AND an integration name/phrase to reduce
 // false positives (e.g. "what is telegram?" has no action verb → not tool_use).
-const TOOL_USE_VERBS = /\b(send|post|draft|create|make|schedule|fetch|read|list|open|update|search|get|add|delete|remove)\b/i
+const TOOL_USE_VERBS = /\b(send|post|draft|create|make|schedule|fetch|read|list|open|update|search|get|add|delete|remove|use)\b/i
 
-const INTEGRATION_NAMES = /\b(telegram|google\s*docs|google\s*drive|drive|gmail|google\s*calendar|calendar|figma|flowmap)\b/i
+const INTEGRATION_NAMES = /\b(telegram|google\s*docs|google\s*drive|gmail|google\s*calendar|calendar|figma|flowmap)\b/i
 
-const TOOL_USE_PHRASES = /\b(use|via|with|through|on|using)\s+(telegram|google\s*docs|google\s*drive|drive|gmail|google\s*calendar|calendar|figma|flowmap)\b/i
+const TOOL_USE_PHRASES = /\b(use|via|using|through)\s+(telegram|google\s*docs|google\s*drive|gmail|google\s*calendar|calendar|figma|flowmap)\b/i
 
 // Returns: 'casual_chat' | 'task_request' | 'retrieval_request' | 'tool_use' | 'unclear'
 export function classifyIntent(query) {
   const q = String(query || '').trim()
   if (!q) return 'unclear'
-  if (TOOL_USE_PHRASES.test(q) || (TOOL_USE_VERBS.test(q) && INTEGRATION_NAMES.test(q))) return 'tool_use'
+  if (TOOL_USE_VERBS.test(q) && (INTEGRATION_NAMES.test(q) || TOOL_USE_PHRASES.test(q))) return 'tool_use'
   if (CASUAL_PATTERNS.some((p) => p.test(q))) return 'casual_chat'
   // Short messages with no retrieval/task signal lean casual
   const wordCount = q.split(/\s+/).filter(Boolean).length

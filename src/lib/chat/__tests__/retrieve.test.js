@@ -165,4 +165,19 @@ describe('classifyIntent — tool_use', () => {
     // mentions telegram but no imperative action verb
     expect(classifyIntent('what is telegram used for?')).not.toBe('tool_use')
   })
+
+  it('does NOT classify "I was talking on telegram" as tool_use', () => {
+    // phrase match alone (no verb) should not trigger tool_use
+    expect(classifyIntent('I was talking on telegram')).not.toBe('tool_use')
+  })
+
+  it('does NOT classify "drive to the office" as tool_use', () => {
+    // bare "drive" word in non-integration context
+    expect(classifyIntent('search for directions to drive to the office')).not.toBe('tool_use')
+  })
+
+  it('detects "use telegram" as tool_use via verb path not phrase path', () => {
+    // "use" is now in TOOL_USE_VERBS, "telegram" in INTEGRATION_NAMES — verb+name path fires
+    expect(classifyIntent('use telegram to send the report')).toBe('tool_use')
+  })
 })
