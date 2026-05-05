@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // chatJson is not exported yet — this test must fail first
 import { chatJson } from '../ollama.js'
-import { OLLAMA_CONFIG, setOllamaEnabled } from '../ollamaConfig.js'
+import { setOllamaEnabled } from '../ollamaConfig.js'
 
 function mockFetch(responseBody, ok = true) {
   return vi.fn().mockResolvedValue({
