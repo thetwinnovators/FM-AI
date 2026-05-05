@@ -201,3 +201,28 @@ export async function* streamChat(messages, opts = {}) {
     opts.signal?.removeEventListener('abort', onCallerAbort)
   }
 }
+
+// Non-streaming JSON-mode chat call for the agent loop.
+// Uses /api/chat with format:'json' so the model is forced to return valid JSON.
+// Returns the parsed JSON object, or null on any failure (Ollama off, network
+// error, model returns non-JSON). Caller should validate the shape it receives.
+export async function chatJson(messages, opts = {}) {
+  if (!OLLAMA_CONFIG.enabled) return null
+  if (!Array.isArray(messages) || messages.length === 0) return null
+
+  const json = await postJson('/api/chat', {
+    model: OLLAMA_CONFIG.model,
+    messages,
+    stream: false,
+    format: 'json',
+    keep_alive: '15m',
+    options: { temperature: opts.temperature ?? 0.1 },
+  }, opts.signal)
+
+  if (!json?.message?.content) return null
+  try {
+    return JSON.parse(json.message.content)
+  } catch {
+    return null
+  }
+}
