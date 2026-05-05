@@ -224,13 +224,36 @@ describe('runAgentLoop — error handling', () => {
     expect(result.finalAnswer).toBe('Done.')
   })
 
-  it('stops gracefully when AbortController is aborted', async () => {
+  it('stops gracefully when AbortController is aborted before loop iteration', async () => {
     const ctrl = makeCtrl()
-    mockChatJson.mockImplementation(() => {
-      ctrl.abort()
-      return Promise.resolve(null)
-    })
+    ctrl.abort() // abort before the loop even starts
     const result = await runAgentLoop('test', { ctrl, onEvent: () => {} })
-    expect(result).toBeDefined()
+    // Loop exits immediately — chatJson is never called
+    expect(mockChatJson).not.toHaveBeenCalled()
+    expect(result.finalAnswer).toBeTruthy() // max-steps fallback fires
+  })
+
+  it('emits done with step-limit message when loop exhausts MAX_STEPS', async () => {
+    // Always return a tool action — loop should stop at step 5
+    mockChatJson.mockResolvedValue({
+      thought: 'Using the tool.',
+      action: 'tool',
+      toolId: 'flowmap_get_topics',
+      toolInput: {},
+    })
+    mockRunTool.mockResolvedValue({ success: true, executionId: 'e1', output: [] })
+
+    const events: AgentEvent[] = []
+    const result = await runAgentLoop('keep going', {
+      ctrl: makeCtrl(),
+      onEvent: collectEvents(events),
+    })
+
+    // Loop ran 5 steps then hit the limit
+    const stepDoneEvents = events.filter((e) => e.type === 'step_done')
+    expect(stepDoneEvents).toHaveLength(5)
+    const doneEvent = events.find((e) => e.type === 'done')
+    expect(doneEvent).toBeDefined()
+    expect(result.finalAnswer).toContain("step limit")
   })
 })
