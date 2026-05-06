@@ -6,12 +6,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BookmarkCheck, Brain, FileText, MessageCircle,
-  Play, Search, TrendingUp, Zap,
+  Play, Search, TrendingUp, Zap, Cpu,
 } from 'lucide-react'
 import Pill from '../ui/Pill.jsx'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { loadSignals } from '../../opportunity-radar/storage/radarStorage.js'
+import { OLLAMA_CONFIG, setOllamaModel, setOllamaEnabled, getTokenUsage, getTokenHistory, get7DayUsage } from '../../lib/llm/ollamaConfig.js'
 
 // ─── design tokens (mirror index.css) ────────────────────────────────────────
 
@@ -101,26 +102,26 @@ function fillBuckets(baseBuckets, timestamps) {
 // ─── SparkArc (matches KpiRow.jsx) ────────────────────────────────────────────
 
 function SparkArc({ pct, color, delay = 0 }) {
-  const r    = 20
+  const r    = 30
   const circ = 2 * Math.PI * r
   const arc  = circ * 0.75
   const fill = arc * Math.min(1, Math.max(0, pct))
   const gid  = `kbo-${color.replace(/[^a-z0-9]/gi, '')}`
   return (
-    <svg width="44" height="44" viewBox="0 0 44 44"
-      className="absolute -bottom-2 -right-2 pointer-events-none" aria-hidden>
+    <svg width="68" height="68" viewBox="0 0 68 68"
+      className="absolute -bottom-3 -right-3 pointer-events-none" aria-hidden>
       <defs>
         <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%"   stopColor={color} stopOpacity=".2" />
           <stop offset="100%" stopColor={color} stopOpacity="1" />
         </linearGradient>
       </defs>
-      <circle cx="22" cy="22" r={r} fill="none" stroke={color} strokeOpacity=".12"
-        strokeWidth="4" strokeLinecap="round"
-        strokeDasharray={`${arc} ${circ}`} transform="rotate(135 22 22)" />
-      <circle cx="22" cy="22" r={r} fill="none" stroke={`url(#${gid})`}
-        strokeWidth="4.5" strokeLinecap="round"
-        strokeDasharray={`0 ${circ}`} transform="rotate(135 22 22)">
+      <circle cx="34" cy="34" r={r} fill="none" stroke={color} strokeOpacity=".12"
+        strokeWidth="5" strokeLinecap="round"
+        strokeDasharray={`${arc} ${circ}`} transform="rotate(135 34 34)" />
+      <circle cx="34" cy="34" r={r} fill="none" stroke={`url(#${gid})`}
+        strokeWidth="5.5" strokeLinecap="round"
+        strokeDasharray={`0 ${circ}`} transform="rotate(135 34 34)">
         <animate attributeName="stroke-dasharray"
           from={`0 ${circ}`} to={`${fill} ${circ}`}
           dur=".85s" begin={`${delay}s`} fill="freeze"
@@ -214,6 +215,10 @@ function toCumulative(buckets) {
 function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
   const [hoveredIdx, setHoveredIdx] = useState(null)
   const [tip, setTip] = useState({ x: 0, y: 0, pct: 0 })
+  // Force SVG remount on every component mount so SMIL animations replay on
+  // every page visit — including tab-switches that keep the component alive.
+  const [mountKey, setMountKey] = useState(0)
+  useEffect(() => { setMountKey((k) => k + 1) }, [])
 
   const { deltaBuckets, cumBuckets, baseMeta, activeSeries, peak, totalCount } = useMemo(() => {
     const base = build6hBuckets()   // 28 × 6-hour slots
@@ -284,6 +289,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
       {/* Chart wrapper — relative container for tooltip */}
       <div className="relative">
         <svg
+          key={mountKey}
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           style={{ width: '100%', height: 'auto', display: 'block', cursor: 'crosshair' }}
           aria-label="Knowledge growth over the last 7 days"
@@ -299,6 +305,12 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
                 <stop offset="100%" stopColor={s.color} stopOpacity="0" />
               </linearGradient>
             ))}
+            <clipPath id="kg-reveal">
+              <rect x={PAD.l} y={0} width={PLOT_W} height={VB_H}>
+                <animate attributeName="width" from="0" to={PLOT_W}
+                  dur="1.4s" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" fill="freeze" />
+              </rect>
+            </clipPath>
           </defs>
 
           {/* Vertical grid lines — solid at day boundaries, dashed at 6h marks */}
@@ -339,29 +351,55 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
               stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
           )}
 
-          {/* Per-series: area → line → delta dots */}
+          {/* Per-series fills + dots — revealed by sliding clipPath */}
+          <g clipPath="url(#kg-reveal)">
+            {activeSeries.map((s) => {
+              const pts = toPoints(cumBuckets[s.key], peak)
+              return (
+                <g key={s.key}>
+                  <path d={areaShape(pts)} fill={`url(#kg-${s.key})`} />
+                  {pts.map(([x, y], i) =>
+                    deltaBuckets[s.key][i].count > 0 ? (
+                      <g key={i}>
+                        <circle cx={x} cy={y} r="4" fill={s.color} fillOpacity=".18" />
+                        <circle cx={x} cy={y} r="2.2" fill={s.color} />
+                      </g>
+                    ) : null
+                  )}
+                </g>
+              )
+            })}
+          </g>
+
+          {/* Per-series lines — drawn via stroke-dashoffset so each line
+              traces itself along its curve shape rather than being revealed
+              by a sliding window. pathLength="1" normalises the dash values
+              so we never need to compute the actual pixel path length. */}
           {activeSeries.map((s) => {
             const pts = toPoints(cumBuckets[s.key], peak)
+            const d   = smoothLine(pts)
             return (
               <g key={s.key}>
-                <path d={areaShape(pts)} fill={`url(#kg-${s.key})`} />
                 {/* Glow pass */}
-                <path d={smoothLine(pts)} fill="none"
+                <path d={d} fill="none"
                   stroke={s.color} strokeWidth="1.5" strokeOpacity=".18"
-                  strokeLinecap="round" strokeLinejoin="round" />
+                  strokeLinecap="round" strokeLinejoin="round"
+                  pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                  <animate attributeName="stroke-dashoffset"
+                    from="1" to="0" dur="1.4s"
+                    calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                    fill="freeze" />
+                </path>
                 {/* Crisp pass */}
-                <path d={smoothLine(pts)} fill="none"
+                <path d={d} fill="none"
                   stroke={s.color} strokeWidth="0.5"
-                  strokeLinecap="round" strokeLinejoin="round" />
-                {/* Dots on days with new ingest */}
-                {pts.map(([x, y], i) =>
-                  deltaBuckets[s.key][i].count > 0 ? (
-                    <g key={i}>
-                      <circle cx={x} cy={y} r="4" fill={s.color} fillOpacity=".18" />
-                      <circle cx={x} cy={y} r="2.2" fill={s.color} />
-                    </g>
-                  ) : null
-                )}
+                  strokeLinecap="round" strokeLinejoin="round"
+                  pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                  <animate attributeName="stroke-dashoffset"
+                    from="1" to="0" dur="1.4s"
+                    calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                    fill="freeze" />
+                </path>
               </g>
             )
           })}
@@ -546,12 +584,17 @@ const MIX = [
 ]
 
 // Mini chart constants (shared by ContentMix line chart)
-const VB2_W  = 280, VB2_H  = 80
+const VB2_W  = 280, VB2_H  = 120
 const PAD2   = { l: 18, r: 4, t: 8, b: 20 }
 const PLT2_W = VB2_W - PAD2.l - PAD2.r   // 258
 const PLT2_H = VB2_H - PAD2.t - PAD2.b   // 52
 
 function ContentMix({ saves }) {
+  // Force SVG remount on every component mount so SMIL animations replay on
+  // every page visit — including tab-switches that keep the component alive.
+  const [mountKey, setMountKey] = useState(0)
+  useEffect(() => { setMountKey((k) => k + 1) }, [])
+
   const { dayBuckets, dayLabels, activeSeries, peak, totals, totalAll } = useMemo(() => {
     const base   = buildDayBuckets()
     const labels = base.map((b) => b.label)
@@ -590,7 +633,7 @@ function ContentMix({ saves }) {
   return (
     <div className="space-y-3">
       {/* Mini line chart */}
-      <svg viewBox={`0 0 ${VB2_W} ${VB2_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}
+      <svg key={mountKey} viewBox={`0 0 ${VB2_W} ${VB2_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}
         aria-label="Content type breakdown over 7 days">
         <defs>
           {MIX.map((s) => (
@@ -600,19 +643,46 @@ function ContentMix({ saves }) {
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
           ))}
+          <clipPath id="cm-reveal">
+            <rect x={PAD2.l} y={0} width={PLT2_W} height={VB2_H}>
+              <animate attributeName="width" from="0" to={PLT2_W}
+                dur="1.4s" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" fill="freeze" />
+            </rect>
+          </clipPath>
         </defs>
         {/* Baseline */}
         <line x1={PAD2.l} y1={miniBase} x2={PAD2.l + PLT2_W} y2={miniBase}
           stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+        {/* Fills — revealed by sliding clipPath */}
+        <g clipPath="url(#cm-reveal)">
+          {series.map((s) => {
+            const pts = toMini(dayBuckets[s.key])
+            return <path key={s.key} d={miniArea(pts)} fill={`url(#cm-${s.key})`} />
+          })}
+        </g>
+
+        {/* Lines — drawn via stroke-dashoffset */}
         {series.map((s) => {
           const pts = toMini(dayBuckets[s.key])
+          const d   = smoothLine(pts)
           return (
             <g key={s.key}>
-              <path d={miniArea(pts)} fill={`url(#cm-${s.key})`} />
-              <path d={smoothLine(pts)} fill="none" stroke={s.color}
-                strokeWidth="2" strokeOpacity=".20" strokeLinecap="round" strokeLinejoin="round" />
-              <path d={smoothLine(pts)} fill="none" stroke={s.color}
-                strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+              <path d={d} fill="none" stroke={s.color}
+                strokeWidth="2" strokeOpacity=".20" strokeLinecap="round" strokeLinejoin="round"
+                pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                <animate attributeName="stroke-dashoffset"
+                  from="1" to="0" dur="1.4s"
+                  calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                  fill="freeze" />
+              </path>
+              <path d={d} fill="none" stroke={s.color}
+                strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+                pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                <animate attributeName="stroke-dashoffset"
+                  from="1" to="0" dur="1.4s"
+                  calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                  fill="freeze" />
+              </path>
             </g>
           )
         })}
@@ -736,6 +806,301 @@ function ContextHealth({ allMemory, follows, userTopics }) {
   )
 }
 
+// ─── AI engine (Ollama models) ───────────────────────────────────────────────
+
+const KNOWN_MODELS = [
+  {
+    id:      'llama3.2:3b',
+    label:   'Llama 3.2',
+    params:  '3B',
+    ctx:     128_000,
+    sizeMb:  2100,
+    note:    'Default · fast summaries',
+    color:   '#6366f1',
+  },
+  {
+    id:      'qwen2.5:7b',
+    label:   'Qwen 2.5',
+    params:  '7B',
+    ctx:     128_000,
+    sizeMb:  4700,
+    note:    'Balanced · code-aware',
+    color:   '#a855f7',
+  },
+  {
+    id:      'llama3.1:8b',
+    label:   'Llama 3.1',
+    params:  '8B',
+    ctx:     128_000,
+    sizeMb:  4700,
+    note:    'Balanced · stronger reasoning',
+    color:   '#8b5cf6',
+  },
+  {
+    id:      'phi4-mini',
+    label:   'Phi-4 Mini',
+    params:  '3.8B',
+    ctx:     128_000,
+    sizeMb:  2300,
+    note:    'Fast · chain-of-thought',
+    color:   '#14b8a6',
+  },
+  {
+    id:      'gemma3:9b',
+    label:   'Gemma 3',
+    params:  '9B',
+    ctx:     131_072,
+    sizeMb:  5800,
+    note:    'Balanced · multilingual',
+    color:   '#f59e0b',
+  },
+  {
+    id:      'llama3.3:70b',
+    label:   'Llama 3.3',
+    params:  '70B',
+    ctx:     128_000,
+    sizeMb:  43_000,
+    note:    'High quality · needs GPU RAM',
+    color:   '#f43f5e',
+  },
+]
+
+function fmtCtx(n) {
+  return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1000)}K`
+}
+function fmtSize(mb) {
+  return mb >= 1000 ? `~${(mb / 1000).toFixed(0)} GB` : `~${mb} MB`
+}
+function fmtTokens(n) {
+  if (!n || n <= 0) return '—'
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000)    return `${(n / 1_000).toFixed(1)}K`
+  return String(n)
+}
+
+// ── Mini 7-day bar chart ──────────────────────────────────────────────────────
+
+function MiniUsageChart({ data, color }) {
+  const max = Math.max(...data, 1)
+  return (
+    <div className="flex items-end gap-[2px]" style={{ width: 50, height: 14 }}>
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="flex-1 rounded-sm transition-all"
+          style={{
+            height: v > 0 ? `${Math.max(3, Math.round((v / max) * 14))}px` : '2px',
+            background: v > 0 ? color : 'rgba(255,255,255,0.07)',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Match a KNOWN_MODELS id against a pulled model name.
+// e.g. 'phi4-mini' matches 'phi4-mini:latest', 'llama3.2:3b' matches 'llama3.2:3b'
+function modelMatches(knownId, pulledName) {
+  return pulledName === knownId || pulledName.startsWith(`${knownId}:`) || knownId.startsWith(`${pulledName.split(':')[0]}:`)
+}
+
+function OllamaModels() {
+  const [activeModel,   setActiveModel]   = useState(OLLAMA_CONFIG.model)
+  const [enabled,       setEnabled]       = useState(OLLAMA_CONFIG.enabled)
+  const [tokenUsage,    setTokenUsage]    = useState(() => getTokenUsage())
+  const [tokenHistory,  setTokenHistory]  = useState(() => getTokenHistory())
+  const [pulledNames,   setPulledNames]   = useState(null)   // null = loading, [] = offline
+
+  // Fetch what's actually pulled from Ollama
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/ollama/api/tags')
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (cancelled) return
+        setPulledNames((json?.models || []).map((m) => m.name))
+      })
+      .catch(() => { if (!cancelled) setPulledNames([]) })
+    return () => { cancelled = true }
+  }, [])
+
+  function handleToggleEnabled() {
+    const next = !enabled
+    setOllamaEnabled(next)
+    setEnabled(next)
+  }
+
+  function handleSelectModel(id) {
+    setOllamaModel(id)
+    setActiveModel(id)
+    setTokenUsage(getTokenUsage())
+    setTokenHistory(getTokenHistory())
+  }
+
+  const totalTokens = Object.values(tokenUsage).reduce((a, b) => a + b, 0)
+
+  // Grand 7-day total across all models
+  const total7d = useMemo(() => {
+    const history = tokenHistory
+    const result  = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const dayTotal = Object.values(history[key] ?? {}).reduce((a, b) => a + b, 0)
+      result.push(dayTotal)
+    }
+    return result
+  }, [tokenHistory])
+
+  const total7dSum = total7d.reduce((a, b) => a + b, 0)
+
+  // Build display list: only what's actually pulled, enriched with catalog metadata.
+  const displayModels = useMemo(() => {
+    if (!pulledNames) return []   // still loading
+    return pulledNames.map((pulledName) => {
+      const catalog = KNOWN_MODELS.find((m) => modelMatches(m.id, pulledName))
+      return catalog
+        ? { ...catalog, id: pulledName, resolvedId: pulledName, installed: true }
+        : { id: pulledName, resolvedId: pulledName, label: pulledName,
+            params: '', ctx: 0, sizeMb: 0, note: '', color: '#6b7280', installed: true }
+    })
+  }, [pulledNames])
+
+  return (
+    <div>
+      {/* Status row */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button
+          onClick={handleToggleEnabled}
+          className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+            enabled
+              ? 'bg-emerald-400/10 text-emerald-400 border-emerald-400/20 hover:bg-emerald-400/20'
+              : 'bg-white/[0.04] text-white/30 border-white/10 hover:text-white/50'
+          }`}
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${enabled ? 'bg-emerald-400' : 'bg-white/20'}`} />
+          {enabled ? 'Ollama enabled' : 'Ollama disabled'}
+        </button>
+        {enabled && (
+          <span className="text-[10px] text-[color:var(--color-text-tertiary)]">
+            Active: <span className="text-white/60 font-mono">{activeModel}</span>
+          </span>
+        )}
+        <span className="text-[10px] text-[color:var(--color-text-tertiary)]">
+          ctx per call: <span className="font-mono text-white/40">32K</span>
+        </span>
+      </div>
+
+      {/* Column headers */}
+      <div className="flex items-center gap-3 px-3 my-2 py-1.5 rounded-md bg-black/20 text-[9px] text-[color:var(--color-text-tertiary)] uppercase tracking-wide">
+        <span className="w-1.5 flex-shrink-0" />
+        <span className="w-[88px] flex-shrink-0">Model</span>
+        <span className="w-[28px] flex-shrink-0 text-center">Size</span>
+        <span className="w-[40px] flex-shrink-0 text-right">Ctx</span>
+        <span className="w-[46px] flex-shrink-0 text-right">Disk</span>
+        <span className="flex-1 hidden sm:block">Notes</span>
+        <span className="w-[50px] flex-shrink-0 text-right hidden sm:block">7 days</span>
+        <span className="w-[44px] flex-shrink-0 text-right">All time</span>
+        <span className="w-[40px] flex-shrink-0" />
+      </div>
+
+      {/* Model rows */}
+      {pulledNames === null ? (
+        <div className="px-3 py-4 text-[11px] text-white/20">Loading…</div>
+      ) : displayModels.length === 0 ? (
+        <div className="px-3 py-4 text-[11px] text-white/20">
+          No models pulled. Run <span className="font-mono">docker exec ollama ollama pull llama3.2:3b</span> to get started.
+        </div>
+      ) : (
+        <div className="space-y-0.5">
+          {displayModels.map((m) => {
+            const isActive = activeModel === m.resolvedId || activeModel === m.id
+            const used     = tokenUsage[m.id] ?? tokenUsage[m.resolvedId] ?? 0
+            return (
+              <div
+                key={m.id}
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
+                  isActive
+                    ? 'border-white/10 bg-white/[0.05]'
+                    : 'border-transparent hover:bg-white/[0.03] hover:border-white/[0.06]'
+                }`}
+              >
+                <span
+                  className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-opacity ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                  style={{ background: m.color }}
+                />
+                <span className="font-mono text-[11px] text-white/70 w-[88px] flex-shrink-0 truncate">{m.id}</span>
+                {m.params
+                  ? <span className="chip text-[9px] flex-shrink-0 w-[28px] text-center">{m.params}</span>
+                  : <span className="w-[28px] flex-shrink-0" />}
+                <span
+                  className="text-[11px] tabular-nums font-medium flex-shrink-0 w-[40px] text-right"
+                  style={{ color: m.ctx ? m.color : 'transparent' }}
+                  title={m.ctx ? `${m.ctx.toLocaleString()} token context window` : ''}
+                >
+                  {m.ctx ? fmtCtx(m.ctx) : ''}
+                </span>
+                <span className="text-[10px] text-[color:var(--color-text-tertiary)] tabular-nums flex-shrink-0 w-[46px] text-right">
+                  {m.sizeMb ? fmtSize(m.sizeMb) : ''}
+                </span>
+                <span className="text-[10px] text-[color:var(--color-text-tertiary)] flex-1 min-w-0 truncate hidden sm:block">
+                  {m.note}
+                </span>
+                {/* 7-day mini chart */}
+                <div className="w-[50px] flex-shrink-0 flex justify-end hidden sm:flex">
+                  <MiniUsageChart data={get7DayUsage(m.id, tokenHistory)} color={m.color} />
+                </div>
+                {/* All-time tokens */}
+                <span
+                  className={`text-[11px] tabular-nums flex-shrink-0 w-[44px] text-right font-medium ${
+                    used > 0 ? 'text-white/60' : 'text-white/20'
+                  }`}
+                  title={used > 0 ? `${used.toLocaleString()} tokens (all time)` : 'No usage recorded'}
+                >
+                  {fmtTokens(used)}
+                </span>
+                {enabled && (
+                  isActive
+                    ? <span className="text-[10px] px-2 py-0.5 rounded border border-white/20 text-white/40 flex-shrink-0 w-[40px] text-center select-none pointer-events-none">active</span>
+                    : <button
+                        onClick={() => handleSelectModel(m.resolvedId ?? m.id)}
+                        className="text-[10px] px-2 py-0.5 rounded border transition-colors flex-shrink-0 w-[40px] text-center border-white/10 text-white/30 hover:text-white/70 hover:border-white/25"
+                      >use</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Grand total footer */}
+      <div className="flex items-center gap-3 px-3 py-2 mt-1 border-t border-white/[0.06]">
+        <span className="w-1.5 flex-shrink-0" />
+        <span className="font-mono text-[11px] text-white/30 w-[88px] flex-shrink-0">total</span>
+        <span className="w-[28px] flex-shrink-0" />
+        <span className="w-[40px] flex-shrink-0" />
+        <span className="w-[46px] flex-shrink-0" />
+        <span className="flex-1 hidden sm:block" />
+        {/* 7-day total chart */}
+        <div className="w-[50px] flex-shrink-0 flex justify-end hidden sm:flex">
+          <MiniUsageChart data={total7d} color="#6b7280" />
+        </div>
+        {/* All-time total */}
+        <span
+          className={`text-[11px] tabular-nums flex-shrink-0 w-[44px] text-right font-semibold ${
+            totalTokens > 0 ? 'text-white/70' : 'text-white/20'
+          }`}
+          title={totalTokens > 0 ? `${totalTokens.toLocaleString()} tokens (all time) · ${total7dSum.toLocaleString()} in last 7 days` : 'No usage recorded'}
+        >
+          {fmtTokens(totalTokens)}
+        </span>
+        {enabled && <span className="w-[40px] flex-shrink-0" />}
+      </div>
+    </div>
+  )
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function KnowledgeOverview() {
@@ -804,7 +1169,7 @@ export default function KnowledgeOverview() {
       </div>
 
       {/* ── Recent captures + Signal pulse ───────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 fm-fade-up" style={{ '--fm-delay': '250ms' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 fm-fade-up" style={{ '--fm-delay': '220ms' }}>
         <div className="glass-panel p-5">
           <SectionHead title="Recent captures" sub="what you've been saving" />
           <RecentCaptures saves={saves} contentById={contentById} />
@@ -813,6 +1178,15 @@ export default function KnowledgeOverview() {
           <SectionHead title="Signal pulse" sub="latest from radar scans" />
           <SignalPulse signals={signals} />
         </div>
+      </div>
+
+      {/* ── AI engine (full-width) ────────────────────────────────────────── */}
+      <div className="glass-panel p-5 fm-fade-up" style={{ '--fm-delay': '280ms' }}>
+        <SectionHead
+          title={<span className="flex items-center gap-1.5"><Cpu size={12} className="text-[color:var(--color-tool)]" />AI engine</span>}
+          sub="Ollama models · context windows"
+        />
+        <OllamaModels />
       </div>
 
     </div>

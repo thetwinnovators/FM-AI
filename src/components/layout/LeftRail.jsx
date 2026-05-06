@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar } from 'lucide-react'
+import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar, GraduationCap } from 'lucide-react'
 
 // Nav is grouped into sections separated by hairline dividers in the rail.
 // Order: workspace shortcuts → broad exploration → personal collections → AI assistant.
@@ -18,6 +18,7 @@ const NAV_GROUPS = [
     { to: '/documents', label: 'My Documents',  icon: FileText        },
   ],
   [
+    { to: '/education', label: 'Flow Academy',  icon: GraduationCap   },
     { to: '/chat',      label: 'Ask Flow.AI',   icon: Bot             },
   ],
 ]

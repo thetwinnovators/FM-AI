@@ -34,6 +34,7 @@ const EMPTY = {
   // from — when it drifts from the topic's current items, the card surfaces
   // an "out of date" hint.
   topicSummaries: {},   // topicId -> { overview, report, generatedAt, itemSignature }
+  courses: {},          // Flow Academy — courseId -> LearningCourse (lessons inline)
 }
 
 let memoryState = EMPTY
@@ -188,25 +189,26 @@ function slugify(s) {
     .replace(/^-+|-+$/g, '')
 }
 
-export function useStore() {
-  // Re-sync on mount in case localStorage was cleared by tests
-  useEffect(() => {
-    initialized = false
-  }, [])
+// ─── Module-level sync singleton ─────────────────────────────────────────────
+// useStore() is called from ~34 files. If each instance registered its own
+// visibilitychange/focus listeners we'd accumulate 68+ identical listeners that
+// all fire at once, triggering 68+ concurrent /api/state requests on every tab
+// focus. Moving setup to a module-level singleton means exactly ONE listener
+// pair is ever registered, no matter how many components call useStore().
+let syncInitialized = false
+function initSync() {
+  if (syncInitialized) return
+  syncInitialized = true
+  pullSyncedState()
+  function onVis() { if (document.visibilityState === 'visible') pullSyncedState() }
+  document.addEventListener('visibilitychange', onVis)
+  window.addEventListener('focus', onVis)
+}
 
-  // Cross-browser sync: pull from disk on mount, and again whenever the tab
-  // regains focus (handles the alt-tab-between-browsers flow). Push happens
-  // automatically inside `persist()` after every mutation.
-  useEffect(() => {
-    pullSyncedState()
-    function onVis() { if (document.visibilityState === 'visible') pullSyncedState() }
-    document.addEventListener('visibilitychange', onVis)
-    window.addEventListener('focus', onVis)
-    return () => {
-      document.removeEventListener('visibilitychange', onVis)
-      window.removeEventListener('focus', onVis)
-    }
-  }, [])
+export function useStore() {
+  // Bootstrap the sync singleton on first component mount. Subsequent calls
+  // from other components are no-ops (syncInitialized guard above).
+  useEffect(() => { initSync() }, [])
 
   const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
@@ -756,6 +758,64 @@ export function useStore() {
       })
   }, [])
 
+  // ── Flow Academy ─────────────────────────────────────────────────────────────
+  // Each course stores its full lesson array inline. Lesson bodies + quizzes
+  // are null until generated on first open (lazy via courseGenerator).
+
+  const addCourse = useCallback((data) => {
+    const cur = memoryState
+    const id = `course_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
+    const now = new Date().toISOString()
+    const course = {
+      id,
+      topic:                    String(data.topic || '').trim(),
+      title:                    String(data.title || '').trim(),
+      summary:                  String(data.summary || '').trim(),
+      estimatedDurationMinutes: Number(data.estimatedDurationMinutes) || 45,
+      objectives:               Array.isArray(data.objectives)     ? data.objectives     : [],
+      keyVocabulary:            Array.isArray(data.keyVocabulary)  ? data.keyVocabulary  : [],
+      status:                   'draft',
+      createdAt:                now,
+      completedAt:              null,
+      lessons:                  Array.isArray(data.lessons)        ? data.lessons        : [],
+    }
+    persist({ ...cur, courses: { ...cur.courses, [id]: course } })
+    return course
+  }, [])
+
+  const updateCourse = useCallback((id, patch) => {
+    const cur = memoryState
+    const existing = cur.courses?.[id]
+    if (!existing) return null
+    const next = { ...existing, ...patch, id }
+    persist({ ...cur, courses: { ...cur.courses, [id]: next } })
+    return next
+  }, [])
+
+  const deleteCourse = useCallback((id) => {
+    const cur = memoryState
+    const next = { ...cur.courses }
+    delete next[id]
+    persist({ ...cur, courses: next })
+  }, [])
+
+  const updateLesson = useCallback((courseId, lessonId, patch) => {
+    const cur = memoryState
+    const course = cur.courses?.[courseId]
+    if (!course) return null
+    const lessons = course.lessons.map((l) => l.id === lessonId ? { ...l, ...patch } : l)
+    const next = { ...course, lessons }
+    persist({ ...cur, courses: { ...cur.courses, [courseId]: next } })
+    return next
+  }, [])
+
+  const courseById = useCallback((id) => memoryState.courses?.[id] || null, [])
+
+  const allCoursesSorted = useCallback(() =>
+    Object.values(memoryState.courses || {})
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
+  [])
+
   return {
     ...state,
     toggleSave, toggleFollow, dismiss,
@@ -770,5 +830,8 @@ export function useStore() {
     createConversation, updateConversation, deleteConversation, addChatMessage, patchChatMessage,
     conversationById, chatMessagesFor, allConversationsSorted,
     isSaved, isFollowing, isDismissed, viewCount, recentSearches,
+    // Flow Academy
+    addCourse, updateCourse, deleteCourse, updateLesson,
+    courseById, allCoursesSorted,
   }
 }
