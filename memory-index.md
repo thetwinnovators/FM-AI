@@ -1,8 +1,8 @@
 # FlowMap Memory Index
 
 > **Auto-generated — do not edit by hand.**  
-> Generated: 05/05/2026, 22:04:46  
-> App version: `0.0.0` · Schema: `1.0.0` · Total nodes: **1102**
+> Generated: 05/05/2026, 22:29:17  
+> App version: `0.0.0` · Schema: `1.0.0` · Total nodes: **1114**
 
 ## Summary
 
@@ -11,7 +11,7 @@
 | Project | 📦 | 1 |
 | Conversations | 💬 | 16 |
 | Decisions | 🔑 | 11 |
-| Workflows | ⚙️ | 0 |
+| Workflows | ⚙️ | 12 |
 | Source Items | 📄 | 108 |
 | Preferences | 🎛️ | 3 |
 | Insights | 💡 | 963 |
@@ -69,7 +69,20 @@ _Storage keys: `flowmap.v1/memoryEntries`_
 
 _Storage keys: `fm_mcp_integrations`, `fm_mcp_executions`, `flowmap.mcp.taskPlans`_
 
-_none_
+| ID | Label | Tags | Updated |
+|---|---|---|---|
+| `mcp:integration:integ_telegram` | MCP: Telegram (telegram) | telegram, disconnected | 5 May 2026 |
+| `mcp:integration:integ_figma` | MCP: Figma (figma) | figma, disconnected | 5 May 2026 |
+| `mcp:integration:integ_google_drive` | MCP: Google Drive (google-drive) | google-drive, disconnected | 5 May 2026 |
+| `mcp:integration:integ_gmail` | MCP: Gmail (gmail) | gmail, disconnected | 5 May 2026 |
+| `mcp:integration:integ_google_calendar` | MCP: Google Calendar (google-calendar) | google-calendar, disconnected | 5 May 2026 |
+| `mcp:integration:integ_google_slides` | MCP: Google Slides (google-slides) | google-slides, disconnected | 5 May 2026 |
+| `mcp:integration:integ_youtube` | MCP: YouTube (youtube) | youtube, disconnected | 5 May 2026 |
+| `mcp:integration:integ_google_docs` | MCP: Google Docs (google-docs) | google-docs, disconnected | 5 May 2026 |
+| `mcp:integration:integ_higgsfield` | MCP: Higgsfield AI (higgsfield) | higgsfield, disconnected | 5 May 2026 |
+| `mcp:integration:integ_instagram` | MCP: Instagram (instagram) | instagram, disconnected | 5 May 2026 |
+| `mcp:integration:integ_facebook` | MCP: Facebook (facebook) | facebook, disconnected | 5 May 2026 |
+| `mcp:integration:integ_flowmap` | MCP: FlowMap (flowmap) | flowmap, connected | 5 May 2026 |
 
 ## 📄 Source Items
 

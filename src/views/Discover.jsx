@@ -170,11 +170,6 @@ export default function Discover() {
               : <>{totalUnread} unread {totalUnread === 1 ? 'item' : 'items'}</>}
             {focusLabel ? <> related to <span className="text-white">{focusLabel}</span></> : null}
             {query ? <> matching "<span className="text-white">{query}</span>"</> : null}
-            {liveStatus === 'loading' ? (
-              <span className="ml-2 inline-flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-tertiary)]">
-                <Loader2 size={11} className="animate-spin" /> fetching live
-              </span>
-            ) : null}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -254,8 +249,29 @@ export default function Discover() {
 
       </div>
 
-      {/* Stream */}
-      {visible.length === 0 ? (
+      {/* Prominent full-area loader — shown whenever a live fetch is in flight,
+          regardless of whether seed items are already visible */}
+      {liveStatus === 'loading' && (
+        <div className="flex flex-col items-center justify-center py-28 gap-5">
+          <div className="relative flex items-center justify-center w-16 h-16">
+            <div
+              className="absolute inset-0 rounded-full bg-teal-400/10 animate-ping"
+              style={{ animationDuration: '1.8s' }}
+            />
+            <div className="absolute inset-0 rounded-full border border-teal-400/20" />
+            <Loader2 size={32} className="animate-spin text-teal-400" aria-hidden="true" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-white/80">Fetching live content</p>
+            <p className="text-xs text-[color:var(--color-text-tertiary)] mt-1">
+              Pulling from your topics and recent searches…
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Stream — only shown once loading is done */}
+      {liveStatus !== 'loading' && visible.length === 0 && (
         <div className="text-sm text-[color:var(--color-text-tertiary)] py-16 text-center">
           {totalUnread === 0 && !query && type === '' && topicIds.length === 0 ? (
             <>
@@ -266,7 +282,9 @@ export default function Discover() {
             <p>Nothing matches. Loosen your filters or toggle "Show read items too".</p>
           )}
         </div>
-      ) : (
+      )}
+
+      {liveStatus !== 'loading' && visible.length > 0 && (
         <>
           <div className="grid grid-cols-[repeat(auto-fill,300px)] gap-3">
             {visible.map((it) => (

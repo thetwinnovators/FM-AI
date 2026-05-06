@@ -5,7 +5,7 @@
 // Dev-only `console.warn` output is throttled like the SearXNG adapter so a
 // stopped container doesn't spam the console.
 
-import { OLLAMA_CONFIG } from './ollamaConfig.js'
+import { OLLAMA_CONFIG, addTokenUsage } from './ollamaConfig.js'
 
 let lastErrorAt = 0
 const ERROR_LOG_INTERVAL_MS = 30_000
@@ -79,6 +79,7 @@ export async function generateSummary(text, opts = {}) {
   }, opts.signal)
 
   if (!json?.response) return null
+  addTokenUsage(OLLAMA_CONFIG.model, (json.prompt_eval_count ?? 0) + (json.eval_count ?? 0))
   return String(json.response).trim() || null
 }
 
@@ -99,6 +100,7 @@ export async function generateResponse(prompt, opts = {}) {
   }, opts.signal)
 
   if (!json?.response) return null
+  addTokenUsage(OLLAMA_CONFIG.model, (json.prompt_eval_count ?? 0) + (json.eval_count ?? 0))
   return String(json.response).trim() || null
 }
 
@@ -220,6 +222,7 @@ export async function chatJson(messages, opts = {}) {
   }, opts.signal)
 
   if (!json?.message?.content) return null
+  addTokenUsage(OLLAMA_CONFIG.model, (json.prompt_eval_count ?? 0) + (json.eval_count ?? 0))
   try {
     return JSON.parse(json.message.content)
   } catch {

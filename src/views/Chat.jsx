@@ -5,7 +5,7 @@ import { useMicTranscription } from '../lib/voice/useMicTranscription.js'
 import { useStore } from '../store/useStore.js'
 import { useSeed } from '../store/useSeed.js'
 import { OLLAMA_CONFIG, setOllamaModel } from '../lib/llm/ollamaConfig.js'
-import { streamChat } from '../lib/llm/ollama.js'
+import { streamChat, probeOllama } from '../lib/llm/ollama.js'
 import { retrieveDocuments, buildSystemMessage, classifyIntent, retrieveWithPipeline } from '../lib/chat/retrieve.js'
 import { localSignalsStorage } from '../signals/storage/localSignalsStorage.js'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
@@ -660,6 +660,16 @@ export default function Chat() {
   const [pendingApproval, setPendingApproval] = useState(null)
   const approvalResolveRef = useRef(null)
 
+  // Probe Ollama on mount (and whenever enabled flips) so we can surface a
+  // helpful banner early rather than waiting for a send to fail.
+  // 'ok' | 'no-instance' | 'no-model' | 'disabled' | null (probing)
+  const [ollamaProbe, setOllamaProbe] = useState(null)
+  useEffect(() => {
+    if (!OLLAMA_CONFIG.enabled) { setOllamaProbe('disabled'); return }
+    setOllamaProbe(null) // probing
+    probeOllama().then(setOllamaProbe).catch(() => setOllamaProbe('no-instance'))
+  }, []) // run once on mount; re-runs if user reloads after toggling
+
   function onApproveHandler() {
     approvalResolveRef.current?.approve()
     approvalResolveRef.current = null
@@ -1096,7 +1106,23 @@ export default function Chat() {
           <div className="m-4 px-4 py-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-amber-200/90 text-[12px] inline-flex items-start gap-2">
             <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
             <span>
-              Ollama is off. Open the gear menu (top right) to enable it. You'll also need a running container — see <code className="text-white/70">vite.config.js</code> for the docker run command.
+              Ollama is off — open the gear menu (⚙ top right) to enable it. You'll also need a running container: <code className="text-white/70">docker run -d -p 11434:11434 -v ollama:/root/.ollama --name ollama ollama/ollama</code>
+            </span>
+          </div>
+        ) : ollamaProbe === 'no-instance' ? (
+          <div className="m-4 px-4 py-3 rounded-lg border border-rose-500/30 bg-rose-500/5 text-rose-200/90 text-[12px] inline-flex items-start gap-2">
+            <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>
+              Ollama is enabled but the container isn't reachable on port 11434.
+              Start it: <code className="text-white/70">docker start ollama</code> (or <code className="text-white/70">docker run -d -p 11434:11434 -v ollama:/root/.ollama --name ollama ollama/ollama</code> if first run).
+            </span>
+          </div>
+        ) : ollamaProbe === 'no-model' ? (
+          <div className="m-4 px-4 py-3 rounded-lg border border-amber-500/30 bg-amber-500/5 text-amber-200/90 text-[12px] inline-flex items-start gap-2">
+            <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+            <span>
+              Ollama is running but model <code className="text-white/70">{OLLAMA_CONFIG.model}</code> isn't pulled.
+              Run: <code className="text-white/70">docker exec -it ollama ollama pull {OLLAMA_CONFIG.model}</code>
             </span>
           </div>
         ) : null}

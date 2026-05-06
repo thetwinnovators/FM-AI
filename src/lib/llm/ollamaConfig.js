@@ -76,3 +76,69 @@ export function setOllamaModel(model) {
     }
   } catch { /* runtime override still applies for this session */ }
 }
+
+// ── Token usage tracking ─────────────────────────────────────────────────────
+// Cumulative totals + per-day history (last 30 days) per model.
+
+const TOKEN_USAGE_KEY   = 'flowmap.ollama.tokenUsage'
+const TOKEN_HISTORY_KEY = 'flowmap.ollama.tokenHistory'
+
+function todayKey() {
+  // YYYY-MM-DD in local time
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+export function getTokenUsage() {
+  try {
+    if (typeof localStorage === 'undefined') return {}
+    const raw = localStorage.getItem(TOKEN_USAGE_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+// Returns { "YYYY-MM-DD": { modelName: tokenCount } }
+export function getTokenHistory() {
+  try {
+    if (typeof localStorage === 'undefined') return {}
+    const raw = localStorage.getItem(TOKEN_HISTORY_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch { return {} }
+}
+
+// Returns array of 7 numbers, oldest→newest, for the given model.
+export function get7DayUsage(model, history) {
+  const h = history ?? getTokenHistory()
+  const result = []
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    result.push(h[key]?.[model] ?? 0)
+  }
+  return result
+}
+
+export function addTokenUsage(model, tokens) {
+  if (!model || !tokens || tokens <= 0) return
+  try {
+    if (typeof localStorage === 'undefined') return
+    // Cumulative total
+    const usage = getTokenUsage()
+    usage[model] = (usage[model] ?? 0) + Math.round(tokens)
+    localStorage.setItem(TOKEN_USAGE_KEY, JSON.stringify(usage))
+    // Daily history
+    const history = getTokenHistory()
+    const today   = todayKey()
+    if (!history[today]) history[today] = {}
+    history[today][model] = (history[today][model] ?? 0) + Math.round(tokens)
+    // Prune entries older than 30 days
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 30)
+    const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`
+    for (const key of Object.keys(history)) {
+      if (key < cutoffKey) delete history[key]
+    }
+    localStorage.setItem(TOKEN_HISTORY_KEY, JSON.stringify(history))
+  } catch {}
+}

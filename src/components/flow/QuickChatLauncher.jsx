@@ -115,23 +115,29 @@ export default function QuickChatLauncher() {
     setModelPickerOpen(false)
   }
 
-  // Esc behavior depends on context:
-  //   • Streaming or speaking → Esc stops without closing the panel.
-  //   • Idle → Esc closes the panel as before.
+  // Global keyboard shortcuts (panel must be open):
+  //   Escape          → stop generation/voice, or close panel
+  //   Ctrl+T          → toggle mic on/off
   useEffect(() => {
     if (!open) return
     function onKey(e) {
-      if (e.key !== 'Escape') return
-      if (busy || voicePlaying) {
-        if (busy && abortRef.current) abortRef.current.abort()
-        stopVoice()
-      } else {
-        setOpen(false)
+      if (e.key === 'Escape') {
+        if (busy || voicePlaying) {
+          if (busy && abortRef.current) abortRef.current.abort()
+          stopVoice()
+        } else {
+          setOpen(false)
+        }
+        return
+      }
+      if (e.key === 't' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault()
+        if (!busy && !transcribing) toggleMic()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, busy, voicePlaying])
+  }, [open, busy, voicePlaying, listening, transcribing])
 
   function stopAll() {
     if (busy && abortRef.current) {
@@ -212,7 +218,13 @@ export default function QuickChatLauncher() {
   function onKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      send()
+      // While recording: Enter stops the mic. A second Enter sends once
+      // transcription is done and the draft is populated.
+      if (listening) {
+        stopMic()
+      } else if (!transcribing) {
+        send()
+      }
     }
   }
 

@@ -69,6 +69,32 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split large, stable vendor libraries into separate chunks so browsers
+        // can cache them independently across deploys. With lazy routing, the
+        // main entry chunk becomes very small (~20 KB) and these vendor chunks
+        // are fetched in parallel with the first route chunk.
+        manualChunks(id) {
+          // React runtime — changes only on React upgrades
+          if (id.includes('/node_modules/react/') ||
+              id.includes('/node_modules/react-dom/') ||
+              id.includes('/node_modules/scheduler/')) {
+            return 'react-vendor'
+          }
+          // React Router — separate so a router upgrade doesn't bust React cache
+          if (id.includes('/node_modules/react-router')) {
+            return 'router'
+          }
+          // Lucide icon set is large (~200 KB raw) — isolate for long-term caching
+          if (id.includes('/node_modules/lucide-react')) {
+            return 'lucide'
+          }
+        },
+      },
+    },
+  },
   preview: {
     port: process.env.PORT ? Number(process.env.PORT) : 4173,
     strictPort: true,

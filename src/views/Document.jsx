@@ -180,14 +180,6 @@ export default function Document() {
             {meta.fileName ? '· ' : ''}{meta.wordCount || 0} words · created {formatDate(meta.createdAt)}
             {meta.updatedAt && meta.updatedAt !== meta.createdAt ? ` · updated ${formatDate(meta.updatedAt)}` : ''}
           </span>
-          <button
-            onClick={askDelete}
-            aria-label="Delete document"
-            title="Delete document"
-            className="ml-auto inline-flex items-center justify-center p-1.5 rounded-md text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 border border-rose-500/30 transition-colors"
-          >
-            <Trash2 size={13} />
-          </button>
         </div>
 
         {editingTitle ? (
@@ -205,16 +197,26 @@ export default function Document() {
             </button>
           </div>
         ) : (
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-2">
             <h1 className="text-3xl font-semibold tracking-tight flex-1">{meta.title}</h1>
-            <button
-              onClick={() => setEditingTitle(true)}
-              className="p-2 rounded-md border border-[color:var(--color-border-default)] bg-[color:var(--color-bg-glass)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-bg-glass-strong)]"
-              aria-label="Edit title"
-              title="Edit title"
-            >
-              <Pencil size={13} />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0 mt-1">
+              <button
+                onClick={() => setEditingTitle(true)}
+                className="p-1.5 rounded-md border border-[color:var(--color-border-default)] bg-[color:var(--color-bg-glass)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-bg-glass-strong)] transition-colors"
+                aria-label="Edit title"
+                title="Edit title"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                onClick={askDelete}
+                aria-label="Delete document"
+                title="Delete document"
+                className="p-1.5 rounded-md text-rose-300 hover:text-rose-200 hover:bg-rose-500/10 border border-rose-500/30 transition-colors"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
         )}
 

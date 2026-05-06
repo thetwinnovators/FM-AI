@@ -1,84 +1,118 @@
-import { useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import LeftRail from './components/layout/LeftRail.jsx'
 import TopBar from './components/layout/TopBar.jsx'
 import ConfirmProvider from './components/ui/ConfirmProvider.jsx'
 import BackToTop from './components/ui/BackToTop.jsx'
+import RouteLoadingBar from './components/ui/RouteLoadingBar.jsx'
 import { useStore } from './store/useStore.js'
 import { useIngestionWorker } from './flow-ai/hooks/useIngestionWorker.js'
 import { useMemoryIndex } from './memory-index/useMemoryIndex.js'
-import Discover from './views/Discover.jsx'
-import Search from './views/Search.jsx'
-import Topics from './views/Topics.jsx'
-import Topic from './views/Topic.jsx'
-import FlowMap from './views/FlowMap.jsx'
-import Education from './views/Education.jsx'
-import Memory from './views/Memory.jsx'
-import Documents from './views/Documents.jsx'
-import Document from './views/Document.jsx'
-import Chat from './views/Chat.jsx'
-import Signals from './views/Signals.jsx'
-import OpportunityRadar from './views/OpportunityRadar.jsx'
-import MCPIntegrationsPage from './mcp/pages/MCPIntegrationsPage.jsx'
-import MCPIntegrationDetailPage from './mcp/pages/MCPIntegrationDetailPage.jsx'
-import MCPToolCatalogPage from './mcp/pages/MCPToolCatalogPage.jsx'
-import MCPExecutionLogPage from './mcp/pages/MCPExecutionLogPage.jsx'
-import MCPToolDetailPage from './mcp/pages/MCPToolDetailPage.jsx'
 
+// ─── Lazy route chunks ────────────────────────────────────────────────────────
+// Each view is fetched on first visit and cached for the session. This splits
+// the 815 KB monolith into ~18 separate on-demand chunks, dramatically
+// reducing initial JS parse time and deferring bytes the user may never need.
+const Discover               = lazy(() => import('./views/Discover.jsx'))
+const Search                 = lazy(() => import('./views/Search.jsx'))
+const Topics                 = lazy(() => import('./views/Topics.jsx'))
+const Topic                  = lazy(() => import('./views/Topic.jsx'))
+const FlowMap                = lazy(() => import('./views/FlowMap.jsx'))
+const Education              = lazy(() => import('./views/Education.jsx'))
+const Memory                 = lazy(() => import('./views/Memory.jsx'))
+const Documents              = lazy(() => import('./views/Documents.jsx'))
+const Document               = lazy(() => import('./views/Document.jsx'))
+const Chat                   = lazy(() => import('./views/Chat.jsx'))
+const Signals                = lazy(() => import('./views/Signals.jsx'))
+const OpportunityRadar       = lazy(() => import('./views/OpportunityRadar.jsx'))
+const MCPIntegrationsPage    = lazy(() => import('./mcp/pages/MCPIntegrationsPage.jsx'))
+const MCPIntegrationDetailPage = lazy(() => import('./mcp/pages/MCPIntegrationDetailPage.jsx'))
+const MCPToolCatalogPage     = lazy(() => import('./mcp/pages/MCPToolCatalogPage.jsx'))
+const MCPExecutionLogPage    = lazy(() => import('./mcp/pages/MCPExecutionLogPage.jsx'))
+const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.jsx'))
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+// Suspense wraps the route tree so the loading bar shows whenever a lazy chunk
+// is being fetched (first visit to any page). The shell (LeftRail, TopBar)
+// renders immediately — only the content area shows the fallback.
 function AnimatedRoutes() {
   const location = useLocation()
   return (
-    <div key={location.pathname} className="fm-page-enter">
-      <Routes>
-        <Route path="/" element={<FlowMap />} />
-        <Route path="/flow" element={<FlowMap />} />
-        <Route path="/discover" element={<Discover />} />
-        <Route path="/signals" element={<Signals />} />
-        <Route path="/radar" element={<OpportunityRadar />} />
-        <Route path="/search" element={<Search />} />
-        <Route path="/topics" element={<Topics />} />
-        <Route path="/topic/:slug" element={<Topic />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/documents/:id" element={<Document />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/chat/:id" element={<Chat />} />
-        <Route path="/education" element={<Education />} />
-        <Route path="/memory" element={<Memory />} />
-        <Route path="/connections" element={<MCPIntegrationsPage />} />
-        <Route path="/connections/tools" element={<MCPToolCatalogPage />} />
-        <Route path="/connections/tools/:toolId" element={<MCPToolDetailPage />} />
-        <Route path="/connections/log" element={<MCPExecutionLogPage />} />
-        <Route path="/connections/:id" element={<MCPIntegrationDetailPage />} />
-      </Routes>
-    </div>
+    <Suspense fallback={<RouteLoadingBar />}>
+      <div key={location.pathname} className="fm-page-enter">
+        <Routes>
+          <Route path="/"                              element={<FlowMap />} />
+          <Route path="/flow"                          element={<FlowMap />} />
+          <Route path="/discover"                      element={<Discover />} />
+          <Route path="/signals"                       element={<Signals />} />
+          <Route path="/radar"                         element={<OpportunityRadar />} />
+          <Route path="/search"                        element={<Search />} />
+          <Route path="/topics"                        element={<Topics />} />
+          <Route path="/topic/:slug"                   element={<Topic />} />
+          <Route path="/documents"                     element={<Documents />} />
+          <Route path="/documents/:id"                 element={<Document />} />
+          <Route path="/chat"                          element={<Chat />} />
+          <Route path="/chat/:id"                      element={<Chat />} />
+          <Route path="/education"                     element={<Education />} />
+          <Route path="/memory"                        element={<Memory />} />
+          <Route path="/connections"                   element={<MCPIntegrationsPage />} />
+          <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />
+          <Route path="/connections/tools/:toolId"     element={<MCPToolDetailPage />} />
+          <Route path="/connections/log"               element={<MCPExecutionLogPage />} />
+          <Route path="/connections/:id"               element={<MCPIntegrationDetailPage />} />
+        </Routes>
+      </div>
+    </Suspense>
   )
 }
 
-/**
- * Mounts the background ingestion worker once the store is available.
- * Kept as a separate component so the worker only activates inside the
- * React tree where useStore is valid.
- */
+// ─── Background workers ───────────────────────────────────────────────────────
+
 function IngestionWorker() {
   const { documents, documentContents } = useStore()
   useIngestionWorker(documents, documentContents)
   return null
 }
 
-// Runs in the background — generates memory-index.json + memory-index.md
-// whenever relevant localStorage keys change. No visible UI; pure side-effect.
 function MemoryIndexUpdater() {
   useMemoryIndex()
   return null
 }
+
+// requestIdleCallback polyfill — Safari doesn't support rIC; fall back to a
+// short setTimeout so workers still mount soon but after the first paint.
+const rIC = typeof window !== 'undefined' && window.requestIdleCallback
+  ? (cb) => window.requestIdleCallback(cb, { timeout: 2000 })
+  : (cb) => setTimeout(cb, 200)
+const cIC = typeof window !== 'undefined' && window.cancelIdleCallback
+  ? (id) => window.cancelIdleCallback(id)
+  : (id) => clearTimeout(id)
+
+// Defers background workers until the browser is idle after the first paint
+// so they don't compete with the critical rendering path on startup.
+function DeferredWorkers() {
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    const id = rIC(() => setReady(true))
+    return () => cIC(id)
+  }, [])
+  if (!ready) return null
+  return (
+    <>
+      <IngestionWorker />
+      <MemoryIndexUpdater />
+    </>
+  )
+}
+
+// ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
   const mainRef = useRef(null)
   return (
     <BrowserRouter>
       <ConfirmProvider>
-        <IngestionWorker />
-        <MemoryIndexUpdater />
+        <DeferredWorkers />
         <div className="flex h-full">
           <LeftRail />
           <div className="flex flex-col flex-1 min-w-0">

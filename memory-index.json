@@ -1,15 +1,15 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-05-06T02:04:46.939Z",
+  "generatedAt": "2026-05-06T02:29:17.878Z",
   "appName": "FlowMap",
   "appVersion": "0.0.0",
   "stats": {
-    "total": 1102,
+    "total": 1114,
     "byType": {
       "project": 1,
       "conversation": 16,
       "decision": 11,
-      "workflow": 0,
+      "workflow": 12,
       "source_item": 108,
       "preference": 3,
       "insight": 963
@@ -62,7 +62,7 @@
         "ollama",
         "local-first"
       ],
-      "createdAt": "2026-05-06T02:04:46.894Z",
+      "createdAt": "2026-05-06T02:29:17.854Z",
       "source": "package.json (static)",
       "metadata": {
         "version": "0.0.0",
@@ -2116,6 +2116,186 @@
         "url": "https://www.youtube.com/watch?v=M0WwogRk7xI",
         "type": "video",
         "savedAt": "2026-05-06T00:30:32.072Z"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_telegram",
+      "type": "workflow",
+      "label": "MCP: Telegram (telegram)",
+      "tags": [
+        "telegram",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.337Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "telegram",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_figma",
+      "type": "workflow",
+      "label": "MCP: Figma (figma)",
+      "tags": [
+        "figma",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "figma",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_google_drive",
+      "type": "workflow",
+      "label": "MCP: Google Drive (google-drive)",
+      "tags": [
+        "google-drive",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "google-drive",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_gmail",
+      "type": "workflow",
+      "label": "MCP: Gmail (gmail)",
+      "tags": [
+        "gmail",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "gmail",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_google_calendar",
+      "type": "workflow",
+      "label": "MCP: Google Calendar (google-calendar)",
+      "tags": [
+        "google-calendar",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "google-calendar",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_google_slides",
+      "type": "workflow",
+      "label": "MCP: Google Slides (google-slides)",
+      "tags": [
+        "google-slides",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "google-slides",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_youtube",
+      "type": "workflow",
+      "label": "MCP: YouTube (youtube)",
+      "tags": [
+        "youtube",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "youtube",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_google_docs",
+      "type": "workflow",
+      "label": "MCP: Google Docs (google-docs)",
+      "tags": [
+        "google-docs",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "google-docs",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_higgsfield",
+      "type": "workflow",
+      "label": "MCP: Higgsfield AI (higgsfield)",
+      "tags": [
+        "higgsfield",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "higgsfield",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_instagram",
+      "type": "workflow",
+      "label": "MCP: Instagram (instagram)",
+      "tags": [
+        "instagram",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "instagram",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_facebook",
+      "type": "workflow",
+      "label": "MCP: Facebook (facebook)",
+      "tags": [
+        "facebook",
+        "disconnected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "facebook",
+        "status": "disconnected"
+      }
+    },
+    {
+      "id": "mcp:integration:integ_flowmap",
+      "type": "workflow",
+      "label": "MCP: FlowMap (flowmap)",
+      "tags": [
+        "flowmap",
+        "connected"
+      ],
+      "updatedAt": "2026-05-06T01:49:21.338Z",
+      "source": "fm_mcp_integrations",
+      "metadata": {
+        "type": "flowmap",
+        "status": "connected"
       }
     },
     {
