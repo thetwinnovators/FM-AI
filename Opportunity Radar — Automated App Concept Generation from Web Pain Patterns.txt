@@ -1,0 +1,622 @@
+# Opportunity Radar — Automated App Concept Generation from Web Pain Patterns
+
+## Overview
+
+Build a FlowMap feature that automatically detects emerging app opportunities by searching the web for recurring pain patterns, then generates structured app concept packages with Claude Code build prompts.
+
+**Key principle**: Every opportunity must be **realistically buildable as a single-page web app or small tool using Claude Code** — no vague enterprise platforms, no hardware-dependent ideas, no multi-year projects.
+
+---
+
+## Goal
+
+Use FlowMap's existing multi-source web search to continuously scan Reddit, Hacker News, YouTube, Twitter/X, Product Hunt, and other sources for user pain points, complaints, unmet needs, and workaround behavior. Cluster related pain signals into validated opportunity patterns, rank them by weighted frequency, and surface the **top 3** as featured opportunities ready for concept generation.
+
+---
+
+## How It Works
+
+### 1. Automated Pain Signal Collection
+
+FlowMap runs **scheduled search queries** across its supported sources targeting pain-pattern keywords:
+
+**Pain detection queries:**
+- "I hate how..."
+- "There should be a tool for..."
+- "Why isn't there an app that..."
+- "I keep doing this manually..."
+- "The current tools are too expensive / too slow / too complex"
+- "I built a workaround for..."
+- "[tool name] doesn't support..."
+- "This takes too long every time..."
+- "I wish [product] had..."
+- "No good solution for..."
+- "Still doing this in spreadsheets..."
+- "Frustrated with..."
+
+**Search behavior:**
+- Run on a schedule (configurable: daily, every 6 hours, etc.)
+- Search across all enabled sources
+- Store raw results with metadata (source, URL, timestamp, author)
+
+---
+
+### 2. Pain Signal Extraction
+
+For each search result:
+- Extract the pain statement
+- Normalize the language
+- Classify pain type:
+  - Workflow friction
+  - Cost/pricing issue
+  - Missing feature
+  - Tool complexity
+  - Speed/performance
+  - Manual workaround
+  - Integration gap
+  - Data/privacy concern
+- Score pain intensity based on:
+  - Emotional language ("frustrated," "gave up," "terrible," "nightmare")
+  - Urgency indicators ("every day," "constantly," "always," "waste hours")
+  - Workaround evidence ("I built a script," "I use three tools," "manual process")
+  - Financial impact ("wasted hours," "too expensive," "can't afford," "lost money")
+
+**Pain intensity scoring:**
+```text
+IntensityScore = 
+  emotionalLanguageScore (0–3) +
+  urgencyScore (0–3) +
+  workaroundEvidenceScore (0–2) +
+  financialImpactScore (0–2)
+
+Range: 0–10
+```
+
+---
+
+### 3. Pattern Clustering
+
+Group related pain signals into **opportunity clusters** based on:
+- Semantic similarity of pain descriptions (use Ollama embeddings)
+- Shared pain type
+- Shared user persona or context
+- Shared workaround behavior
+
+**Clustering logic:**
+- Use cosine similarity on pain statement embeddings
+- Threshold: 0.75+ similarity = same cluster
+- Merge clusters with >70% overlapping signals
+- Label each cluster with a descriptive pain theme
+
+---
+
+### 4. Opportunity Scoring and Ranking
+
+Score each cluster using a **weighted opportunity formula**:
+
+```text
+OpportunityScore = 
+  (signalCount × 2) +           // raw frequency (most important)
+  sourceDiversity +             // how many different platforms mentioned it
+  recencyBonus +                // recent signals weighted higher (last 7 days = +5, last 30 days = +2)
+  (avgPainIntensity × 1.5) +    // average emotional intensity across signals
+  specificityBonus +            // clear, actionable pain gets +3
+  buildabilityBonus -           // Claude-Code-buildable gets +5
+  saturationPenalty             // already-solved problems get –10
+```
+
+**Buildability filter (CRITICAL):**
+
+Before ranking, filter OUT patterns that are:
+- Enterprise/B2B requiring multi-user auth, admin panels, role management
+- Hardware-dependent (IoT, physical devices, sensors)
+- Requiring complex backend infrastructure (payment processing, real-time multiplayer, video streaming)
+- Multi-platform native apps (mobile-only, desktop-only)
+- Regulated industries requiring compliance (healthcare, finance, legal)
+- Requiring third-party integrations that need OAuth or paid APIs
+
+**Keep ONLY patterns that can be built as:**
+- Single-page web apps
+- Browser tools/extensions
+- Simple calculators, converters, generators
+- Dashboards with local data
+- Note-taking, organization, tracking tools
+- Content creation/editing tools
+- Visualization tools
+- Personal productivity tools
+
+---
+
+### 5. Surface Top 3 Opportunities
+
+After ranking, the page displays:
+- **Top 3 highest-ranked pain patterns** as featured opportunity cards
+- All other detected patterns in a secondary sortable list
+
+---
+
+## Page Structure
+
+### Section 1: Top 3 Opportunities (Featured)
+
+Large, prominent cards showing the 3 highest-ranked, Claude-Code-buildable pain patterns.
+
+**Each card displays:**
+- Rank badge (#1, #2, #3)
+- Pain pattern title (e.g., "Freelancer Invoice Tracking Pain")
+- Opportunity score (score + bar indicator)
+- Signal count (e.g., "47 signals detected")
+- Source diversity badge (e.g., "3 sources: Reddit, HN, Twitter")
+- Recency indicator (e.g., "Last seen: 2 hours ago")
+- Pain intensity indicator (Low / Medium / High)
+- Brief problem summary (1–2 sentences extracted from top signals)
+- **Primary CTA:**  
+  - "Generate App Concept" (if no concept exists yet)  
+  - "View Concept" (if concept already generated)
+- **Secondary CTA:** "View Evidence" (shows all supporting signals)
+- Badge: "Claude-Code-buildable ✅" (only if buildability filter passed)
+
+### Section 2: All Pain Patterns (Secondary)
+
+A sortable, filterable table/list of all detected pain clusters.
+
+**Columns:**
+- Pattern name
+- Signal count
+- Source count
+- Last detected date
+- Opportunity score
+- Status (New / Concept Ready / Concept Generated / Archived)
+- Actions (Generate Concept / View Evidence)
+
+**Filters:**
+- By source (Reddit, HN, Twitter, etc.)
+- By date range
+- By status
+- By buildability (Claude-Code-buildable only — default ON)
+
+**Sort options:**
+- Opportunity score (descending — default)
+- Signal count
+- Recency
+- Source diversity
+
+---
+
+## App Concept Structure
+
+When user clicks **"Generate App Concept"**, the system generates a complete package.
+
+### Concept Components
+
+**1. Header**
+- App concept title (short, descriptive)
+- Tagline (one-sentence value prop)
+- Confidence score (opportunity score mapped to 0–100%)
+- Last updated timestamp
+
+**2. Problem Statement**
+- 2–3 paragraphs describing the pain
+- Who is affected (target user/persona)
+- Current alternatives or workarounds people use
+- Why existing solutions fail
+
+**3. Evidence Summary**
+- Signal count
+- Source breakdown (Reddit: 23, HN: 15, Twitter: 9)
+- Date range (first detected → last detected)
+- Top 3–5 direct quotes from signals (with source links)
+
+**4. Recurring Pain Points**
+- Bulleted list of specific complaints detected
+- Each with frequency count
+
+**5. Proposed Digital Solution**
+- What the app should do (core features)
+- MVP scope (minimum buildable version)
+- Why it solves the pain
+- What makes it different from existing tools
+
+**6. Value Proposition**
+- What users gain (time saved, friction removed, cost saved)
+- Primary benefit
+- Secondary benefits
+
+**7. Target User**
+- Persona description
+- User context
+- Technical skill level
+- Willingness to pay (if mentioned in signals)
+
+**8. Risks / Uncertainties**
+- What could go wrong
+- What's unclear from the signals
+- Assumptions that need validation
+- Market saturation concerns
+
+**9. Claude Code Build Prompt**
+
+A ready-to-paste prompt for Claude Code that includes:
+- App description
+- Core features (MVP scope)
+- UI requirements
+- Data model
+- User flows
+- Technical constraints (single-page, local storage, etc.)
+- Design direction
+
+**Format:**
+```markdown
+## Claude Code Build Prompt
+
+Build a [app type] that [core problem solved].
+
+### Problem
+[2–3 sentence problem statement]
+
+### Solution
+A single-page web app that allows users to:
+- [feature 1]
+- [feature 2]
+- [feature 3]
+
+### Core Features (MVP)
+1. [feature with detail]
+2. [feature with detail]
+3. [feature with detail]
+
+### UI Requirements
+- [layout guidance]
+- [component requirements]
+- [responsive behavior]
+
+### Data Model
+- [entity 1]
+- [entity 2]
+
+### User Flow
+1. [step 1]
+2. [step 2]
+3. [step 3]
+
+### Technical Constraints
+- Single HTML file with embedded CSS/JS
+- No backend required
+- localStorage for persistence
+- Works offline
+- Mobile-responsive
+
+### Design Direction
+- [tone/aesthetic]
+- [color guidance if relevant]
+```
+
+**10. Implementation Plan**
+
+A phased build roadmap:
+
+**Phase 1: Core MVP (Week 1)**
+- [ ] [feature 1]
+- [ ] [feature 2]
+- [ ] [feature 3]
+
+**Phase 2: Enhancement (Week 2)**
+- [ ] [feature 4]
+- [ ] [feature 5]
+
+**Phase 3: Polish (Week 3)**
+- [ ] [UX improvement]
+- [ ] [additional feature]
+
+**11. Actions**
+- Copy Claude Code Prompt
+- Copy Implementation Plan
+- Save as Note
+- Export as Markdown
+- Archive Concept
+- Start Workflow (future integration)
+
+---
+
+## Data Model
+
+### Pain Signals Table
+
+```sql
+pain_signals (
+  id                uuid PRIMARY KEY,
+  detected_at       timestamp,
+  source            text,              -- 'reddit', 'hackernews', 'twitter', etc.
+  source_url        text,
+  author            text,
+  pain_text         text,
+  pain_type         text,              -- 'workflow', 'cost', 'feature', 'complexity', etc.
+  intensity_score   int,               -- 0–10
+  cluster_id        uuid REFERENCES opportunity_clusters(id),
+  created_at        timestamp
+)
+```
+
+### Opportunity Clusters Table
+
+```sql
+opportunity_clusters (
+  id                uuid PRIMARY KEY,
+  cluster_name      text,
+  pain_theme        text,
+  opportunity_score decimal,
+  signal_count      int,
+  source_diversity  int,
+  first_detected    timestamp,
+  last_detected     timestamp,
+  avg_intensity     decimal,
+  is_buildable      boolean,           -- Claude-Code-buildable filter
+  status            text,              -- 'emerging', 'validated', 'concept_generated', 'archived'
+  created_at        timestamp,
+  updated_at        timestamp
+)
+```
+
+### App Concepts Table
+
+```sql
+app_concepts (
+  id                    uuid PRIMARY KEY,
+  cluster_id            uuid REFERENCES opportunity_clusters(id),
+  title                 text,
+  tagline               text,
+  confidence_score      int,               -- 0–100
+  problem_statement     text,
+  target_user           text,
+  evidence_summary      jsonb,
+  pain_points           jsonb,             -- array of {point, frequency}
+  proposed_solution     text,
+  value_proposition     text,
+  mvp_scope             text,
+  risks                 text,
+  claude_code_prompt    text,
+  implementation_plan   text,
+  status                text,              -- 'new', 'reviewing', 'saved', 'building', 'archived'
+  created_at            timestamp,
+  updated_at            timestamp
+)
+```
+
+### Concept Evidence (Join Table)
+
+```sql
+concept_evidence (
+  concept_id        uuid REFERENCES app_concepts(id),
+  signal_id         uuid REFERENCES pain_signals(id),
+  relevance_score   decimal,
+  created_at        timestamp,
+  PRIMARY KEY (concept_id, signal_id)
+)
+```
+
+---
+
+## Search Automation
+
+Implement a **scheduled search worker** using FlowMap's existing background job system.
+
+### Worker Behavior
+
+**Schedule:**
+- Configurable interval (default: every 6 hours)
+- User can adjust per source
+
+**Tasks:**
+1. Run pain-pattern queries across enabled sources
+2. Extract pain signals from results
+3. Store signals with metadata
+4. Trigger clustering pipeline
+5. Update opportunity scores
+6. Notify user if new high-confidence opportunities are detected
+
+**Notification triggers:**
+- New pattern enters top 3
+- Existing top-3 pattern crosses higher confidence threshold
+- Cross-source validation (same pain detected on 3+ sources)
+
+---
+
+## Supported Sources
+
+### Phase 1 (Already Available in FlowMap)
+- **Reddit** — existing integration
+- **Hacker News** — existing integration
+- **YouTube** — comments via Piped integration
+
+### Phase 2 (Add Next)
+- **Twitter/X** — real-time complaints, “why doesn’t X exist” tweets
+- **Product Hunt** — product feedback, missing features
+- **G2 / Capterra** — B2B tool complaints, detailed pain points
+
+### Phase 3 (Future Expansion)
+- **LinkedIn** — professional/enterprise pain
+- **Indie Hackers** — founder/bootstrapper struggles
+- **GitHub Issues** — developer tool pain, missing features
+- **Discord** (public servers) — niche community pain
+- **Stack Overflow** — technical workarounds, repeated questions
+
+**Source configuration:**
+- User can enable/disable each source
+- Set different search frequencies per source
+- Configure pain-query keywords per source
+
+---
+
+## Quality Requirements
+
+### Buildability Filter (Critical)
+
+Every opportunity must pass the **Claude-Code-buildability test**:
+
+**Can this be built as a single-page web app with:**
+- HTML + CSS + JavaScript (one file or simple multi-file)
+- localStorage or IndexedDB for persistence
+- No backend required (or simple serverless functions)
+- No paid third-party APIs
+- No OAuth or complex auth
+- Works offline or with simple fetch calls
+- Responsive, mobile-friendly
+
+**Exclude:**
+- Multi-user apps requiring databases and auth
+- Real-time collaboration requiring WebSockets/backend
+- Payment processing
+- Video/audio streaming
+- Native mobile/desktop apps
+- Hardware integration (IoT, sensors, Bluetooth)
+- Regulated industries (HIPAA, PCI-DSS, etc.)
+
+### Evidence Requirements
+
+- Minimum 10 signals to form a cluster
+- Minimum 2 sources for cross-validation
+- Maximum 90 days since last signal (older = archived)
+- At least 3 high-intensity signals (score 7+)
+
+### Concept Quality Standards
+
+- Problem statement must be specific and actionable
+- Claude Code prompt must be complete and ready to paste
+- Implementation plan must have concrete phases
+- Avoid generic/vague language (“revolutionize,” “disrupt,” “game-changer”)
+- Every claim must link to supporting evidence
+
+---
+
+## Build Phases
+
+### Phase 1: Pain Signal Search Automation
+- Scheduled search worker
+- Pain signal extraction from Reddit, HN, YouTube
+- Storage and metadata tracking
+- Basic clustering by keyword similarity
+
+### Phase 2: Clustering and Scoring Pipeline
+- Semantic clustering using Ollama embeddings
+- Opportunity scoring algorithm
+- Buildability filter
+- Top 3 ranking logic
+
+### Phase 3: Concept Generation
+- Concept schema implementation
+- Claude Code prompt generator
+- Implementation plan generator
+- Evidence linking
+
+### Phase 4: UI Implementation
+- Opportunity Radar main page
+- Top 3 featured cards
+- All patterns secondary list
+- Concept detail view
+- Evidence detail view
+
+### Phase 5: Refinement
+- Scoring tuning based on real data
+- Threshold adjustments
+- Filtering improvements
+- Additional source integrations (Twitter, Product Hunt)
+
+---
+
+## Technical Requirements
+
+- Reuse FlowMap's existing search infrastructure
+- Reuse Ollama embeddings for semantic clustering
+- Use background workers for scheduled search
+- Persist all data in FlowMap's database
+- Surface concepts in UI with proper filtering and search
+- Generate Claude Code prompts dynamically
+- Provide export options (markdown, JSON, clipboard)
+- Maintain audit log of all generated concepts
+
+---
+
+## User Flows
+
+### Flow 1: Discovering a New Opportunity
+
+1. User navigates to Opportunity Radar page
+2. Sees top 3 ranked opportunities
+3. Clicks on #1 ranked opportunity card
+4. Reviews signal count, sources, evidence summary
+5. Clicks "Generate App Concept"
+6. System generates complete concept package
+7. User reviews problem, solution, value prop
+8. User clicks "Copy Claude Code Prompt"
+9. Pastes prompt into Claude Code
+10. Starts building
+
+### Flow 2: Reviewing Evidence
+
+1. User clicks "View Evidence" on an opportunity card
+2. System shows all pain signals in cluster
+3. Signals grouped by source
+4. Each signal shows: text, source URL, author, date, intensity
+5. User can filter by source, date, intensity
+6. User can click source URL to view original context
+
+### Flow 3: Browsing All Patterns
+
+1. User scrolls to "All Pain Patterns" section
+2. Sorts by opportunity score (default) or other metrics
+3. Filters by source, date range, buildability
+4. Clicks on any pattern to view details
+5. Can manually generate concept for lower-ranked patterns
+
+---
+
+## Success Metrics
+
+Track:
+- Pain signals collected per day
+- Opportunity clusters formed per week
+- Top 3 churn rate (how often ranking changes)
+- Concepts generated
+- Claude Code prompts copied
+- Build success rate (user reports building the app)
+
+---
+
+## Deliverables
+
+- Architecture plan
+- Data model implementation (tables, indexes)
+- Scheduled search worker
+- Pain signal extraction pipeline
+- Clustering and scoring logic
+- Buildability filter
+- Concept generation templates
+- Claude Code prompt generator
+- Implementation plan generator
+- Opportunity Radar UI (main page)
+- Top 3 featured cards component
+- All patterns list component
+- Concept detail view
+- Evidence detail view
+- Export functionality
+
+---
+
+## Questions for Implementation
+
+Before starting, confirm:
+
+1. **Which sources to prioritize first?**  
+   Recommended: Reddit + HN (already wired), then add Twitter/X.
+2. **Search frequency?**  
+   Recommended: every 6 hours initially, user-configurable later.
+3. **Pain query configuration?**  
+   Start with predefined queries, add user-defined queries in Phase 2.
+4. **Opportunity score threshold for top 3?**  
+   Recommended: minimum score of 20 to qualify.
+5. **Concept auto-generation or user-triggered?**  
+   Recommended: user-triggered (click "Generate App Concept").
+6. **Notification preferences?**  
+   Recommended: notify only when a new pattern enters top 3.
+
+---
