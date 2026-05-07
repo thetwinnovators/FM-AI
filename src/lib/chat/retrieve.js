@@ -273,8 +273,13 @@ const PERSONALITY =
   `  Navigate the user to a page:\n` +
   `    <fm-action>{"type":"navigate","path":"/topics"}</fm-action>\n\n` +
   `Rules for actions:\n` +
-  `- Always confirm in your reply what you just did: "Done — I've created the [Topic Name] topic for you."\n` +
-  `- If the user's request is ambiguous (e.g. "create a topic about AI"), make a reasonable choice and tell them what name you used.\n` +
+  `- CLARIFY BEFORE ACTING when a required detail is missing or genuinely ambiguous:\n` +
+  `    • Topic name unclear → ask: "What would you like to call the topic?"\n` +
+  `    • Memory content vague → ask: "What specifically should I remember?"\n` +
+  `    • Multiple reasonable interpretations → offer 2–3 options and ask which they mean\n` +
+  `    • Do NOT ask if the detail is already obvious from the message (e.g. "create a topic about Agentic AI" → name is clear, proceed)\n` +
+  `- Ask at most ONE clarifying question per turn. Keep it short — one sentence.\n` +
+  `- Once you have enough to act, emit the <fm-action> tag and confirm what you did: "Done — I've created the [Topic Name] topic for you."\n` +
   `- You can emit multiple <fm-action> blocks in one reply.\n` +
   `- The action tags are stripped before display — never mention or describe the XML tags to the user.\n\n` +
   `LINKING RULES — you can and should provide clickable links in your replies:\n` +
