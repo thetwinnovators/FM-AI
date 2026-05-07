@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { GraduationCap, Trash2 } from 'lucide-react'
+import { Clock, GraduationCap, Trash2, Share2 } from 'lucide-react'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import TopicPicker from './TopicPicker.jsx'
@@ -8,6 +8,8 @@ import LessonView from './LessonView.jsx'
 import QuizView from './QuizView.jsx'
 import QuizResults from './QuizResults.jsx'
 import { computePercentComplete } from '../quizEngine.js'
+import ShareCourseModal from '../../flow-academy-sharing/components/ShareCourseModal.jsx'
+import ImportCourseModal from '../../flow-academy-sharing/components/ImportCourseModal.jsx'
 
 // ── Static fallback topics (shown when the user has no saved interests yet) ───
 
@@ -72,80 +74,161 @@ function usePersonalisedTopics() {
 function CourseCard({ course, onOpen }) {
   const { deleteCourse } = useStore()
   const pct = computePercentComplete(course)
-  const passedCount = course.lessons.filter((l) => l.status === 'passed').length
+  const passedLessons = course.lessons.filter((l) => l.status === 'passed')
+  const passedCount = passedLessons.length
   const [confirming, setConfirming] = useState(false)
 
-  function handleDelete(e) {
-    e.stopPropagation()
-    setConfirming(true)
-  }
+  // Average quiz score across lessons that have been scored
+  const scoredLessons = passedLessons.filter((l) => l.bestScore != null)
+  const avgScore = scoredLessons.length > 0
+    ? Math.round(scoredLessons.reduce((sum, l) => sum + l.bestScore, 0) / scoredLessons.length)
+    : null
 
-  function handleConfirmDelete(e) {
-    e.stopPropagation()
-    deleteCourse(course.id)
-  }
+  const isCompleted = course.status === 'completed'
 
-  function handleCancelDelete(e) {
-    e.stopPropagation()
-    setConfirming(false)
-  }
+  function handleDelete(e) { e.stopPropagation(); setConfirming(true) }
+  function handleConfirmDelete(e) { e.stopPropagation(); deleteCourse(course.id) }
+  function handleCancelDelete(e) { e.stopPropagation(); setConfirming(false) }
 
   return (
     <div
-      className="relative group w-full text-left p-4 rounded-xl border border-white/[0.08] hover:border-white/20 transition-colors cursor-pointer"
-      style={{ background: 'linear-gradient(160deg, rgba(15,17,28,0.6) 0%, rgba(8,10,18,0.7) 100%)' }}
+      className="relative group w-full text-left rounded-xl border overflow-hidden cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg"
+      style={{
+        background: 'linear-gradient(160deg, rgba(15,17,28,0.75) 0%, rgba(8,10,18,0.85) 100%)',
+        borderColor: isCompleted ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)',
+        boxShadow: isCompleted ? '0 0 0 1px rgba(52,211,153,0.1) inset' : 'none',
+      }}
       onClick={() => !confirming && onOpen(course.id)}
     >
-      <div className="flex items-start justify-between gap-3 mb-2">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-white/90 truncate">{course.title}</p>
-          <p className="text-xs text-[color:var(--color-text-tertiary)] mt-0.5 truncate">{course.topic}</p>
+      <div className="p-5">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-sm font-semibold text-white/90 leading-snug mb-1"
+              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
+              {course.title}
+            </p>
+            <p className="text-[11px] text-white/35 truncate tracking-wide uppercase">{course.topic}</p>
+          </div>
+
+          {/* Status pill + delete */}
+          <div className="flex items-center gap-2 flex-shrink-0 mt-0.5">
+            {!confirming && (
+              <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md border ${
+                isCompleted
+                  ? 'text-emerald-400 bg-emerald-500/15 border-emerald-400/25'
+                  : 'text-teal-400/80 bg-teal-500/10 border-teal-400/15'
+              }`}>
+                {isCompleted ? 'Completed' : 'In Progress'}
+              </span>
+            )}
+
+            {confirming ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-white/40 mr-0.5">Delete?</span>
+                <button onClick={handleConfirmDelete} className="text-[11px] font-semibold px-2 py-0.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500/35 transition-colors">Yes</button>
+                <button onClick={handleCancelDelete} className="text-[11px] font-semibold px-2 py-0.5 rounded bg-white/[0.06] text-white/50 hover:bg-white/[0.12] transition-colors">No</button>
+              </div>
+            ) : (
+              <button
+                onClick={handleDelete}
+                className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-white/25 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                title="Delete course"
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Right side: status badge + delete controls */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {course.status === 'completed' && !confirming && (
-            <span className="text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded border text-emerald-300 border-emerald-400/40 bg-emerald-500/10">
-              Done
+        {/* ── Course summary ── */}
+        {course.summary && (
+          <p
+            className="text-[12px] text-white/40 leading-relaxed mb-4"
+            style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+          >
+            {course.summary}
+          </p>
+        )}
+
+        {/* ── Meta row: time · lessons ── */}
+        <div className="flex items-center gap-4 mb-4">
+          {course.estimatedDurationMinutes > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Clock size={12} className="text-white/30 flex-shrink-0" />
+              <span className="text-xs font-medium text-white/50">
+                {course.estimatedDurationMinutes >= 60
+                  ? `${Math.floor(course.estimatedDurationMinutes / 60)}h${course.estimatedDurationMinutes % 60 > 0 ? ` ${course.estimatedDurationMinutes % 60}m` : ''}`
+                  : `${course.estimatedDurationMinutes}m`}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-white/50">
+              {course.lessons.length} lessons
+            </span>
+          </div>
+        </div>
+
+        {/* ── Progress bar ── */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-white/30 font-medium">Progress</span>
+            <span className="text-[11px] font-bold text-white/60">{pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${pct}%`,
+                background: isCompleted
+                  ? 'linear-gradient(90deg, #10b981 0%, #06b6d4 100%)'
+                  : 'linear-gradient(90deg, #0d9488 0%, #6366f1 100%)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* ── Lesson dots + score ── */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            {/* One dot per lesson — filled=passed, ring=unlocked, dark=locked */}
+            {course.lessons.map((l) => (
+              <div
+                key={l.id}
+                title={l.title}
+                className="rounded-full flex-shrink-0 transition-all"
+                style={{
+                  width:  l.status === 'passed' ? 8 : 6,
+                  height: l.status === 'passed' ? 8 : 6,
+                  background:
+                    l.status === 'passed'   ? '#2dd4bf' :
+                    l.status === 'unlocked' ? 'transparent' :
+                    'rgba(255,255,255,0.08)',
+                  border:
+                    l.status === 'unlocked' ? '1.5px solid rgba(45,212,191,0.45)' : 'none',
+                }}
+              />
+            ))}
+            <span className="text-[11px] text-white/35 ml-0.5">
+              {passedCount} / {course.lessons.length} done
+            </span>
+          </div>
+
+          {/* Avg score badge */}
+          {avgScore != null && (
+            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+              avgScore >= 80 ? 'text-emerald-400 bg-emerald-500/10' :
+              avgScore >= 60 ? 'text-amber-400 bg-amber-500/10' :
+                               'text-red-400 bg-red-500/10'
+            }`}>
+              Avg {avgScore}%
             </span>
           )}
-
-          {confirming ? (
-            /* Confirmation row */
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-white/50 mr-0.5">Delete?</span>
-              <button
-                onClick={handleConfirmDelete}
-                className="text-[11px] font-semibold px-2 py-0.5 rounded bg-red-500/20 text-red-300 hover:bg-red-500/35 transition-colors"
-              >
-                Yes
-              </button>
-              <button
-                onClick={handleCancelDelete}
-                className="text-[11px] font-semibold px-2 py-0.5 rounded bg-white/[0.06] text-white/50 hover:bg-white/[0.12] transition-colors"
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            /* Trash icon — visible on hover */
-            <button
-              onClick={handleDelete}
-              className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-all"
-              title="Delete course"
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
         </div>
       </div>
-
-      <div className="mt-3 h-1 rounded-full bg-white/[0.06]">
-        <div className="h-full rounded-full bg-teal-400 transition-all" style={{ width: `${pct}%` }} />
-      </div>
-      <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-1.5">
-        {pct}% complete · {passedCount} of {course.lessons.length} lessons passed
-      </p>
     </div>
   )
 }
@@ -154,15 +237,19 @@ function CourseCard({ course, onOpen }) {
 // All course views (syllabus, lesson, quiz, results) render inside this white
 // card so they feel like a focused document, distinct from the dark app chrome.
 
-function CourseFrame({ children }) {
+function CourseFrame({ children, onHome, actions }) {
   return (
     <div className="p-5 pb-10">
       {/* Page-level header — stays in the dark app chrome above the card */}
       <div className="flex items-center gap-2 mb-4 px-1">
         <GraduationCap size={16} className="text-teal-400" />
-        <span className="text-sm font-semibold text-[color:var(--color-text-secondary)] tracking-wide">
+        <button
+          onClick={onHome}
+          className="text-sm font-semibold tracking-wide text-[color:var(--color-text-secondary)] hover:text-teal-400 transition-colors"
+        >
           Flow Academy
-        </span>
+        </button>
+        {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
       </div>
 
       <div
@@ -204,45 +291,77 @@ export default function AcademyHome() {
   // { view: 'syllabus' | 'lesson' | 'quiz' | 'results', courseId, lessonId?, quizResult? }
   const [nav, setNav] = useState(null)
 
+  // Sharing modals
+  const [shareId, setShareId]     = useState(null)   // courseId being shared, or null
+  const [importOpen, setImport]   = useState(false)
+
+  // Always scroll the main content panel to the top before switching views.
+  function navigate(navState) {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' })
+    setNav(navState)
+  }
+
   function openCourse(courseId) {
-    setNav({ view: 'syllabus', courseId })
+    navigate({ view: 'syllabus', courseId })
   }
 
   function openLesson(courseId, lessonId) {
-    setNav({ view: 'lesson', courseId, lessonId })
+    navigate({ view: 'lesson', courseId, lessonId })
   }
 
   function openQuiz(courseId, lessonId) {
-    setNav({ view: 'quiz', courseId, lessonId })
+    navigate({ view: 'quiz', courseId, lessonId })
   }
 
   function showResults(courseId, lessonId, quizResult) {
-    setNav({ view: 'results', courseId, lessonId, quizResult })
+    navigate({ view: 'results', courseId, lessonId, quizResult })
   }
 
   // ── Inner view rendering ──────────────────────────────────────────────────────
 
   if (nav) {
     const course = courseById(nav.courseId)
-    if (!course) { setNav(null); return null }
+    if (!course) { navigate(null); return null }
 
     if (nav.view === 'syllabus') {
       return (
-        <CourseFrame>
-          <BackButton onBack={() => setNav(null)} label="Flow Academy" />
-          <SyllabusView course={course} onOpenLesson={openLesson} />
-        </CourseFrame>
+        <>
+          <CourseFrame
+            onHome={() => navigate(null)}
+            actions={
+              <button
+                onClick={() => setShareId(course.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: 'rgba(13,148,136,0.15)',
+                  border: '1px solid rgba(45,212,191,0.25)',
+                  color: '#2dd4bf',
+                }}
+              >
+                <Share2 size={12} /> Share
+              </button>
+            }
+          >
+            <BackButton onBack={() => navigate(null)} label="Flow Academy" />
+            <SyllabusView course={course} onOpenLesson={openLesson} />
+          </CourseFrame>
+          <ShareCourseModal
+            open={shareId === course.id}
+            course={course}
+            onClose={() => setShareId(null)}
+          />
+        </>
       )
     }
 
     const lesson = course.lessons.find((l) => l.id === nav.lessonId)
-    if (!lesson) { setNav({ view: 'syllabus', courseId: nav.courseId }); return null }
+    if (!lesson) { navigate({ view: 'syllabus', courseId: nav.courseId }); return null }
 
     if (nav.view === 'lesson') {
       return (
-        <CourseFrame>
+        <CourseFrame onHome={() => navigate(null)}>
           <BackButton
-            onBack={() => setNav({ view: 'syllabus', courseId: nav.courseId })}
+            onBack={() => navigate({ view: 'syllabus', courseId: nav.courseId })}
             label={course.title}
           />
           <LessonView
@@ -256,7 +375,7 @@ export default function AcademyHome() {
 
     if (nav.view === 'quiz') {
       return (
-        <CourseFrame>
+        <CourseFrame onHome={() => navigate(null)}>
           <BackButton
             onBack={() => openLesson(nav.courseId, nav.lessonId)}
             label={lesson.title}
@@ -271,7 +390,7 @@ export default function AcademyHome() {
 
     if (nav.view === 'results') {
       return (
-        <CourseFrame>
+        <CourseFrame onHome={() => navigate(null)}>
           <QuizResults
             course={course}
             lesson={lesson}
@@ -284,10 +403,10 @@ export default function AcademyHome() {
               if (nextLesson) {
                 openLesson(nav.courseId, nextLesson.id)
               } else {
-                setNav({ view: 'syllabus', courseId: nav.courseId })
+                navigate({ view: 'syllabus', courseId: nav.courseId })
               }
             }}
-            onBackToSyllabus={() => setNav({ view: 'syllabus', courseId: nav.courseId })}
+            onBackToSyllabus={() => navigate({ view: 'syllabus', courseId: nav.courseId })}
           />
         </CourseFrame>
       )
@@ -307,23 +426,13 @@ export default function AcademyHome() {
   ]
 
   return (
-    <div className="p-6">
-      {/* Page header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-          <GraduationCap size={22} className="text-teal-400" /> Flow Academy
-        </h1>
-        <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">
-          AI-generated beginner courses on any topic. Learn step by step and prove your understanding.
-        </p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-white/[0.08]">
+    <div className="flex flex-col min-h-full">
+      {/* Tabs bar — always visible at top */}
+      <div className="flex gap-1 px-6 pt-4 border-b border-white/[0.08] flex-shrink-0">
         {TABS.map((t) => (
           <button
             key={t.id}
-            onClick={() => setTab(t.id)}
+            onClick={() => { document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' }); setTab(t.id) }}
             className={`px-4 py-2 text-sm font-medium transition-colors relative -mb-px ${
               tab === t.id
                 ? 'text-white border-b-2 border-teal-400'
@@ -342,11 +451,27 @@ export default function AcademyHome() {
 
       {/* Tab content */}
       {tab === 'discover' && (
-        <TopicPicker
-          suggestedTopics={suggestedTopics}
-          isPersonalised={hasPersonalData}
-          onCourseCreated={(courseId) => openCourse(courseId)}
-        />
+        <div
+          className="flex-1 flex flex-col items-center px-6 pt-10 pb-10 overflow-auto"
+          style={{ background: 'radial-gradient(ellipse 40% 25% at 50% 0%, rgba(20,184,166,0.07) 0%, transparent 70%)' }}
+        >
+          {/* Hero heading */}
+          <div className="flex flex-col items-center gap-2 mb-8">
+            <h1 className="text-4xl font-light tracking-tight">What would you like to learn?</h1>
+            <p className="text-sm text-[color:var(--color-text-tertiary)] text-center max-w-lg">
+              Generate an AI course on any topic — step by step lessons with quizzes included.
+            </p>
+          </div>
+
+          <div className="w-full max-w-2xl">
+            <TopicPicker
+              suggestedTopics={suggestedTopics}
+              isPersonalised={hasPersonalData}
+              onCourseCreated={(courseId) => openCourse(courseId)}
+              onImportClick={() => setImport(true)}
+            />
+          </div>
+        </div>
       )}
 
       {tab === 'in_progress' && (
@@ -355,14 +480,14 @@ export default function AcademyHome() {
             <GraduationCap size={28} className="mx-auto mb-3 opacity-40" />
             <p>
               No courses in progress.{' '}
-              <button className="underline text-white" onClick={() => setTab('discover')}>
+              <button className="underline text-white" onClick={() => { document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' }); setTab('discover') }}>
                 Discover
               </button>{' '}
               a topic to start one.
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+          <div className="p-6 grid grid-cols-3 gap-3">
             {inProgress.map((c) => <CourseCard key={c.id} course={c} onOpen={openCourse} />)}
           </div>
         )
@@ -374,11 +499,17 @@ export default function AcademyHome() {
             <p>No completed courses yet. Keep learning!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+          <div className="p-6 grid grid-cols-3 gap-3">
             {completed.map((c) => <CourseCard key={c.id} course={c} onOpen={openCourse} />)}
           </div>
         )
       )}
+
+      <ImportCourseModal
+        open={importOpen}
+        onClose={() => setImport(false)}
+        onImport={(courseId) => { setTab('in_progress'); openCourse(courseId) }}
+      />
     </div>
   )
 }
