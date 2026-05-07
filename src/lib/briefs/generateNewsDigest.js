@@ -1,4 +1,5 @@
-import { chatJson, OLLAMA_CONFIG } from '../llm/ollama.js'
+import { chatJson } from '../llm/ollama.js'
+import { OLLAMA_CONFIG } from '../llm/ollamaConfig.js'
 
 const SYSTEM_PROMPT = `You are an AI news analyst. Given a list of today's top AI stories from Hacker News and Reddit, produce a structured digest as JSON with these exact keys:
 - highlights: array of strings (4-6 one-sentence bullet developments)

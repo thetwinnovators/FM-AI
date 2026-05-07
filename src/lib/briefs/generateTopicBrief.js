@@ -1,4 +1,5 @@
-import { chatJson, OLLAMA_CONFIG } from '../llm/ollama.js'
+import { chatJson } from '../llm/ollama.js'
+import { OLLAMA_CONFIG } from '../llm/ollamaConfig.js'
 
 const SYSTEM_PROMPT = `You are an intelligence analyst. Given a list of saved content items on a topic, produce a structured brief as JSON with these exact keys:
 - overview: string (2-3 sentences summarising the topic's current state)
