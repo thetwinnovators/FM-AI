@@ -499,7 +499,9 @@ export function useStore() {
         )
         const topicTitle = topicEntry?.label ?? topicEntry?.name ?? enriched.topicId
 
-        const itemsForTopic = allItems.filter((i) => i.topicId === enriched.topicId)
+        const itemsForTopic = allItems.filter(
+          (i) => i.topicId === enriched.topicId || (i.topicIds ?? []).includes(enriched.topicId),
+        )
         const brief = await generateTopicBrief(topicTitle, enriched.topicId, itemsForTopic)
         if (brief) persist({ ...memoryState, briefs: { ...memoryState.briefs, [brief.id]: brief } })
       }, 0)

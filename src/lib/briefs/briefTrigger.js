@@ -18,7 +18,9 @@ export function newItemsSinceLastBrief(topicId, items = [], briefs = {}) {
       : 0
 
   return items.filter(
-    (item) => item.topicId === topicId && (item.savedAt ?? 0) > lastGeneratedAt,
+    (item) =>
+      (item.topicId === topicId || (item.topicIds ?? []).includes(topicId)) &&
+      (item.savedAt ?? 0) > lastGeneratedAt,
   ).length
 }
 
