@@ -15,8 +15,8 @@ export default function SuggestedPrompts({ questions, actions, onSend, onAction 
           <button
             key={q}
             onClick={() => onSend(q)}
-            className="text-[12px] px-3 py-1.5 rounded-full border border-teal-400/25 bg-teal-400/[0.07] text-teal-300/80
-              hover:bg-teal-400/[0.14] hover:text-teal-200 hover:border-teal-400/45 transition-colors cursor-pointer"
+            className="text-[12px] px-3 py-1.5 rounded-full border border-teal-700/30 bg-white text-teal-700
+              hover:bg-teal-50 hover:border-teal-600/50 hover:text-teal-800 transition-colors cursor-pointer"
           >
             {q}
           </button>
@@ -33,9 +33,9 @@ export default function SuggestedPrompts({ questions, actions, onSend, onAction 
               <button
                 key={a}
                 onClick={() => onAction(a)}
-                className="text-[11px] px-3 py-1 rounded-full border border-[color:var(--color-topic)]/30
-                  bg-[color:var(--color-topic)]/10 text-[color:var(--color-topic)]
-                  hover:bg-[color:var(--color-topic)]/20 hover:border-[color:var(--color-topic)]/50
+                className="text-[11px] px-3 py-1 rounded-full border border-slate-300
+                  bg-white text-slate-600
+                  hover:bg-slate-100 hover:border-slate-400 hover:text-slate-800
                   transition-colors cursor-pointer font-medium uppercase tracking-wide"
               >
                 {label}
