@@ -1,10 +1,13 @@
-import { Search, Settings, BookOpen, FileText, Wrench, User, Lightbulb, Clock, Globe, ChevronDown, Check } from 'lucide-react'
+import { Search, Settings, BookOpen, FileText, Wrench, User, Lightbulb, Clock, Globe, ChevronDown, Check, Radio } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useStore } from '../../store/useStore.js'
+import { useStore, unreadBriefCount } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import SettingsMenu from './SettingsMenu.jsx'
+import BriefsDropdown from '../briefs/BriefsDropdown.jsx'
+import BriefModal from '../briefs/BriefModal.jsx'
+import { useDailyDigestCheck } from '../briefs/useDailyDigestCheck.js'
 
 const TYPE_META = {
   recent:  { Icon: Clock,     label: 'Recent',   accent: 'var(--color-text-tertiary)' },
@@ -24,7 +27,13 @@ const MAX_SUGGESTIONS = 10
 
 export default function TopBar() {
   const navigate = useNavigate()
-  const { recordSearch, recentSearches, userTopics, documents } = useStore()
+  const { recordSearch, recentSearches, userTopics, documents, briefs } = useStore()
+  const unread = unreadBriefCount(briefs)
+  const [briefsOpen, setBriefsOpen] = useState(false)
+  const [activeBrief, setActiveBrief] = useState(null)
+  const briefsBtnRef = useRef(null)
+
+  useDailyDigestCheck()
   const { topics: seedTopics, tools, creators, concepts } = useSeed()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
@@ -346,6 +355,40 @@ export default function TopBar() {
             <div className="text-[10px] text-[color:var(--color-text-tertiary)]">researcher</div>
           </div>
         </div>
+          {/* Briefs button */}
+          <div className="relative">
+            <button
+              ref={briefsBtnRef}
+              onClick={() => setBriefsOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-[9px] text-[12px] font-semibold transition-colors"
+              style={{
+                background: 'rgba(13,148,136,0.15)',
+                border: '1px solid rgba(45,212,191,0.25)',
+                color: '#2dd4bf',
+              }}
+              aria-label="Open AI Briefs"
+            >
+              <Radio size={13} />
+              Briefs
+            </button>
+            {unread > 0 && (
+              <span
+                className="absolute flex items-center justify-center text-[10px] font-bold text-white"
+                style={{
+                  top: -6,
+                  right: -6,
+                  minWidth: 18,
+                  height: 18,
+                  borderRadius: 9,
+                  background: 'linear-gradient(135deg,#0d9488,#6366f1)',
+                  border: '2px solid var(--color-bg, #070a14)',
+                  padding: '0 4px',
+                }}
+              >
+                {unread}
+              </span>
+            )}
+          </div>
         <button
           ref={settingsBtnRef}
           onClick={() => setMenuOpen((v) => !v)}
@@ -357,6 +400,17 @@ export default function TopBar() {
         </button>
       </div>
       <SettingsMenu anchorRef={settingsBtnRef} open={menuOpen} onClose={() => setMenuOpen(false)} />
+          {briefsOpen && (
+            <BriefsDropdown
+              anchorRect={briefsBtnRef.current?.getBoundingClientRect()}
+              onClose={() => setBriefsOpen(false)}
+              onOpenBrief={(brief) => setActiveBrief(brief)}
+            />
+          )}
+          <BriefModal
+            brief={activeBrief}
+            onClose={() => setActiveBrief(null)}
+          />
     </header>
   )
 }
