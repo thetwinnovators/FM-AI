@@ -8,6 +8,9 @@ import RouteLoadingBar from './components/ui/RouteLoadingBar.jsx'
 import { useStore } from './store/useStore.js'
 import { useIngestionWorker } from './flow-ai/hooks/useIngestionWorker.js'
 import { useMemoryIndex } from './memory-index/useMemoryIndex.js'
+import { localMCPStorage } from './mcp/storage/localMCPStorage.js'
+import { startPolling, stopPolling } from './mcp/services/telegramPollingService.js'
+import { processTelegramCommand } from './mcp/services/telegramBotResponder.js'
 
 // ─── Lazy route chunks ────────────────────────────────────────────────────────
 // Each view is fetched on first visit and cached for the session. This splits
@@ -31,6 +34,17 @@ const MCPToolCatalogPage     = lazy(() => import('./mcp/pages/MCPToolCatalogPage
 const MCPExecutionLogPage    = lazy(() => import('./mcp/pages/MCPExecutionLogPage.jsx'))
 const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.jsx'))
 
+// ─── Scroll restoration ───────────────────────────────────────────────────────
+// Scrolls the main content panel to the top on every route change so the user
+// always starts at the top when navigating to a new page.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' })
+  }, [pathname])
+  return null
+}
+
 // ─── Routes ───────────────────────────────────────────────────────────────────
 // Suspense wraps the route tree so the loading bar shows whenever a lazy chunk
 // is being fetched (first visit to any page). The shell (LeftRail, TopBar)
@@ -39,6 +53,7 @@ function AnimatedRoutes() {
   const location = useLocation()
   return (
     <Suspense fallback={<RouteLoadingBar />}>
+      <ScrollToTop />
       <div key={location.pathname} className="fm-page-enter">
         <Routes>
           <Route path="/"                              element={<FlowMap />} />
@@ -67,6 +82,48 @@ function AnimatedRoutes() {
 }
 
 // ─── Background workers ───────────────────────────────────────────────────────
+
+// Keeps the Telegram bot polling alive for the whole session, not just while
+// the /connections/telegram page is open. Mounts once inside DeferredWorkers.
+function TelegramPollingWorker() {
+  useEffect(() => {
+    const integration = localMCPStorage.getIntegration('integ_telegram')
+    const token  = integration?.config?.['token'] ?? ''
+    const chatId = integration?.config?.['chatId'] ?? ''
+    if (!token || !chatId || integration?.status !== 'connected') return
+
+    startPolling(token, chatId, async (text, fromName) => {
+      // Save inbound to local log
+      localMCPStorage.saveTelegramMessage({
+        id: `tcm_in_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        chatId,
+        messageText: `${fromName}: ${text}`,
+        receivedAt: new Date().toISOString(),
+        status: 'received',
+      })
+      window.dispatchEvent(new CustomEvent('fm-telegram-inbound'))
+
+      const reply = await processTelegramCommand(text, fromName)
+
+      localMCPStorage.saveTelegramMessage({
+        id: `tcm_out_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        chatId,
+        messageText: `FlowMap AI: ${reply.replace(/<[^>]+>/g, '')}`,
+        receivedAt: new Date().toISOString(),
+        status: 'processed',
+      })
+      window.dispatchEvent(new CustomEvent('fm-telegram-inbound'))
+
+      return reply
+    })
+
+    return () => stopPolling()
+  // Run once on mount — config is read from localStorage, won't change mid-session
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return null
+}
 
 function IngestionWorker() {
   const { documents, documentContents } = useStore()
@@ -99,6 +156,7 @@ function DeferredWorkers() {
   if (!ready) return null
   return (
     <>
+      <TelegramPollingWorker />
       <IngestionWorker />
       <MemoryIndexUpdater />
     </>
