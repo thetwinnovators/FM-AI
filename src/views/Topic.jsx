@@ -411,56 +411,6 @@ export default function Topic() {
             onGenerate={() => setShowSummaryModal(true)}
           />
 
-          <div className="glass-panel p-4">
-            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">
-              Related topics
-            </h3>
-            {topic.relatedTopicIds?.length ? (
-              <div className="flex flex-wrap gap-2">
-                {topic.relatedTopicIds.map((id) => {
-                  const t = topicById(id)
-                  return t ? <Link key={id} to={`/topic/${t.slug}`}><Chip color="#d946ef">{t.name}</Chip></Link> : null
-                })}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None linked yet.</p>
-            )}
-          </div>
-
-          <div className="glass-panel p-4">
-            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Tools mentioned</h3>
-            {topic.toolIds?.length ? (
-              <ul className="space-y-2">
-                {topic.toolIds.map((id) => {
-                  const tool = toolById(id)
-                  return tool ? (
-                    <li key={id}>
-                      <a href={tool.url} target="_blank" rel="noreferrer" className="text-sm hover:underline">
-                        {tool.name}
-                      </a>
-                      <p className="text-[11px] text-[color:var(--color-text-tertiary)]">{tool.summary}</p>
-                    </li>
-                  ) : null
-                })}
-              </ul>
-            ) : (
-              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None tagged yet.</p>
-            )}
-          </div>
-
-          <div className="glass-panel p-4">
-            <h3 className="text-[11px] uppercase tracking-wide text-[color:var(--color-text-tertiary)] font-medium mb-3">Concepts</h3>
-            {topic.conceptIds?.length ? (
-              <div className="flex flex-wrap gap-2">
-                {topic.conceptIds.map((id) => {
-                  const c = conceptById(id)
-                  return c ? <Chip key={id} color="#94a3b8">{c.name}</Chip> : null
-                })}
-              </div>
-            ) : (
-              <p className="text-[11px] text-[color:var(--color-text-tertiary)]">None tagged yet.</p>
-            )}
-          </div>
         </aside>
 
         {/* Main content */}
