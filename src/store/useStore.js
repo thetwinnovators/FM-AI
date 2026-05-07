@@ -35,6 +35,7 @@ const EMPTY = {
   // an "out of date" hint.
   topicSummaries: {},   // topicId -> { overview, report, generatedAt, itemSignature }
   courses: {},          // Flow Academy — courseId -> LearningCourse (lessons inline)
+  briefs: {},
 }
 
 let memoryState = EMPTY
@@ -203,6 +204,27 @@ function initSync() {
   function onVis() { if (document.visibilityState === 'visible') pullSyncedState() }
   document.addEventListener('visibilitychange', onVis)
   window.addEventListener('focus', onVis)
+}
+
+export function unreadBriefCount(briefs = {}) {
+  return Object.values(briefs).filter((b) => b.readAt == null).length
+}
+
+export function allBriefsSorted(briefs = {}) {
+  const all = Object.values(briefs)
+  const unread = all.filter((b) => b.readAt == null)
+  const read   = all.filter((b) => b.readAt != null)
+
+  // Within unread: news_digest first, then topic briefs by generatedAt desc
+  unread.sort((a, b) => {
+    if (a.type === 'news_digest' && b.type !== 'news_digest') return -1
+    if (b.type === 'news_digest' && a.type !== 'news_digest') return 1
+    return b.generatedAt - a.generatedAt
+  })
+  // Within read: most recent first
+  read.sort((a, b) => b.generatedAt - a.generatedAt)
+
+  return [...unread, ...read]
 }
 
 export function useStore() {
@@ -783,6 +805,28 @@ export function useStore() {
     return course
   }, [])
 
+  const addBrief = useCallback((brief) => {
+    const cur = memoryState
+    persist({ ...cur, briefs: { ...cur.briefs, [brief.id]: brief } })
+  }, [])
+
+  const markBriefRead = useCallback((id) => {
+    const cur = memoryState
+    const brief = cur.briefs[id]
+    if (!brief || brief.readAt != null) return
+    persist({ ...cur, briefs: { ...cur.briefs, [id]: { ...brief, readAt: Date.now() } } })
+  }, [])
+
+  const markAllBriefsRead = useCallback(() => {
+    const cur = memoryState
+    const now = Date.now()
+    const updated = {}
+    for (const [k, v] of Object.entries(cur.briefs)) {
+      updated[k] = v.readAt == null ? { ...v, readAt: now } : v
+    }
+    persist({ ...cur, briefs: updated })
+  }, [])
+
   const updateCourse = useCallback((id, patch) => {
     const cur = memoryState
     const existing = cur.courses?.[id]
@@ -833,5 +877,8 @@ export function useStore() {
     // Flow Academy
     addCourse, updateCourse, deleteCourse, updateLesson,
     courseById, allCoursesSorted,
+    addBrief,
+    markBriefRead,
+    markAllBriefsRead,
   }
 }
