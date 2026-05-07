@@ -4,6 +4,8 @@ import { generateSummary } from '../lib/llm/ollama.js'
 import { OLLAMA_CONFIG } from '../lib/llm/ollamaConfig.js'
 import { pullFromDisk, pushToDisk } from '../lib/sync/fileSync.js'
 import { notifyWrite } from '../memory-index/memoryService.js'
+import { shouldGenerateTopicBrief } from '../lib/briefs/briefTrigger.js'
+import { generateTopicBrief } from '../lib/briefs/generateTopicBrief.js'
 
 export const STORAGE_KEY = 'flowmap.v1'
 
@@ -473,17 +475,37 @@ export function useStore() {
     const cur = memoryState
     const item = data.item
     if (!item || !item.id) return null
-    const entry = {
+    const enriched = {
       id: item.id,
       item,
+      topicId: (data.topicIds || [])[0] || null,
       topicIds: data.topicIds || [],
       tags: data.tags || [],
       relevanceNote: data.relevanceNote || null,
       savedAt: new Date().toISOString(),
       ingestionMethod: 'manual_url',
     }
-    persist({ ...cur, manualContent: { ...cur.manualContent, [item.id]: entry } })
-    return entry
+    persist({ ...cur, manualContent: { ...cur.manualContent, [item.id]: enriched } })
+
+    // Fire-and-forget: check if this topic now has 3+ new items → generate brief
+    if (enriched.topicId) {
+      setTimeout(async () => {
+        const s = memoryState
+        const allItems = Object.values(s.manualContent || {})
+        if (!shouldGenerateTopicBrief(enriched.topicId, allItems, s.briefs || {})) return
+
+        const topicEntry = Object.values(s.userTopics || {}).find(
+          (t) => t.id === enriched.topicId,
+        )
+        const topicTitle = topicEntry?.label ?? topicEntry?.name ?? enriched.topicId
+
+        const itemsForTopic = allItems.filter((i) => i.topicId === enriched.topicId)
+        const brief = await generateTopicBrief(topicTitle, enriched.topicId, itemsForTopic)
+        if (brief) persist({ ...memoryState, briefs: { ...memoryState.briefs, [brief.id]: brief } })
+      }, 0)
+    }
+
+    return enriched
   }, [])
 
   const removeManualContent = useCallback((id) => {
