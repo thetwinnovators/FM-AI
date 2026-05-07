@@ -5,10 +5,11 @@ import {
   Radio, CheckCircle, XCircle,
 } from 'lucide-react'
 import { useMCPIntegrations } from '../hooks/useMCPIntegrations.js'
-import { getProvider } from '../services/mcpToolRegistry.js'
+import { getProvider, discoverTools } from '../services/mcpToolRegistry.js'
 import { detectTelegramChatId } from '../services/telegramService.js'
 import { useMCPTools } from '../hooks/useMCPTools.js'
 import { useMCPExecutions } from '../hooks/useMCPExecutions.js'
+import type { MCPToolDefinition } from '../types.js'
 import { useTelegramCommands } from '../hooks/useTelegramCommands.js'
 import { IntegrationStatusBadge } from '../components/IntegrationStatusBadge.js'
 import { ToolCatalogList } from '../components/ToolCatalogList.js'
@@ -80,7 +81,8 @@ export default function MCPIntegrationDetailPage() {
   const navigate = useNavigate()
   const { integrations, connect, disconnect } = useMCPIntegrations()
   const integration = integrations.find((i) => i.id === id)
-  const { tools } = useMCPTools(id)
+  const { tools: cachedTools } = useMCPTools(id)
+  const [tools, setTools] = useState<MCPToolDefinition[]>(cachedTools)
   const { records } = useMCPExecutions(id)
 
   const [token, setToken] = useState('')
@@ -94,6 +96,14 @@ export default function MCPIntegrationDetailPage() {
     setToken(integration?.config?.['token'] ?? '')
     setChatId(integration?.config?.['chatId'] ?? '')
   }, [integration?.config?.['token'], integration?.config?.['chatId']])
+
+  // Auto-discover tools whenever this integration is connected
+  useEffect(() => {
+    if (!integration || integration.status !== 'connected') return
+    discoverTools(integration).then((discovered) => {
+      if (discovered.length > 0) setTools(discovered)
+    }).catch(() => {/* provider not ready — cached tools stay */})
+  }, [integration?.id, integration?.status])
 
   if (!integration) {
     return (
@@ -302,15 +312,16 @@ export default function MCPIntegrationDetailPage() {
       {/* Telegram command center — only rendered when telegram + connected */}
       {isTelegram && isConnected ? <TelegramCommandCenter /> : null}
 
-      {/* Tools */}
-      {tools.length > 0 ? (
-        <section className="mb-8">
-          <h2 className="text-[11px] uppercase tracking-wide text-white/40 mb-3">
-            Tools ({tools.length})
-          </h2>
-          <ToolCatalogList tools={tools} integrationName={() => integration.name} />
-        </section>
-      ) : null}
+      {/* What Flow AI can do */}
+      <section className="mb-8">
+        <h2 className="text-[11px] uppercase tracking-wide text-white/40 mb-1">
+          What Flow AI can do
+        </h2>
+        <p className="text-[11px] text-white/30 mb-3">
+          These are the actions available to AI agents connected to your FlowMap.
+        </p>
+        <ToolCatalogList tools={tools} integrationName={() => integration.name} />
+      </section>
 
       {/* Recent executions */}
       {records.length > 0 ? (
