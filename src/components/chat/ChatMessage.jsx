@@ -118,14 +118,14 @@ export function renderInlineText(text) {
       if (href.startsWith('/')) {
         parts.push(
           <Link key={key++} to={href} onClick={(e) => e.stopPropagation()}
-            className="underline text-teal-300 hover:text-teal-100 transition-colors">
+            className="underline text-teal-700 hover:text-teal-500 transition-colors">
             {label}
           </Link>
         )
       } else {
         parts.push(
           <a key={key++} href={href} target="_blank" rel="noopener noreferrer"
-            className="underline text-teal-300 hover:text-teal-100 transition-colors">
+            className="underline text-teal-700 hover:text-teal-500 transition-colors">
             {label}
           </a>
         )
@@ -134,7 +134,7 @@ export function renderInlineText(text) {
       // Bare external URL
       parts.push(
         <a key={key++} href={m[3]} target="_blank" rel="noopener noreferrer"
-          className="underline text-teal-300/70 hover:text-teal-300 transition-colors break-all">
+          className="underline text-teal-600/80 hover:text-teal-600 transition-colors break-all">
           {m[3]}
         </a>
       )
@@ -142,13 +142,13 @@ export function renderInlineText(text) {
       // Bare internal FlowMap path
       parts.push(
         <Link key={key++} to={m[4]} onClick={(e) => e.stopPropagation()}
-          className="underline text-teal-300/70 hover:text-teal-300 transition-colors break-all">
+          className="underline text-teal-600/80 hover:text-teal-600 transition-colors break-all">
           {m[4]}
         </Link>
       )
     } else if (m[5] != null) {
       parts.push(
-        <code key={key++} className="bg-white/10 px-1 rounded font-mono text-sm">{m[5]}</code>
+        <code key={key++} className="bg-indigo-50 border border-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-md font-mono text-[0.85em]">{m[5]}</code>
       )
     } else if (m[6] != null) {
       parts.push(<strong key={key++} className="font-semibold">{m[6]}</strong>)
@@ -270,7 +270,7 @@ export default function ChatMessage({ content }) {
   const blocks = parseBlocks(content)
 
   return (
-    <div className="text-[12px] font-light font-chat">
+    <div className="lesson-prose">
       {blocks.map((block, idx) => {
         switch (block.type) {
           case 'code':
@@ -278,24 +278,24 @@ export default function ChatMessage({ content }) {
 
           case 'heading':
             return block.level === 1
-              ? <h2 key={idx} className="text-2xl font-bold text-white mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h2>
-              : <h3 key={idx} className="text-xl font-bold text-white mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h3>
+              ? <h2 key={idx} className="text-2xl font-bold text-slate-900 mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h2>
+              : <h3 key={idx} className="text-xl font-bold text-slate-800 mt-5 mb-2 first:mt-0">{renderInlineText(block.text)}</h3>
 
           case 'list':
             return block.ordered
               ? (
-                <ol key={idx} className="list-decimal pl-5 space-y-1 mb-3 text-stone-300">
+                <ol key={idx} className="list-decimal pl-5 space-y-1.5 mb-3 text-slate-700">
                   {block.items.map((item, i) => <li key={i}>{renderInlineText(item)}</li>)}
                 </ol>
               )
               : (
-                <ul key={idx} className="list-disc pl-5 space-y-1 mb-3 text-stone-300">
+                <ul key={idx} className="list-disc pl-5 space-y-1.5 mb-3 text-slate-700">
                   {block.items.map((item, i) => <li key={i}>{renderInlineText(item)}</li>)}
                 </ul>
               )
 
           default: // paragraph
-            return <p key={idx} className="text-stone-300 mb-3 last:mb-0">{renderInlineText(block.text)}</p>
+            return <p key={idx} className="text-slate-700 mb-3 last:mb-0">{renderInlineText(block.text)}</p>
         }
       })}
     </div>

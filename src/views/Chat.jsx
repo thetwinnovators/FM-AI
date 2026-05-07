@@ -56,23 +56,23 @@ function MessageContextPanel({ context }) {
     <div className="max-w-[75%] mt-1 mb-4">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="text-[11px] text-[color:var(--color-text-tertiary)] hover:text-white inline-flex items-center gap-1 transition-colors"
+        className="text-[11px] text-slate-400 hover:text-slate-700 inline-flex items-center gap-1 transition-colors"
         aria-expanded={open}
       >
         {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
         Context · {summary}
       </button>
       {open ? (
-        <div className="mt-2 p-3 rounded-lg bg-white/[0.03] text-[12px] space-y-3">
+        <div className="mt-2 p-3 rounded-lg bg-slate-100 border border-slate-200 text-[12px] space-y-3">
           {memory.length ? (
             <div>
-              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-white/50 font-medium mb-1.5">
+              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
                 <NotebookPen size={10} /> Memory
               </div>
               <ul className="space-y-1">
                 {memory.map((m, i) => (
-                  <li key={i} className="text-white/75 leading-relaxed">
-                    <span className="text-white/40 mr-1">[{String(m.category || 'note').replace(/_/g, ' ')}]</span>
+                  <li key={i} className="text-slate-600 leading-relaxed">
+                    <span className="text-slate-400 mr-1">[{String(m.category || 'note').replace(/_/g, ' ')}]</span>
                     {m.content}
                   </li>
                 ))}
@@ -81,15 +81,15 @@ function MessageContextPanel({ context }) {
           ) : null}
           {topics.length ? (
             <div>
-              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-white/50 font-medium mb-1.5">
+              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
                 <Compass size={10} /> Topics
               </div>
               <ul className="space-y-1">
                 {topics.map((t, i) => (
-                  <li key={i} className="text-white/75 leading-relaxed">
-                    <span className="font-medium text-white/85">{t.name}</span>
-                    {t.isUser ? <span className="text-[color:var(--color-creator)] text-[10px] ml-1.5">· saved</span> : t.followed ? <span className="text-[color:var(--color-topic)] text-[10px] ml-1.5">· followed</span> : null}
-                    {t.summary ? <span className="text-white/50"> — {t.summary}</span> : null}
+                  <li key={i} className="text-slate-600 leading-relaxed">
+                    <span className="font-medium text-slate-800">{t.name}</span>
+                    {t.isUser ? <span className="text-teal-600 text-[10px] ml-1.5">· saved</span> : t.followed ? <span className="text-teal-600 text-[10px] ml-1.5">· followed</span> : null}
+                    {t.summary ? <span className="text-slate-400"> — {t.summary}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -97,12 +97,12 @@ function MessageContextPanel({ context }) {
           ) : null}
           {notes.length ? (
             <div>
-              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-white/50 font-medium mb-1.5">
-                <NotebookPen size={10} className="text-amber-300/80" /> My notes
+              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
+                <NotebookPen size={10} className="text-amber-500" /> My notes
               </div>
               <ul className="space-y-1">
                 {notes.map((n, i) => (
-                  <li key={i} className="text-white/75 leading-relaxed">
+                  <li key={i} className="text-slate-600 leading-relaxed">
                     <span className="text-white/40 mr-1">on [{n.type ? `${n.type}: ` : ''}{n.title}]:</span>
                     {n.content}
                   </li>
@@ -112,7 +112,7 @@ function MessageContextPanel({ context }) {
           ) : null}
           {retrieved.length ? (
             <div>
-              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-white/50 font-medium mb-1.5">
+              <div className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1.5">
                 <FileText size={10} /> Document excerpts
               </div>
               <ul className="space-y-2">
@@ -120,11 +120,11 @@ function MessageContextPanel({ context }) {
                   <li key={i}>
                     <Link
                       to={`/documents/${r.id}`}
-                      className="font-medium text-[color:var(--color-article)] hover:underline"
+                      className="font-medium text-teal-700 hover:underline"
                     >
                       {r.title}
                     </Link>
-                    <div className="text-white/60 italic mt-0.5">{r.snippet}</div>
+                    <div className="text-slate-500 italic mt-0.5">{r.snippet}</div>
                   </li>
                 ))}
               </ul>
@@ -225,8 +225,8 @@ function MessageBubble({ message }) {
       onClick={handleCopy}
       className={`self-end mb-1 rounded-lg flex items-center gap-1 transition-all flex-shrink-0
         ${copied
-          ? 'px-2 py-1 bg-emerald-500/15 border border-emerald-400/25 text-emerald-400 opacity-100'
-          : 'p-1.5 opacity-0 group-hover:opacity-100 text-[color:var(--color-text-tertiary)] hover:text-white hover:bg-white/[0.06]'
+          ? 'px-2 py-1 bg-emerald-500/15 border border-emerald-400/25 text-emerald-600 opacity-100'
+          : 'p-1.5 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60'
         }`}
       title={copied ? 'Copied!' : 'Copy message'}
       aria-label="Copy message"
@@ -258,8 +258,8 @@ function MessageBubble({ message }) {
         <div
           className={`max-w-[75%] rounded-2xl px-4 py-2.5 leading-relaxed ${
             isUser
-              ? 'text-[12px] whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white'
-              : 'text-white/90'
+              ? 'text-[14px] whitespace-pre-wrap bg-teal-600/90 text-white font-medium'
+              : ''
           }`}
         >
           {isUser
@@ -1175,7 +1175,7 @@ export default function Chat() {
             <div
               ref={scrollRef}
               className="flex-1 overflow-auto py-6"
-              style={{ background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)' }}
+              style={{ background: '#f8fafc' }}
             >
               <div className="max-w-3xl mx-auto px-6">
               {messages.map((m, i) => (
@@ -1216,11 +1216,11 @@ export default function Chat() {
               {streamingText ? <MessageBubble message={{ role: 'assistant', content: streamingText }} /> : null}
               {busy && !streamingText && agentSteps.length === 0 ? (
                 <div className="flex justify-start mb-4">
-                  <div className="rounded-2xl px-4 py-3 bg-white/[0.05]">
+                  <div className="rounded-2xl px-4 py-3 bg-slate-200/70">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-white/70 typing-dot" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-white/70 typing-dot" style={{ animationDelay: '180ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-white/70 typing-dot" style={{ animationDelay: '360ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-slate-400 typing-dot" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-slate-400 typing-dot" style={{ animationDelay: '180ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-slate-400 typing-dot" style={{ animationDelay: '360ms' }} />
                     </div>
                   </div>
                 </div>
