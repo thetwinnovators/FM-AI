@@ -194,10 +194,12 @@ export function buildTaskState(recentMessages, currentQuery = '') {
 // questions. When matched we use a dedicated prompt that explains the system
 // architecture instead of mixing in retrieval (small models can't reliably
 // distinguish "tell me about X" from "are you able to do X" otherwise).
+// NOTE: "are you able to X" / "can you create/make/do X" are ACTION REQUESTS,
+// not meta questions — keep them out of META_PATTERNS so they hit the task path
+// and the ACTIONS block is included in the system prompt.
 const META_PATTERNS = [
   /\b(can|do) you (have |get )?(access|read|see|browse|search|find)\b/i,
   /\bdo you have (access|memory|context|knowledge of|any (data|info))\b/i,
-  /\bare you (able|capable|allowed) to\b/i,
   /\bcan you (remember|recall|know about)\b/i,
   /\b(how do|how does|how can) (you|this|flowmap|the (chat|ai|app)) (work|access|search|read|find|remember|know)\b/i,
   /\bwhat (information|data|access|memory|knowledge|context) do you have\b/i,
@@ -259,9 +261,13 @@ const PERSONALITY =
   `"I don't have any information about this", "I couldn't find a document on that", ` +
   `"Based on the available context", "as of my last update", "my last update", ` +
   `"my training data", "my training cutoff", "my database", "as of [any year]", ` +
-  `"fictional scenario", "hypothetical application", "I was trained", ` +
-  `"my knowledge only goes to", "I cannot access real-time", "beyond my knowledge". ` +
-  `Replace all of them with natural FlowMap-aware language.\n\n` +
+  `"fictional scenario", "hypothetical application", "hypothetical scenario", "I was trained", ` +
+  `"my knowledge only goes to", "I cannot access real-time", "beyond my knowledge", ` +
+  `"not possessing direct control", "unable to directly interact", "unable to directly create", ` +
+  `"third-party software", "external applications like FlowMap", "personal instances of", ` +
+  `"I cannot perform actions", "I am unable to create", "I'm unable to create", ` +
+  `"I cannot create topics", "not a standalone application", "I don't have the ability to". ` +
+  `Replace all of them with confident FlowMap-aware action language.\n\n` +
   `ACTIONS — you can take real actions inside FlowMap on the user's behalf:\n` +
   `When the user asks you to do something (create a topic, save something, remember a fact, go somewhere), DO IT — don't tell them to do it themselves.\n` +
   `Emit one or more <fm-action> blocks anywhere in your reply (they are invisible to the user):\n\n` +
@@ -319,12 +325,15 @@ const CASUAL_SYSTEM_MESSAGE =
 
 const META_SYSTEM_MESSAGE =
   PERSONALITY +
-  `The user is asking a META question about how you work. Explain the architecture honestly and confidently — don't retrieve or quote documents:\n\n` +
+  `The user is asking a META question about how you work. Explain confidently — don't retrieve or quote documents:\n\n` +
   `- The user saves content locally — uploaded documents, bookmarked articles/videos/posts, and manually added URLs.\n` +
   `- On every message, FlowMap runs keyword retrieval across ALL saved content and feeds the top matching excerpts into the prompt.\n` +
   `- Active MEMORY entries (facts/preferences the user saved) are also injected, along with prior conversation turns.\n` +
   `- No live browsing — FlowMap pre-fetches the relevant passages for each message.\n` +
-  `- So yes: I do have access to saved documents and memory through this retrieval pipeline.\n\n` +
+  `- I DO have access to saved documents and memory through this retrieval pipeline.\n` +
+  `- I CAN take real actions: create topics, save memory entries, navigate pages — see the ACTIONS block above.\n\n` +
+  `CRITICAL: If the user is asking whether you can do something AND seems to want it done, just DO IT using the ACTIONS block — don't just explain. ` +
+  `Only explain architecture when the user is genuinely curious about how the system works, not when they're asking as a preamble to making a request.\n\n` +
   `Adapt the explanation to the exact question. Be direct, don't disclaim being an LLM, don't quote any document.`
 
 // Provide a brief index of all user documents so the model knows what is in
