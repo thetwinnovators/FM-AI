@@ -207,9 +207,9 @@ function lessonBodyMessages(courseTitle, lessonTitle, objectives, lessonIndex, t
         '  "explanation": "The full lesson explanation. Use short paragraphs separated by \\n\\n. Teach one idea at a time. Ground EVERY concept in scenarios drawn directly from the course topic — the examples must feel native to that subject, not borrowed from unrelated domains. Wrap ALL code references in backticks: method calls like `.items()`, variable names like `my_dict`, operators like `|` or `&` when used as code. Minimum 3 paragraphs.",\n' +
         '  "examples": [\n' +
         '    {\n' +
-        '      "description": "One sentence naming the scenario (it must relate to the course topic), then one sentence on what to notice in the code",\n' +
-        '      "code": "actual runnable code using variable names and data drawn from the course topic — omit this field entirely if the topic has no code",\n' +
-        '      "language": "python"\n' +
+        '      "description": "One sentence describing the scenario from the course topic, then one sentence explaining what the example shows",\n' +
+        '      "code": "ONLY include this field if the course topic is programming, data, or a technical subject that genuinely requires code. For biology, history, science, arts, or any non-programming topic: DO NOT include a code field at all.",\n' +
+        '      "language": "ONLY include this field when code is present. For non-programming topics: omit entirely."\n' +
         '    }\n' +
         '  ],\n' +
         '  "recap": "Short 2-3 sentence recap of the key ideas just taught",\n' +
@@ -222,9 +222,8 @@ function lessonBodyMessages(courseTitle, lessonTitle, objectives, lessonIndex, t
         depthRule + '\n' +
         '- EVERY concept and example must use scenarios, variable names, and data that belong to the course topic. If the topic is spiders, use spider anatomy, web-spinning, prey detection. If the topic is finance, use prices, portfolios, trades. NEVER import generic examples (inventory, e-commerce, user profiles) from outside the topic domain.\n' +
         '- examples: give exactly 2, each showing a different scenario within the course topic\n' +
-        '- description: name the topic-specific scenario first, then explain what the code demonstrates\n' +
-        '- code: real working code with variable names and sample data taken from the course topic (not foo/bar/x/y)\n' +
-        '- language: programming language name (e.g. "python", "javascript", "sql") — omit if no code\n' +
+        '- description: name the topic-specific scenario first; explain what it illustrates\n' +
+        '- code + language: ONLY include these fields if the course topic is explicitly about programming, scripting, data science, or a technical subject that requires code. For any non-programming topic (biology, physics, history, literature, cooking, etc.) leave code and language out of every example entirely — do not write code, do not include backtick snippets.\n' +
         '- glossary: 5 to 10 key terms that appear in the explanation text; define each in one plain sentence\n' +
         '- only include terms that actually appear word-for-word in the explanation',
     },
