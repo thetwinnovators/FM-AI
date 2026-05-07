@@ -1136,9 +1136,9 @@ export default function Chat() {
             <div className="w-full max-w-[780px] flex flex-col items-center gap-5 pb-10">
               {/* Branding */}
               <div className="flex flex-col items-center gap-2 mb-2">
-                <h1 className="text-4xl font-light tracking-tight">What would you like to research?</h1>
+                <h1 className="text-4xl font-light tracking-tight">What would you like to learn?</h1>
                 <p className="text-sm text-[color:var(--color-text-tertiary)] text-center max-w-lg">
-                  Search across your documents, topics, signals, and saved content.
+                  Ask anything across your documents, topics, signals, and saved content.
                 </p>
               </div>
 
