@@ -270,7 +270,7 @@ export default function ChatMessage({ content }) {
   const blocks = parseBlocks(content)
 
   return (
-    <div className="text-sm font-light font-chat">
+    <div className="text-[12px] font-light font-chat">
       {blocks.map((block, idx) => {
         switch (block.type) {
           case 'code':

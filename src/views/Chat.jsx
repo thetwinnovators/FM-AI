@@ -258,7 +258,7 @@ function MessageBubble({ message }) {
         <div
           className={`max-w-[75%] rounded-2xl px-4 py-2.5 leading-relaxed ${
             isUser
-              ? 'text-sm whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white'
+              ? 'text-[12px] whitespace-pre-wrap bg-[rgba(94,234,212,0.18)] text-white'
               : 'text-white/90'
           }`}
         >
