@@ -40,7 +40,7 @@ async function fetchUpdates(
   offset: number,
   signal: AbortSignal,
 ): Promise<{ ok: boolean; result: TelegramUpdate[] }> {
-  const url = `${BASE}/bot${token}/getUpdates?offset=${offset}&timeout=10&allowed_updates=${encodeURIComponent('["message"]')}`
+  const url = `${BASE}/bot${token}/getUpdates?offset=${offset}&timeout=25&allowed_updates=${encodeURIComponent('["message"]')}`
   const res = await fetch(url, { signal })
   return res.json()
 }

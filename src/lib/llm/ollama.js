@@ -95,7 +95,7 @@ export async function generateResponse(prompt, opts = {}) {
     model: OLLAMA_CONFIG.model,
     prompt: trimmed,
     stream: false,
-    keep_alive: '15m',
+    keep_alive: '-1',  // keep model loaded indefinitely — used by Telegram bot, cold-start adds ~15s delay
     options: { temperature: opts.temperature ?? 0.7 },
   }, opts.signal)
 
