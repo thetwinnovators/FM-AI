@@ -341,7 +341,7 @@ export default function BriefModal({ brief, onClose }) {
             {brief.newItemCount > 0 && (
               <span
                 className="text-[11px] font-medium px-[9px] py-[3px] rounded-[6px]"
-                style={{ background: 'rgba(13,148,136,0.15)', color: '#2dd4bf' }}
+                style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}
               >
                 {isNews ? `${brief.newItemCount} stories` : `+${brief.newItemCount} new items`}
               </span>
@@ -355,7 +355,7 @@ export default function BriefModal({ brief, onClose }) {
             {brief.sourceCount > 0 && (
               <span
                 className="text-[11px] font-medium px-[9px] py-[3px] rounded-[6px]"
-                style={{ color: 'rgba(167,139,250,0.75)', background: 'rgba(99,102,241,0.1)' }}
+                style={{ color: 'rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.05)' }}
               >
                 {brief.sourceCount} source{brief.sourceCount !== 1 ? 's' : ''}
               </span>
