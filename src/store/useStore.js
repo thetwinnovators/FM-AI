@@ -851,6 +851,13 @@ export function useStore() {
     persist({ ...cur, briefs: { ...cur.briefs, [brief.id]: brief } })
   }, [])
 
+  const deleteBrief = useCallback((id) => {
+    const cur = memoryState
+    const next = { ...cur.briefs }
+    delete next[id]
+    persist({ ...cur, briefs: next })
+  }, [])
+
   const markBriefRead = useCallback((id) => {
     const cur = memoryState
     const brief = cur.briefs[id]
@@ -945,6 +952,7 @@ export function useStore() {
     addCourse, updateCourse, deleteCourse, updateLesson,
     courseById, allCoursesSorted,
     addBrief,
+    deleteBrief,
     markBriefRead,
     markAllBriefsRead,
     // Code Academy

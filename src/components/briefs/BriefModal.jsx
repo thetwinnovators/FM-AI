@@ -55,7 +55,7 @@ function ArticleThumbnail({ url }) {
 // ── Shared section label ──────────────────────────────────────────────────────
 function SectionLabel({ children }) {
   return (
-    <div className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#94a3b8' }}>
+    <div className="text-[12px] font-bold uppercase tracking-widest mb-3" style={{ color: '#94a3b8' }}>
       {children}
     </div>
   )
@@ -67,7 +67,7 @@ function OverviewSection({ section }) {
   return (
     <div className="px-7 py-5">
       <SectionLabel>Overview</SectionLabel>
-      <p className="text-[14px] leading-relaxed" style={{ color: '#334155' }}>
+      <p className="text-[15px] leading-relaxed" style={{ color: '#334155' }}>
         {section.content}
       </p>
     </div>
@@ -85,7 +85,7 @@ function WhatChangedSection({ section }) {
         {items.map((item, i) => (
           <div key={i} className="flex items-start gap-2.5">
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: DOT_COLORS[item.dot] ?? '#0d9488', flexShrink: 0, marginTop: 6 }} />
-            <p className="text-[14px] leading-snug text-slate-700">{item.text}</p>
+            <p className="text-[15px] leading-snug text-slate-700">{item.text}</p>
           </div>
         ))}
       </div>
@@ -96,17 +96,17 @@ function WhatChangedSection({ section }) {
 function SignalCard({ signal }) {
   const isStrong = signal.strength === 'Strong'
   return (
-    <div className="rounded-xl p-3.5" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+    <div className="rounded-xl p-3.5" style={{ background: '#eef0f4', border: '1px solid #d8dde6' }}>
       <div className="flex items-center gap-2 mb-1.5">
         <span
-          className="text-[11px] font-bold px-2 py-0.5 rounded-md"
+          className="text-[12px] font-bold px-2 py-0.5 rounded-md"
           style={isStrong
             ? { background: '#ccfbf1', color: '#0f766e', border: '1px solid #99f6e4' }
             : { background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe' }}
         >
           {signal.strength}
         </span>
-        <span className="text-[11px] text-slate-400">{signal.source}</span>
+        <span className="text-[12px] text-slate-400">{signal.source}</span>
       </div>
       <p className="text-[14px] leading-snug text-slate-700">{signal.text}</p>
     </div>
@@ -130,8 +130,8 @@ function OpenQuestionsSection({ section }) {
       <SectionLabel>Open Questions</SectionLabel>
       <div className="flex flex-col gap-2">
         {items.map((q, i) => (
-          <div key={i} className="flex items-start gap-2.5 text-[14px] text-slate-600">
-            <span className="text-[12px] font-bold flex-shrink-0 pt-px text-slate-300 min-w-[16px]">{i + 1}.</span>
+          <div key={i} className="flex items-start gap-2.5 text-[15px] text-slate-600">
+            <span className="text-[13px] font-bold flex-shrink-0 pt-px text-slate-300 min-w-[16px]">{i + 1}.</span>
             <span>{q}</span>
           </div>
         ))}
@@ -145,7 +145,7 @@ function RisksSection({ section }) {
     <div className="px-7 py-5">
       <SectionLabel>Risks &amp; Counterpoints</SectionLabel>
       <div className="rounded-xl p-4" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-        <p className="text-[14px] leading-relaxed" style={{ color: '#92400e' }}>{section.content}</p>
+        <p className="text-[15px] leading-relaxed" style={{ color: '#92400e' }}>{section.content}</p>
       </div>
     </div>
   )
@@ -164,7 +164,7 @@ function HighlightsSection({ section }) {
             <div key={i} className="flex items-start gap-3 group">
               <ArticleThumbnail url={url} />
               <div className="flex-1 min-w-0 flex items-start gap-2 pt-0.5">
-                <p className="text-[14px] leading-snug flex-1 text-slate-800 font-medium">{text}</p>
+                <p className="text-[15px] leading-snug flex-1 text-slate-800 font-medium">{text}</p>
                 {url && (
                   <a
                     href={url} target="_blank" rel="noopener noreferrer"
@@ -192,7 +192,7 @@ function ThemesSection({ section }) {
         {items.map((theme, i) => (
           <div key={i} className="flex items-start gap-2.5">
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#6366f1', flexShrink: 0, marginTop: 7 }} />
-            <p className="text-[14px] leading-snug text-slate-600">{theme}</p>
+            <p className="text-[15px] leading-snug text-slate-600">{theme}</p>
           </div>
         ))}
       </div>
@@ -205,7 +205,7 @@ function TopSignalSection({ section }) {
     <div className="px-7 py-5">
       <SectionLabel>Strongest Signal</SectionLabel>
       <div className="rounded-xl p-4" style={{ background: '#f0fdfa', border: '1px solid #99f6e4' }}>
-        <p className="text-[14px] leading-relaxed font-medium" style={{ color: '#0f766e' }}>{section.content}</p>
+        <p className="text-[15px] leading-relaxed font-medium" style={{ color: '#0f766e' }}>{section.content}</p>
       </div>
     </div>
   )
@@ -235,7 +235,7 @@ function ActionBtn({ label, variant = 'secondary', onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-1.5 px-3 py-[7px] rounded-[9px] text-[12px] font-semibold transition-colors hover:opacity-80"
+      className="flex items-center gap-1.5 px-3 py-[7px] rounded-[9px] text-[13px] font-semibold transition-colors hover:opacity-80"
       style={styles[variant]}
     >
       {label}
@@ -253,7 +253,7 @@ function relativeTime(ts) {
 }
 
 // ── Main modal ────────────────────────────────────────────────────────────────
-export default function BriefModal({ brief, onClose }) {
+export default function BriefModal({ brief, onClose, onRefresh, refreshing }) {
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -279,15 +279,15 @@ export default function BriefModal({ brief, onClose }) {
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 301, width: '100%', maxWidth: 640, maxHeight: '90vh',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
+          background: '#f4f6f9',
+          border: '1px solid #d8dde6',
           borderRadius: 20,
           boxShadow: '0 24px 60px rgba(15,23,42,0.18), 0 4px 16px rgba(15,23,42,0.08)',
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
         }}
       >
         {/* Header */}
-        <div className="flex-shrink-0 px-7 py-5" style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+        <div className="flex-shrink-0 px-7 py-5" style={{ background: '#eaecf1', borderBottom: '1px solid #d8dde6' }}>
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
               <div
@@ -342,7 +342,7 @@ export default function BriefModal({ brief, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-7 py-4" style={{ background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+        <div className="flex-shrink-0 px-7 py-4" style={{ background: '#eaecf1', borderTop: '1px solid #d8dde6' }}>
           <div className="text-[11px] font-semibold uppercase tracking-wide mb-2.5 text-slate-400">Next Steps</div>
           <div className="flex flex-wrap gap-2">
             {isNews ? (
@@ -350,6 +350,13 @@ export default function BriefModal({ brief, onClose }) {
                 <ActionBtn label="💾 Save highlights to inbox" variant="primary" onClick={comingSoon('Save highlights')} />
                 <ActionBtn label="📋 Create watch rule"        variant="secondary" onClick={comingSoon('Create watch rule')} />
                 <ActionBtn label="🎓 Turn into learning path"  variant="secondary" onClick={comingSoon('Learning path')} />
+                {onRefresh && (
+                  <ActionBtn
+                    label={refreshing ? '⏳ Refreshing…' : '🔄 Refresh digest'}
+                    variant="secondary"
+                    onClick={() => !refreshing && onRefresh(brief.id)}
+                  />
+                )}
               </>
             ) : (
               <>

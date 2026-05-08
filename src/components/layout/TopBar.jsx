@@ -8,6 +8,8 @@ import SettingsMenu from './SettingsMenu.jsx'
 import BriefsDropdown from '../briefs/BriefsDropdown.jsx'
 import BriefModal from '../briefs/BriefModal.jsx'
 import { useDailyDigestCheck } from '../briefs/useDailyDigestCheck.js'
+import { fetchAiNews } from '../../lib/briefs/fetchAiNews.js'
+import { generateNewsDigest } from '../../lib/briefs/generateNewsDigest.js'
 
 const TYPE_META = {
   recent:  { Icon: Clock,     label: 'Recent',   accent: 'var(--color-text-tertiary)' },
@@ -27,11 +29,30 @@ const MAX_SUGGESTIONS = 10
 
 export default function TopBar() {
   const navigate = useNavigate()
-  const { recordSearch, recentSearches, userTopics, documents, briefs } = useStore()
+  const { recordSearch, recentSearches, userTopics, documents, briefs, addBrief, deleteBrief } = useStore()
   const unread = unreadBriefCount(briefs)
   const [briefsOpen, setBriefsOpen] = useState(false)
   const [activeBrief, setActiveBrief] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
   const briefsBtnRef = useRef(null)
+
+  async function handleRefreshDigest(briefId) {
+    if (refreshing) return
+    setRefreshing(true)
+    deleteBrief(briefId)
+    setActiveBrief(null)
+    try {
+      const stories = await fetchAiNews()
+      if (!stories.length) return
+      const digest = await generateNewsDigest(stories)
+      if (digest) {
+        addBrief(digest)
+        setActiveBrief(digest)
+      }
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   useDailyDigestCheck()
   const { topics: seedTopics, tools, creators, concepts } = useSeed()
@@ -410,6 +431,8 @@ export default function TopBar() {
           <BriefModal
             brief={activeBrief}
             onClose={() => setActiveBrief(null)}
+            onRefresh={handleRefreshDigest}
+            refreshing={refreshing}
           />
     </header>
   )
