@@ -14,7 +14,7 @@ export default function TermHoverCard({ term, definition }) {
       <span className="border-b border-dashed border-teal-500/60 cursor-help text-teal-700 font-medium">
         {term}
       </span>
-      {visible && (
+      {visible && definition && (
         <span
           className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-64 p-3 rounded-xl text-xs text-slate-800 leading-relaxed z-50 pointer-events-none shadow-xl"
           style={{ background: '#fff', border: '1px solid rgba(13,148,136,0.2)' }}
@@ -29,9 +29,15 @@ export default function TermHoverCard({ term, definition }) {
           {definition.whyItMatters && (
             <span className="block mt-1 text-slate-500 italic">{definition.whyItMatters}</span>
           )}
+          {/* border caret */}
           <span
             className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
-            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #fff' }}
+            style={{ borderLeft: '6px solid transparent', borderRight: '6px solid transparent', borderTop: '6px solid rgba(13,148,136,0.2)' }}
+          />
+          {/* fill caret */}
+          <span
+            className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+            style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #fff', marginTop: '-1px' }}
           />
         </span>
       )}

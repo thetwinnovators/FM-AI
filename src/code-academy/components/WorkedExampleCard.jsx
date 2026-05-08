@@ -15,6 +15,7 @@ const CODE_THEME = {
  */
 export default function WorkedExampleCard({ example }) {
   const [expanded, setExpanded] = useState(false)
+  if (!example) return null
   const lang = example.language || 'html'
 
   return (

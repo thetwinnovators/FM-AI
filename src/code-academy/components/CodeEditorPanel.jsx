@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useLayoutEffect } from 'react'
 import { Play, RotateCcw, Lightbulb, Loader2 } from 'lucide-react'
 
 /**
@@ -20,6 +20,15 @@ export default function CodeEditorPanel({
   hasMoreHints,
 }) {
   const textareaRef = useRef(null)
+  const cursorRef = useRef(null)
+
+  useLayoutEffect(() => {
+    if (cursorRef.current !== null && textareaRef.current) {
+      textareaRef.current.selectionStart = cursorRef.current
+      textareaRef.current.selectionEnd   = cursorRef.current
+      cursorRef.current = null
+    }
+  })
 
   // Handle Tab key — insert 2 spaces instead of losing focus
   function handleKeyDown(e) {
@@ -29,13 +38,8 @@ export default function CodeEditorPanel({
       if (!ta) return
       const start = ta.selectionStart
       const end   = ta.selectionEnd
-      const newCode = code.slice(0, start) + '  ' + code.slice(end)
-      onChange(newCode)
-      // Restore cursor after React re-render
-      requestAnimationFrame(() => {
-        ta.selectionStart = start + 2
-        ta.selectionEnd   = start + 2
-      })
+      cursorRef.current = start + 2
+      onChange(code.slice(0, start) + '  ' + code.slice(end))
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault()
