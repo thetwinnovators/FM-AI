@@ -14,7 +14,7 @@
  *   academy.startLesson('python', 'Variables')
  */
 
-import { useCallback, useReducer } from 'react'
+import { useCallback, useReducer, useRef, useEffect } from 'react'
 import { useStore } from '../store/useStore.js'
 import { generateCodeLesson } from './lessonGenerator.js'
 import { validateCode } from './validatorEngine.js'
@@ -25,6 +25,7 @@ const INITIAL = {
   stage: 'home',
   language: '',
   concept: '',
+  lessonKey: '',
   lesson: null,
   exerciseIndex: 0,
   userCode: '',
@@ -40,7 +41,7 @@ const INITIAL = {
 function reducer(state, action) {
   switch (action.type) {
     case 'START_LOADING':
-      return { ...INITIAL, stage: 'loading', language: action.language, concept: action.concept }
+      return { ...INITIAL, stage: 'loading', language: action.language, concept: action.concept, lessonKey: action.lessonKey }
     case 'LESSON_LOADED':
       return {
         ...state,
@@ -98,6 +99,8 @@ function reducer(state, action) {
 
 export function useCodeAcademy() {
   const [state, dispatch] = useReducer(reducer, INITIAL)
+  const stateRef = useRef(state)
+  useEffect(() => { stateRef.current = state })
   const { addCodeLesson, getCodeLesson, saveCodeProgress } = useStore()
 
   const startLesson = useCallback(async (language, concept) => {
@@ -107,14 +110,19 @@ export function useCodeAcademy() {
       return
     }
 
-    dispatch({ type: 'START_LOADING', language, concept })
-
     const lessonKey = `${language}_${concept.toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
+
+    dispatch({ type: 'START_LOADING', language, concept, lessonKey })
 
     // Check cache first
     let lesson = getCodeLesson(lessonKey)
     if (!lesson) {
-      lesson = await generateCodeLesson(language, concept)
+      try {
+        lesson = await generateCodeLesson(language, concept)
+      } catch {
+        dispatch({ type: 'LOAD_FAILED', error: 'Could not generate lesson. Make sure Ollama is running and a model is pulled.' })
+        return
+      }
       if (!lesson) {
         dispatch({ type: 'LOAD_FAILED', error: 'Could not generate lesson. Make sure Ollama is running and a model is pulled.' })
         return
@@ -143,22 +151,29 @@ export function useCodeAcademy() {
   }, [])
 
   const runCode = useCallback(async () => {
-    const { lesson, exerciseIndex, userCode, language } = state
+    const { lesson, exerciseIndex, userCode, language } = stateRef.current
     if (!lesson) return
     const exercise = lesson.exercises[exerciseIndex]
     if (!exercise) return
 
     dispatch({ type: 'RUN_START' })
-    const result = await validateCode(userCode, exercise, language)
-    dispatch({ type: 'RUN_DONE', result })
+    try {
+      const result = await validateCode(userCode, exercise, language)
+      dispatch({ type: 'RUN_DONE', result })
 
-    // If failed, fetch AI explanation
-    if (!result.passed) {
-      dispatch({ type: 'FETCH_FEEDBACK_START' })
-      const feedback = await explainError(userCode, exercise, language, result.reason)
-      dispatch({ type: 'FETCH_FEEDBACK_DONE', feedback })
+      if (!result.passed) {
+        dispatch({ type: 'FETCH_FEEDBACK_START' })
+        try {
+          const feedback = await explainError(userCode, exercise, language, result.reason)
+          dispatch({ type: 'FETCH_FEEDBACK_DONE', feedback })
+        } catch {
+          dispatch({ type: 'FETCH_FEEDBACK_DONE', feedback: null })
+        }
+      }
+    } catch {
+      dispatch({ type: 'RUN_DONE', result: { passed: false, reason: 'An error occurred while running your code.' } })
     }
-  }, [state])
+  }, [])
 
   const useHint = useCallback(() => {
     dispatch({ type: 'USE_HINT' })
@@ -169,9 +184,8 @@ export function useCodeAcademy() {
   }, [])
 
   const nextExercise = useCallback(() => {
-    const { lesson, exerciseIndex } = state
+    const { lesson, exerciseIndex, lessonKey } = stateRef.current
     if (!lesson) return
-    const lessonKey = lesson.id
     const nextIdx = exerciseIndex + 1
     const isLastExercise = nextIdx >= lesson.exercises.length
 
@@ -182,7 +196,7 @@ export function useCodeAcademy() {
     })
 
     dispatch({ type: 'NEXT_EXERCISE' })
-  }, [state, saveCodeProgress])
+  }, [saveCodeProgress])
 
   const backToHome = useCallback(() => {
     dispatch({ type: 'BACK_TO_HOME' })
