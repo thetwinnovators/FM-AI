@@ -263,7 +263,6 @@ export default function BriefModal({ brief, onClose, onRefresh, refreshing }) {
   if (!brief) return null
 
   const isNews = brief.type === 'news_digest'
-  const comingSoon = (label) => () => console.info(`Coming soon: ${label}`)
 
   return createPortal(
     <>
@@ -342,32 +341,15 @@ export default function BriefModal({ brief, onClose, onRefresh, refreshing }) {
         </div>
 
         {/* Footer */}
-        <div className="flex-shrink-0 px-7 py-4" style={{ background: '#eaecf1', borderTop: '1px solid #d8dde6' }}>
-          <div className="text-[11px] font-semibold uppercase tracking-wide mb-2.5 text-slate-400">Next Steps</div>
-          <div className="flex flex-wrap gap-2">
-            {isNews ? (
-              <>
-                <ActionBtn label="💾 Save highlights to inbox" variant="primary" onClick={comingSoon('Save highlights')} />
-                <ActionBtn label="📋 Create watch rule"        variant="secondary" onClick={comingSoon('Create watch rule')} />
-                <ActionBtn label="🎓 Turn into learning path"  variant="secondary" onClick={comingSoon('Learning path')} />
-                {onRefresh && (
-                  <ActionBtn
-                    label={refreshing ? '⏳ Refreshing…' : '🔄 Refresh digest'}
-                    variant="secondary"
-                    onClick={() => !refreshing && onRefresh(brief.id)}
-                  />
-                )}
-              </>
-            ) : (
-              <>
-                <ActionBtn label="💾 Save to Topic"               variant="primary"   onClick={comingSoon('Save to Topic')} />
-                <ActionBtn label="⚡ Generate opportunity brief"  variant="purple"    onClick={comingSoon('Opportunity brief')} />
-                <ActionBtn label="🎓 Turn into learning path"     variant="secondary" onClick={comingSoon('Learning path')} />
-                <ActionBtn label="📋 Create watch rule"           variant="secondary" onClick={comingSoon('Create watch rule')} />
-              </>
-            )}
+        {(isNews && onRefresh) && (
+          <div className="flex-shrink-0 px-7 py-4" style={{ background: '#eaecf1', borderTop: '1px solid #d8dde6' }}>
+            <ActionBtn
+              label={refreshing ? '⏳ Refreshing…' : '🔄 Refresh digest'}
+              variant="secondary"
+              onClick={() => !refreshing && onRefresh(brief.id)}
+            />
           </div>
-        </div>
+        )}
       </div>
     </>,
     document.body,
