@@ -427,12 +427,11 @@ export default function AcademyHome() {
 
   return (
     <div className="flex flex-col min-h-full">
-      {/* Page header */}
-      <div className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
-        <GraduationCap size={14} className="text-teal-400 flex-shrink-0" />
-        <span className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
-          Flow Academy
-        </span>
+      {/* Page header — matches Documents / other page header style */}
+      <div className="px-6 pt-6 pb-1 flex-shrink-0">
+        <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+          <GraduationCap size={20} className="text-teal-400" /> Flow Academy
+        </h1>
       </div>
 
       {/* Tabs bar — always visible at top */}
