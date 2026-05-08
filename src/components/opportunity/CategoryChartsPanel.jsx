@@ -44,7 +44,7 @@ export default function CategoryChartsPanel({ onChartsUpdated }) {
 
   // Auto-fetch on first visit if no data for this category + chartType
   useEffect(() => {
-    if (!activeChart) { doSync(activeCategory, chartType) }
+    if (!activeChart && !syncing) { doSync(activeCategory, chartType) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory, chartType])
 
@@ -55,13 +55,15 @@ export default function CategoryChartsPanel({ onChartsUpdated }) {
     try {
       const fetched = await fetchCharts([{ category, chartType: type }])
       if (fetched.length > 0) {
-        const merged = [
-          ...allCharts.filter((c) => !(c.category === category && c.chartType === type)),
-          ...fetched,
-        ]
-        radarStorage.saveCharts(merged)
-        setAllCharts(merged)
-        onChartsUpdated?.(merged)
+        setAllCharts((prev) => {
+          const merged = [
+            ...prev.filter((c) => !(c.category === category && c.chartType === type)),
+            ...fetched,
+          ]
+          radarStorage.saveCharts(merged)
+          onChartsUpdated?.(merged)
+          return merged
+        })
       } else {
         setSyncError(true)
       }
@@ -70,7 +72,7 @@ export default function CategoryChartsPanel({ onChartsUpdated }) {
     } finally {
       setSyncing(false)
     }
-  }, [syncing, allCharts, onChartsUpdated])
+  }, [syncing, onChartsUpdated])
 
   return (
     <div className="flex flex-col gap-3.5">
