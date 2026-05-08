@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Code2, Loader2, Sparkles, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Code2, Loader2, Sparkles, CheckCircle2, ArrowRight, Trash2 } from 'lucide-react'
 import { LANGUAGES, CONCEPTS_BY_LANGUAGE, GOALS } from '../constants.js'
 
 // ─── Language colours ──────────────────────────────────────────────────────────
 const LANG_MAP = Object.fromEntries(LANGUAGES.map((l) => [l.id, l]))
 
 // ─── Progress card (In Progress / Completed tabs) ─────────────────────────────
-function LessonCard({ progress, onResume }) {
+function LessonCard({ progress, onResume, onDelete }) {
+  const [confirming, setConfirming] = useState(false)
   const lang = LANG_MAP[progress.language]
   const pct  = progress.exercisesTotal > 0
     ? Math.round((progress.exercisesCompleted / progress.exercisesTotal) * 100)
@@ -18,15 +19,32 @@ function LessonCard({ progress, onResume }) {
     passed: i < (progress.exercisesCompleted || 0),
   }))
 
+  function handleDelete(e) {
+    e.stopPropagation()
+    if (confirming) {
+      onDelete(progress.lessonKey)
+    } else {
+      setConfirming(true)
+    }
+  }
+
+  function cancelDelete(e) {
+    e.stopPropagation()
+    setConfirming(false)
+  }
+
   return (
     <div
       className="relative group w-full text-left rounded-xl border overflow-hidden cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg"
       style={{
-        background:  'linear-gradient(160deg, rgba(15,17,28,0.75) 0%, rgba(8,10,18,0.85) 100%)',
-        borderColor: done ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)',
-        boxShadow:   done ? '0 0 0 1px rgba(52,211,153,0.1) inset' : 'none',
+        background:  confirming
+          ? 'linear-gradient(160deg, rgba(30,10,10,0.85) 0%, rgba(18,6,6,0.92) 100%)'
+          : 'linear-gradient(160deg, rgba(15,17,28,0.75) 0%, rgba(8,10,18,0.85) 100%)',
+        borderColor: confirming ? 'rgba(239,68,68,0.35)' : done ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)',
+        boxShadow:   done && !confirming ? '0 0 0 1px rgba(52,211,153,0.1) inset' : 'none',
       }}
-      onClick={() => onResume(progress.language, progress.concept)}
+      onClick={() => !confirming && onResume(progress.language, progress.concept)}
+      onMouseLeave={() => setConfirming(false)}
     >
       <div className="p-5">
 
@@ -46,13 +64,42 @@ function LessonCard({ progress, onResume }) {
               {lang?.label ?? progress.language}
             </p>
           </div>
-          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md border flex-shrink-0 mt-0.5 ${
-            done
-              ? 'text-emerald-400 bg-emerald-500/15 border-emerald-400/25'
-              : 'text-teal-400/80 bg-teal-500/10 border-teal-400/15'
-          }`}>
-            {done ? 'Completed' : 'In Progress'}
-          </span>
+
+          {/* Status badge / delete controls */}
+          {confirming ? (
+            <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+              <span className="text-[10px] text-red-400/80 font-semibold">Delete?</span>
+              <button
+                onClick={handleDelete}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-red-500/20 border border-red-400/30 text-red-400 hover:bg-red-500/35 transition-colors"
+              >
+                Yes
+              </button>
+              <button
+                onClick={cancelDelete}
+                className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/[0.10] text-white/50 hover:text-white/80 transition-colors"
+              >
+                No
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
+              <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md border ${
+                done
+                  ? 'text-emerald-400 bg-emerald-500/15 border-emerald-400/25'
+                  : 'text-teal-400/80 bg-teal-500/10 border-teal-400/15'
+              }`}>
+                {done ? 'Completed' : 'In Progress'}
+              </span>
+              <button
+                onClick={handleDelete}
+                className="opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 rounded-md hover:bg-red-500/15 hover:text-red-400 text-white/40"
+                title="Delete lesson"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ── Exercises meta ── */}
@@ -117,7 +164,7 @@ function LessonCard({ progress, onResume }) {
  *   error — error string or null
  *   progressList — array of CodeLessonProgress
  */
-export default function CodeAcademyHome({ onStart, isLoading, error, progressList }) {
+export default function CodeAcademyHome({ onStart, onDelete, isLoading, error, progressList }) {
   const [tab, setTab] = useState('discover')
 
   // Discover tab state
@@ -340,7 +387,7 @@ export default function CodeAcademyHome({ onStart, isLoading, error, progressLis
         ) : (
           <div className="p-6 grid grid-cols-3 gap-3">
             {inProgress.map((p) => (
-              <LessonCard key={p.lessonKey} progress={p} onResume={onStart} />
+              <LessonCard key={p.lessonKey} progress={p} onResume={onStart} onDelete={onDelete} />
             ))}
           </div>
         )
@@ -356,7 +403,7 @@ export default function CodeAcademyHome({ onStart, isLoading, error, progressLis
         ) : (
           <div className="p-6 grid grid-cols-3 gap-3">
             {completed.map((p) => (
-              <LessonCard key={p.lessonKey} progress={p} onResume={onStart} />
+              <LessonCard key={p.lessonKey} progress={p} onResume={onStart} onDelete={onDelete} />
             ))}
           </div>
         )

@@ -915,6 +915,15 @@ export function useStore() {
     persist({ ...cur, codeLessons: { ...cur.codeLessons, [key]: lesson } })
   }, [])
 
+  const deleteCodeLesson = useCallback((key) => {
+    const cur = memoryState
+    const nextLessons   = { ...cur.codeLessons }
+    const nextProgress  = { ...cur.codeProgress }
+    delete nextLessons[key]
+    delete nextProgress[key]
+    persist({ ...cur, codeLessons: nextLessons, codeProgress: nextProgress })
+  }, [])
+
   const getCodeLesson = useCallback((key) => memoryState.codeLessons?.[key] || null, [])
 
   const saveCodeProgress = useCallback((key, patch) => {
@@ -956,6 +965,6 @@ export function useStore() {
     markBriefRead,
     markAllBriefsRead,
     // Code Academy
-    addCodeLesson, getCodeLesson, saveCodeProgress, getCodeProgress, allCodeProgress,
+    addCodeLesson, deleteCodeLesson, getCodeLesson, saveCodeProgress, getCodeProgress, allCodeProgress,
   }
 }
