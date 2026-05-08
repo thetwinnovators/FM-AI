@@ -7,7 +7,7 @@ export interface TermDefinition {
 
 export interface WorkedExample {
   code: string
-  language: string
+  language: Language
   explanationSteps: string[]
   expectedOutput?: string
 }
@@ -44,8 +44,8 @@ export interface CodeLesson {
 
 export interface CodeLessonProgress {
   lessonKey: string
-  language: Language
-  concept: string
+  language?: Language
+  concept?: string
   attempts: number
   hintsUsed: number
   exercisesCompleted: number

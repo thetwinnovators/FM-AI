@@ -43,7 +43,7 @@ export const GOALS = [
   { label: 'Create an HTML form',            language: 'html',   concept: 'Forms and inputs' },
   { label: 'Style a card layout',            language: 'css',    concept: 'Box model (padding, margin, border)' },
   { label: 'Center things with Flexbox',     language: 'css',    concept: 'Flexbox layout' },
-  { label: 'Change colors and fonts',        language: 'css',    concept: 'Colors and backgrounds' },
+  { label: 'Change colors and fonts',        language: 'css',    concept: 'Fonts and text' },
   { label: 'Learn Python for beginners',     language: 'python', concept: 'Variables' },
   { label: 'Write a simple Python script',   language: 'python', concept: 'Print and input' },
   { label: 'Work with lists in Python',      language: 'python', concept: 'Lists' },
