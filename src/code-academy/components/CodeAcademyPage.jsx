@@ -9,20 +9,15 @@ import TermHoverCard     from './TermHoverCard.jsx'
 import { buildIframeSrc } from '../validatorEngine.js'
 
 // ─── Persistent page-level header ─────────────────────────────────────────────
-// Always visible — mirrors Flow Academy's CourseFrame header pattern.
 function AcademyHeader({ onHome }) {
   return (
-    <div className="flex items-center gap-2 px-5 py-3 flex-shrink-0 border-b border-white/[0.06]">
-      <Code2 size={14} className="text-teal-400 flex-shrink-0" />
-      <button
+    <div className="px-6 pt-6 pb-1 flex-shrink-0">
+      <h1
+        className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5 cursor-pointer hover:text-teal-400 transition-colors"
         onClick={onHome}
-        className="text-sm font-semibold transition-colors"
-        style={{ color: 'var(--color-text-secondary)' }}
-        onMouseEnter={e => e.currentTarget.style.color = '#2dd4bf'}
-        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
       >
-        Code Academy
-      </button>
+        <Code2 size={20} className="text-teal-400" /> Code Academy
+      </h1>
     </div>
   )
 }
