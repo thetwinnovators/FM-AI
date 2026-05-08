@@ -2,7 +2,7 @@ import { chatJson } from '../llm/ollama.js'
 import { OLLAMA_CONFIG } from '../llm/ollamaConfig.js'
 
 const SYSTEM_PROMPT = `You are an AI news analyst. Given a numbered list of today's top AI stories, produce a structured digest as JSON with these exact keys:
-- highlights: array of objects with { "text": "one-sentence bullet", "idx": N } where N is the 1-based story number the highlight is drawn from (4-6 items)
+- highlights: array of strings, each a one-sentence bullet summarising a key development (4-6 items). Each bullet MUST begin with the exact story title it is drawn from, followed by a colon and your summary. Example: "Anthropic raises $4B: OpenAI's rival secures record funding to scale model training."
 - themes: array of strings (2-3 cross-story patterns or trends)
 - top_signal: string (single highest-confidence development to pay attention to)
 - risks: string (1-2 sentences on what looks hyped, premature, or contradicted)
@@ -32,15 +32,35 @@ export async function generateNewsDigest(stories) {
   const raw = await chatJson(messages)
   if (!raw) return null
 
-  const uniqueSources  = new Set(stories.map((s) => s.source).filter(Boolean))
-  const slicedStories  = stories.slice(0, 25)
+  const uniqueSources = new Set(stories.map((s) => s.source).filter(Boolean))
+  const slicedStories = stories.slice(0, 25)
 
-  // Normalise highlights — LLM returns { text, idx } objects; attach URL from stories
+  // Fuzzy-match a highlight text back to the closest story title.
+  // The LLM is instructed to start each bullet with the story title; we
+  // tokenise both strings and count word overlap, falling back to null when
+  // the best score is too low (avoids wrong matches on short titles).
+  function tokenise(str) {
+    return str.toLowerCase().replace(/[^a-z0-9 ]/g, '').split(/\s+/).filter(Boolean)
+  }
+  function bestStoryUrl(highlightText) {
+    const hTokens = new Set(tokenise(highlightText))
+    let best = null, bestScore = 0
+    for (const s of slicedStories) {
+      if (!s.url) continue
+      const sTokens = tokenise(s.title)
+      const overlap = sTokens.filter((t) => hTokens.has(t)).length
+      const score   = overlap / Math.max(sTokens.length, 1)
+      if (score > bestScore) { bestScore = score; best = s }
+    }
+    // Require at least 30 % of the story's title words to match
+    return bestScore >= 0.3 ? best?.url ?? null : null
+  }
+
+  // Normalise highlights — LLM returns strings; attach URL via fuzzy match
   const rawHighlights  = Array.isArray(raw.highlights) ? raw.highlights : []
   const highlightItems = rawHighlights.map((h) => {
-    if (typeof h === 'string') return { text: h, url: null }
-    const story = h.idx ? slicedStories[Number(h.idx) - 1] : null
-    return { text: String(h.text ?? h), url: story?.url ?? null }
+    const text = typeof h === 'string' ? h : String(h?.text ?? h)
+    return { text, url: bestStoryUrl(text) }
   })
   const highlightCount = highlightItems.length
 
