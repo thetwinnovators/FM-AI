@@ -188,8 +188,8 @@ export default function WinningAppsPanel({ onWinningAppsUpdated }) {
                     <button
                       onClick={() => handleDelete(app.id)}
                       title="Delete"
-                      className="p-0.5 rounded"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(239,68,68,0.50)' }}
+                      className="p-0.5 rounded text-red-500/50"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer' }}
                     >
                       <Trash2 size={11} />
                     </button>
