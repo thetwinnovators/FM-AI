@@ -15,7 +15,7 @@ function MiniScoreRow({ label, value, color }) {
         <span style={{ fontSize: 10, fontWeight: 700, color }}>{value}</span>
       </div>
       <div style={{ height: 3, borderRadius: 2, background: 'var(--color-border-subtle)' }}>
-        <div style={{ width: `${value}%`, height: '100%', borderRadius: 2, background: color, transition: 'width 0.4s ease' }} />
+        <div style={{ width: `${Math.min(100, Math.max(0, value))}%`, height: '100%', borderRadius: 2, background: color, transition: 'width 0.4s ease' }} />
       </div>
     </div>
   )
