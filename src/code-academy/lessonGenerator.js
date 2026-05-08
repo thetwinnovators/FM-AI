@@ -32,6 +32,7 @@ function lessonStructureMessages(language, concept) {
         '  "summary": "One sentence: what the student can do after this lesson",\n' +
         '  "difficulty": "beginner",\n' +
         '  "objectives": ["You will learn to...", "You will understand..."],\n' +
+        '  "conceptBody": ["2-3 short plain sentences explaining the concept — what it is and why it matters, before any code", "Another 1-2 sentence paragraph if needed"],\n' +
         '  "prerequisites": [],\n' +
         '  "terminology": [\n' +
         '    {\n' +
@@ -51,6 +52,7 @@ function lessonStructureMessages(language, concept) {
         'Rules:\n' +
         '- title: max 6 words, no jargon\n' +
         '- objectives: 2-3 items starting with "You will"\n' +
+        '- conceptBody: 2-3 short plain paragraphs (as array of strings) explaining the concept before the code example\n' +
         '- prerequisites: empty [] for intro topics\n' +
         '- terminology: 3-5 key terms actually used in this lesson\n' +
         '- workedExample.code: real runnable code, not pseudocode\n' +
@@ -163,6 +165,7 @@ export async function generateCodeLesson(language, concept) {
       difficulty:    ['beginner', 'beginner_plus', 'intermediate'].includes(structureRaw.difficulty)
                        ? structureRaw.difficulty : 'beginner',
       objectives:    Array.isArray(structureRaw.objectives)    ? structureRaw.objectives.map(String)    : [],
+      conceptBody:   Array.isArray(structureRaw.conceptBody)   ? structureRaw.conceptBody.map(String)   : [],
       prerequisites: Array.isArray(structureRaw.prerequisites) ? structureRaw.prerequisites.map(String) : [],
       terminology:   Array.isArray(structureRaw.terminology)   ? structureRaw.terminology.map(shapeTerm) : [],
       workedExample,

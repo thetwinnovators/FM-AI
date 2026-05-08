@@ -164,6 +164,15 @@ export default function CodeAcademyPage({ academy }) {
               </div>
             )}
 
+            {/* Concept body — plain-language explanation before the code */}
+            {lesson.conceptBody?.length > 0 && (
+              <div className="mb-6 space-y-3">
+                {lesson.conceptBody.map((para, i) => (
+                  <p key={i} className="text-sm text-slate-700 leading-relaxed">{para}</p>
+                ))}
+              </div>
+            )}
+
             {/* Worked example */}
             {lesson.workedExample && (
               <div className="mb-6">
