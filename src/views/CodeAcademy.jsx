@@ -12,7 +12,7 @@ export default function CodeAcademy() {
     return (
       <CodeAcademyHome
         onStart={academy.startLesson}
-        isLoading={false}
+        isLoading={academy.stage === 'loading'}
         error={academy.error}
         progressList={progressList}
       />

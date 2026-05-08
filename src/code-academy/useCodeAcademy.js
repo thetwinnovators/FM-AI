@@ -192,6 +192,8 @@ export function useCodeAcademy() {
     saveCodeProgress(lessonKey, {
       exercisesCompleted: nextIdx,
       masteryState: isLastExercise ? 'passed' : 'in_progress',
+      attempts: stateRef.current.attempts,
+      hintsUsed: stateRef.current.hintsUsed,
       ...(isLastExercise ? { completedAt: new Date().toISOString() } : {}),
     })
 

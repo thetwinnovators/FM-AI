@@ -110,7 +110,7 @@ export async function validateWithLLM(userCode, exercise, language) {
   try {
     const result = await chatJson(validationMessages(userCode, exercise, language), { temperature: 0.1 })
     return {
-      passed: result?.pass === true,
+      passed: Boolean(result?.pass),
       reason: String(result?.reason || (result?.pass ? 'Great work!' : 'Not quite — try again!')),
     }
   } catch {
@@ -144,12 +144,11 @@ export async function validateCode(userCode, exercise, language) {
  */
 export function buildIframeSrc(code, language) {
   if (language === 'css') {
-    const safeCss = code.replace(/<\/style/gi, '<\\/style').replace(/<script/gi, '<scr\\ipt')
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
 <style>
 body { margin: 16px; font-family: system-ui, sans-serif; }
-${safeCss}
+${code}
 </style>
 </head><body>
 <h1>Heading Example</h1>
