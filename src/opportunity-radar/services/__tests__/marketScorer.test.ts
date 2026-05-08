@@ -100,19 +100,33 @@ describe('computeMarketScore', () => {
     expect(result.breakdown.competitorWeakness).toBe(50) // 1/2 = 50%
   })
 
-  it('total marketScore is weighted blend of four components', () => {
+  it('total marketScore uses correct weights', () => {
     const c = makeCluster({ task: 5, todo: 4, calendar: 3 })
+    // makeChart gives ranks 1–10 → avgRank = 5.5 → chartRankStrength = Math.round(((50 - 5.5) / 49) * 100) = 91
     const chart = makeChart('productivity')
     const apps  = Array.from({ length: 5 }, () => makeWinningApp('productivity', 'subscription', 'some notes'))
     const result = computeMarketScore(c, [chart], apps)
 
-    const expected = Math.round(
-      0.35 * result.breakdown.categoryChartPresence +
-      0.25 * result.breakdown.chartRankStrength +
-      0.25 * result.breakdown.winningAppDensity +
-      0.15 * result.breakdown.competitorWeakness,
-    )
-    expect(result.marketScore).toBe(expected)
-    expect(result.marketScore).toBeGreaterThan(0)
+    expect(result.breakdown.categoryChartPresence).toBe(100)
+    expect(result.breakdown.chartRankStrength).toBe(91)
+    expect(result.breakdown.winningAppDensity).toBe(100)
+    expect(result.breakdown.competitorWeakness).toBe(100)
+    // 0.35*100 + 0.25*91 + 0.25*100 + 0.15*100 = 35 + 22.75 + 25 + 15 = 97.75 → 98
+    expect(result.marketScore).toBe(98)
+  })
+
+  it('chartRankStrength is 91 for top-10 ranks 1–10 and 100 for single rank-1 app', () => {
+    const c = makeCluster({ task: 5, todo: 4, calendar: 3 })
+
+    // ranks 1–10: avgRank = 5.5 → ((50 - 5.5) / 49) * 100 = 90.8... → 91
+    const chart10 = makeChart('productivity', 10)
+    expect(computeMarketScore(c, [chart10], []).breakdown.chartRankStrength).toBe(91)
+
+    // single rank-1 app: avgRank = 1 → ((50 - 1) / 49) * 100 = 100
+    const chart1: CategoryChart = {
+      category: 'productivity', chartType: 'top_free', fetchedAt: new Date().toISOString(),
+      apps: [{ rank: 1, name: 'Top App', publisher: 'Pub', appId: 'a1' }],
+    }
+    expect(computeMarketScore(c, [chart1], []).breakdown.chartRankStrength).toBe(100)
   })
 })

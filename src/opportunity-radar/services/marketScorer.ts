@@ -53,7 +53,7 @@ export function computeMarketScore(
   const inferredCategory = inferCategory(cluster)
 
   if (!inferredCategory) {
-    return { marketScore: 0, inferredCategory: null, breakdown: ZERO_BREAKDOWN }
+    return { marketScore: 0, inferredCategory: null, breakdown: { ...ZERO_BREAKDOWN } }
   }
 
   // 1. CategoryChartPresence: does this category have any fetched chart data?
