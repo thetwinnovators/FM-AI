@@ -1,8 +1,8 @@
 import { chatJson } from '../llm/ollama.js'
 import { OLLAMA_CONFIG } from '../llm/ollamaConfig.js'
 
-const SYSTEM_PROMPT = `You are an AI news analyst. Given a list of today's top AI stories from Hacker News and Reddit, produce a structured digest as JSON with these exact keys:
-- highlights: array of strings (4-6 one-sentence bullet developments)
+const SYSTEM_PROMPT = `You are an AI news analyst. Given a numbered list of today's top AI stories, produce a structured digest as JSON with these exact keys:
+- highlights: array of objects with { "text": "one-sentence bullet", "idx": N } where N is the 1-based story number the highlight is drawn from (4-6 items)
 - themes: array of strings (2-3 cross-story patterns or trends)
 - top_signal: string (single highest-confidence development to pay attention to)
 - risks: string (1-2 sentences on what looks hyped, premature, or contradicted)
@@ -32,14 +32,23 @@ export async function generateNewsDigest(stories) {
   const raw = await chatJson(messages)
   if (!raw) return null
 
-  const uniqueSources = new Set(stories.map((s) => s.source).filter(Boolean))
-  const highlightCount = Array.isArray(raw.highlights) ? raw.highlights.length : 0
+  const uniqueSources  = new Set(stories.map((s) => s.source).filter(Boolean))
+  const slicedStories  = stories.slice(0, 25)
+
+  // Normalise highlights — LLM returns { text, idx } objects; attach URL from stories
+  const rawHighlights  = Array.isArray(raw.highlights) ? raw.highlights : []
+  const highlightItems = rawHighlights.map((h) => {
+    if (typeof h === 'string') return { text: h, url: null }
+    const story = h.idx ? slicedStories[Number(h.idx) - 1] : null
+    return { text: String(h.text ?? h), url: story?.url ?? null }
+  })
+  const highlightCount = highlightItems.length
 
   const sections = [
-    { type: 'highlights', items: Array.isArray(raw.highlights) ? raw.highlights : [] },
-    { type: 'themes', items: Array.isArray(raw.themes) ? raw.themes : [] },
+    { type: 'highlights', items: highlightItems },
+    { type: 'themes',     items: Array.isArray(raw.themes) ? raw.themes : [] },
     { type: 'top_signal', content: raw.top_signal ?? '' },
-    { type: 'risks', content: raw.risks ?? '' },
+    { type: 'risks',      content: raw.risks ?? '' },
   ]
 
   // Stable date-scoped ID: one news_digest per calendar day.

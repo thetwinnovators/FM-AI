@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { ExternalLink } from 'lucide-react'
 
 // ── Section renderers ─────────────────────────────────────────────────────────
 
@@ -138,16 +139,38 @@ function HighlightsSection({ section }) {
         Today's Highlights
       </div>
       <div className="flex flex-col gap-[9px]">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-start gap-2.5">
-            <span
-              style={{ width: 6, height: 6, borderRadius: '50%', background: '#2dd4bf', flexShrink: 0, marginTop: 5 }}
-            />
-            <p className="text-[13px] leading-snug" style={{ color: 'rgba(255,255,255,0.7)' }}>
-              {item}
-            </p>
-          </div>
-        ))}
+        {items.map((item, i) => {
+          // Support both legacy plain strings and new { text, url } objects
+          const text = typeof item === 'string' ? item : item.text
+          const url  = typeof item === 'string' ? null  : item.url
+          return (
+            <div key={i} className="flex items-start gap-2.5 group">
+              <span
+                style={{ width: 6, height: 6, borderRadius: '50%', background: '#2dd4bf', flexShrink: 0, marginTop: 5 }}
+              />
+              <p className="text-[13px] leading-snug flex-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                {text}
+              </p>
+              {url && (
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
+                  title="Open article"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink
+                    size={13}
+                    style={{ color: 'rgba(45,212,191,0.6)' }}
+                    onMouseEnter={e => e.currentTarget.style.color = '#2dd4bf'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(45,212,191,0.6)'}
+                  />
+                </a>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
