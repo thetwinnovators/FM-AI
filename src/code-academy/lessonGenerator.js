@@ -103,11 +103,16 @@ function exerciseMessages(language, concept, lessonTitle, workedCode) {
   ]
 }
 
+// LLMs sometimes double-escape newlines (\\n) instead of emitting real \n
+function unescapeCode(str) {
+  return String(str || '').replace(/\\n/g, '\n').replace(/\\t/g, '\t')
+}
+
 function shapeTerm(raw) {
   return {
     term:         String(raw?.term         || ''),
     plainMeaning: String(raw?.plainMeaning || ''),
-    example:      String(raw?.example      || ''),
+    example:      unescapeCode(raw?.example || ''),
     whyItMatters: String(raw?.whyItMatters || ''),
   }
 }
@@ -116,7 +121,7 @@ function shapeExercise(raw, idx) {
   return {
     id:              String(raw?.id || `ex${idx + 1}`),
     prompt:          String(raw?.prompt || ''),
-    starterCode:     String(raw?.starterCode || ''),
+    starterCode:     unescapeCode(raw?.starterCode),
     successCriteria: Array.isArray(raw?.successCriteria) ? raw.successCriteria.map(String) : [],
     expectedOutput:  raw?.expectedOutput ? String(raw.expectedOutput) : undefined,
     validatorType:   ['output', 'structure', 'logic', 'llm'].includes(raw?.validatorType)
@@ -140,7 +145,7 @@ export async function generateCodeLesson(language, concept) {
     if (!structureRaw?.title || !structureRaw?.workedExample?.code) return null
 
     const workedExample = {
-      code:             String(structureRaw.workedExample.code).trim(),
+      code:             unescapeCode(structureRaw.workedExample.code).trim(),
       language,
       explanationSteps: Array.isArray(structureRaw.workedExample.explanationSteps)
                           ? structureRaw.workedExample.explanationSteps.map(String) : [],
