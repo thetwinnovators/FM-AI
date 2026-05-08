@@ -43,7 +43,7 @@ async function fetchSingleChart(
     const data = await res.json() as { feed?: { results?: Record<string, string>[] } }
     const results = data?.feed?.results ?? []
 
-    const apps = results.slice(0, limit).map((item, idx) => ({
+    const apps = results.map((item, idx) => ({
       rank:      idx + 1,
       name:      String(item.name      ?? ''),
       publisher: String(item.artistName ?? ''),

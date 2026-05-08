@@ -80,8 +80,6 @@ describe('fetchCharts', () => {
     await fetchCharts([{ category: 'social', chartType: 'top_grossing' }])
 
     const calledUrl = mockFetch.mock.calls[0][0]
-    expect(calledUrl).toContain('top-grossing')
-    expect(calledUrl).toContain('social-networking')  // Apple slug mapping
-    expect(calledUrl).toContain('50')
+    expect(calledUrl).toBe('https://rss.applemarketingtools.com/api/v2/us/apps/top-grossing/50/social-networking/apps.json')
   })
 })
