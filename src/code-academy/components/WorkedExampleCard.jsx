@@ -29,6 +29,7 @@ export default function WorkedExampleCard({ example }) {
             className="m-0 overflow-x-auto"
             style={{
               background:  '#1a1d2e',
+              color:       '#abb2bf',
               fontFamily:  '"Fira Code", Consolas, monospace',
               fontSize:    '13px',
               lineHeight:  '1.7',
