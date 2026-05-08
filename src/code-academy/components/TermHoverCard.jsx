@@ -16,13 +16,13 @@ export default function TermHoverCard({ term, definition }) {
       </span>
       {visible && definition && (
         <span
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-64 p-3 rounded-xl text-xs text-slate-800 leading-relaxed z-50 pointer-events-none shadow-xl"
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 w-80 p-3.5 rounded-xl text-xs text-slate-800 leading-relaxed z-50 pointer-events-none shadow-xl"
           style={{ background: '#fff', border: '1px solid rgba(13,148,136,0.2)' }}
         >
-          <span className="block font-bold text-teal-700 mb-1">{definition.term}</span>
-          <span className="block mb-1">{definition.plainMeaning}</span>
+          <span className="block font-bold text-teal-700 mb-1.5">{definition.term}</span>
+          <span className="block mb-2">{definition.plainMeaning}</span>
           {definition.example && (
-            <code className="block mt-1 px-2 py-1 rounded bg-slate-100 font-mono text-[11px] text-slate-700 whitespace-pre-wrap">
+            <code className="block mt-1 px-2.5 py-1.5 rounded-lg bg-slate-100 font-mono text-[11px] text-slate-700 break-all">
               {definition.example}
             </code>
           )}

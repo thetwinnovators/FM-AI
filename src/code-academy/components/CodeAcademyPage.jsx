@@ -8,7 +8,39 @@ import WorkedExampleCard from './WorkedExampleCard.jsx'
 import TermHoverCard     from './TermHoverCard.jsx'
 import { buildIframeSrc } from '../validatorEngine.js'
 
-// ─── Persistent page-level header ─────────────────────────────────────────────
+// ─── Lesson-stage frame — mirrors Flow Academy's CourseFrame exactly ──────────
+// Small breadcrumb nav in the dark chrome, then a light-mode white card below.
+function LessonFrame({ children, onHome }) {
+  return (
+    <div className="flex-1 overflow-y-auto p-5 pb-10">
+      {/* Breadcrumb row — stays in dark app chrome, same as CourseFrame */}
+      <div className="flex items-center gap-2 mb-4 px-1">
+        <Code2 size={16} className="text-teal-400" />
+        <button
+          onClick={onHome}
+          className="text-sm font-semibold tracking-wide transition-colors"
+          style={{ color: 'var(--color-text-secondary)' }}
+          onMouseEnter={e => e.currentTarget.style.color = '#2dd4bf'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+        >
+          Code Academy
+        </button>
+      </div>
+
+      {/* Light-mode white card */}
+      <div
+        className="rounded-2xl border border-slate-300/60 shadow-sm overflow-hidden"
+        style={{ background: '#eef0f4', color: '#0f172a' }}
+      >
+        <div className="px-10 pt-8 pb-12">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Persistent header for loading / complete / exercise stages ───────────────
 function AcademyHeader({ onHome }) {
   return (
     <div className="px-6 pt-6 pb-1 flex-shrink-0">
@@ -91,96 +123,87 @@ export default function CodeAcademyPage({ academy }) {
   if (stage === 'lesson') {
     return (
       <div className="flex flex-col h-full">
-        <AcademyHeader onHome={backToHome} />
+        <LessonFrame onHome={backToHome}>
 
-        <div className="flex-1 overflow-y-auto p-5 pb-10">
-
-          {/* Light-mode card — same spec as Flow Academy's CourseFrame white panel */}
-          <div
-            className="max-w-[700px] mx-auto rounded-2xl border border-slate-300/60 shadow-sm overflow-hidden"
-            style={{ background: '#eef0f4', color: '#0f172a' }}
+          {/* Back button — same as Flow Academy BackButton */}
+          <button
+            onClick={backToHome}
+            className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-900 mb-7 transition-colors"
           >
-            <div className="px-10 pt-8 pb-12">
+            ← <span>Code Academy</span>
+          </button>
 
-              {/* Back button */}
-              <button
-                onClick={backToHome}
-                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-800 mb-6 transition-colors"
-              >
-                ← Code Academy
-              </button>
+          <div className="max-w-2xl">
 
-              {/* Lesson header */}
-              <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-widest mb-1.5"
-                  style={{ color: '#0d9488' }}>
-                  {lesson.language} · {lesson.concept}
-                </p>
-                <h2 className="text-2xl font-bold text-slate-900">{lesson.title}</h2>
-                {lesson.summary && (
-                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{lesson.summary}</p>
-                )}
-              </div>
-
-              {/* What you'll learn — teal box matching Flow Academy */}
-              {lesson.objectives?.length > 0 && (
-                <div className="mb-6 p-5 rounded-xl bg-teal-50 border border-teal-100">
-                  <h3 className="text-xs font-semibold text-teal-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                    <Target size={11} /> What you will learn
-                  </h3>
-                  <ul className="space-y-2">
-                    {lesson.objectives.map((obj, i) => (
-                      <li key={i} className="text-sm text-slate-700 flex items-start gap-2.5">
-                        <span className="text-teal-500 font-bold flex-shrink-0 mt-0.5">·</span>
-                        {obj}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+            {/* Lesson header */}
+            <div className="mb-7">
+              <p className="text-xs font-semibold uppercase tracking-widest mb-1.5"
+                style={{ color: '#0d9488' }}>
+                {lesson.language} · {lesson.concept}
+              </p>
+              <h2 className="text-2xl font-bold tracking-tight text-slate-900">{lesson.title}</h2>
+              {lesson.summary && (
+                <p className="mt-2 text-base text-slate-600 leading-relaxed">{lesson.summary}</p>
               )}
-
-              {/* Worked example */}
-              {lesson.workedExample && (
-                <div className="mb-6">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
-                    Example
-                  </h3>
-                  {/* Description or title for the example */}
-                  {lesson.workedExample.title && (
-                    <p className="text-sm text-slate-700 mb-3 leading-relaxed">
-                      {lesson.workedExample.title}
-                    </p>
-                  )}
-                  <WorkedExampleCard example={lesson.workedExample} />
-                </div>
-              )}
-
-              {/* Key terms */}
-              {lesson.terminology?.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
-                    Key terms
-                  </h3>
-                  <div className="flex flex-wrap gap-x-6 gap-y-2">
-                    {lesson.terminology.map((term) => (
-                      <TermHoverCard key={term.term} term={term.term} definition={term} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Start exercises CTA */}
-              <button
-                onClick={beginExercises}
-                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-                style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
-              >
-                Start {lesson.exercises?.length ?? 0} exercises →
-              </button>
-
             </div>
+
+            {/* What you'll learn — teal box matching Flow Academy */}
+            {lesson.objectives?.length > 0 && (
+              <div className="mb-6 p-5 rounded-xl bg-teal-50 border border-teal-100">
+                <h3 className="text-xs font-semibold text-teal-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                  <Target size={11} /> What you will learn
+                </h3>
+                <ul className="space-y-2">
+                  {lesson.objectives.map((obj, i) => (
+                    <li key={i} className="text-sm text-slate-700 flex items-start gap-2.5">
+                      <span className="text-teal-500 font-bold flex-shrink-0 mt-0.5">·</span>
+                      {obj}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Worked example */}
+            {lesson.workedExample && (
+              <div className="mb-6">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                  Example
+                </h3>
+                {lesson.workedExample.title && (
+                  <p className="text-sm text-slate-700 mb-3 leading-relaxed">
+                    {lesson.workedExample.title}
+                  </p>
+                )}
+                <WorkedExampleCard example={lesson.workedExample} />
+              </div>
+            )}
+
+            {/* Key terms */}
+            {lesson.terminology?.length > 0 && (
+              <div className="mb-8">
+                <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                  Key terms
+                </h3>
+                <div className="flex flex-wrap gap-x-6 gap-y-2">
+                  {lesson.terminology.map((term) => (
+                    <TermHoverCard key={term.term} term={term.term} definition={term} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Start exercises CTA */}
+            <button
+              onClick={beginExercises}
+              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+              style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
+            >
+              Start {lesson.exercises?.length ?? 0} exercises →
+            </button>
+
           </div>
-        </div>
+        </LessonFrame>
       </div>
     )
   }

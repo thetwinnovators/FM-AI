@@ -20,7 +20,7 @@ export default function WorkedExampleCard({ example }) {
   const lang = getPrismLang(example.language)
 
   return (
-    <div className="rounded-xl overflow-hidden border border-white/[0.08]">
+    <div className="rounded-xl overflow-hidden border border-slate-200">
 
       {/* Syntax-highlighted code */}
       <Highlight theme={THEME} code={String(example.code || '').trimEnd()} language={lang}>
@@ -44,7 +44,7 @@ export default function WorkedExampleCard({ example }) {
                     textAlign:   'right',
                     marginRight: '1.5em',
                     flexShrink:  0,
-                    color:       'rgba(255,255,255,0.18)',
+                    color:       'rgba(255,255,255,0.22)',
                     fontSize:    '11px',
                     lineHeight:  '1.7',
                   }}
@@ -62,7 +62,7 @@ export default function WorkedExampleCard({ example }) {
         )}
       </Highlight>
 
-      {/* Expected output */}
+      {/* Expected output — stays dark to visually connect with code block */}
       {example.expectedOutput && (
         <div
           className="px-5 py-2.5"
@@ -70,7 +70,7 @@ export default function WorkedExampleCard({ example }) {
         >
           <span
             className="text-[10px] uppercase tracking-wider mr-2"
-            style={{ color: 'rgba(255,255,255,0.22)' }}
+            style={{ color: 'rgba(255,255,255,0.30)' }}
           >
             Output:
           </span>
@@ -86,16 +86,13 @@ export default function WorkedExampleCard({ example }) {
         </div>
       )}
 
-      {/* Explanation steps — always visible */}
+      {/* Explanation steps — light-mode aware (sits on #eef0f4 card) */}
       {example.explanationSteps?.length > 0 && (
         <div
           className="px-5 py-4"
-          style={{ background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+          style={{ background: 'rgba(0,0,0,0.03)', borderTop: '1px solid rgba(0,0,0,0.07)' }}
         >
-          <p
-            className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-            style={{ color: 'rgba(255,255,255,0.22)' }}
-          >
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-3 text-slate-400">
             How it works
           </p>
           <ol className="space-y-3">
@@ -103,11 +100,11 @@ export default function WorkedExampleCard({ example }) {
               <li key={i} className="flex items-start gap-3">
                 <span
                   className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5"
-                  style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
+                  style={{ background: 'rgba(13,148,136,0.12)', color: '#0d9488' }}
                 >
                   {i + 1}
                 </span>
-                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                <p className="text-sm leading-relaxed text-slate-700">
                   {step}
                 </p>
               </li>
