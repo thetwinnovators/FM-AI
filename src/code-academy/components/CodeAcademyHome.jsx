@@ -7,35 +7,46 @@ const LANG_MAP = Object.fromEntries(LANGUAGES.map((l) => [l.id, l]))
 
 // ─── Progress card (In Progress / Completed tabs) ─────────────────────────────
 function LessonCard({ progress, onResume }) {
-  const lang    = LANG_MAP[progress.language]
-  const pct     = progress.exercisesTotal > 0
+  const lang = LANG_MAP[progress.language]
+  const pct  = progress.exercisesTotal > 0
     ? Math.round((progress.exercisesCompleted / progress.exercisesTotal) * 100)
     : 0
-  const done    = progress.masteryState === 'passed'
+  const done = progress.masteryState === 'passed'
+
+  // Build one dot per exercise slot
+  const dots = Array.from({ length: progress.exercisesTotal || 0 }, (_, i) => ({
+    passed: i < (progress.exercisesCompleted || 0),
+  }))
 
   return (
     <div
-      className="rounded-xl border overflow-hidden cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg"
+      className="relative group w-full text-left rounded-xl border overflow-hidden cursor-pointer transition-all hover:scale-[1.01] hover:shadow-lg"
       style={{
-        background:   'linear-gradient(160deg, rgba(15,17,28,0.75) 0%, rgba(8,10,18,0.85) 100%)',
-        borderColor:  done ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)',
+        background:  'linear-gradient(160deg, rgba(15,17,28,0.75) 0%, rgba(8,10,18,0.85) 100%)',
+        borderColor: done ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.08)',
+        boxShadow:   done ? '0 0 0 1px rgba(52,211,153,0.1) inset' : 'none',
       }}
       onClick={() => onResume(progress.language, progress.concept)}
     >
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-3">
+      <div className="p-5">
+
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-white/90 leading-snug mb-0.5 truncate">
+            <p
+              className="text-sm font-semibold text-white/90 leading-snug mb-1"
+              style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+            >
               {progress.concept}
             </p>
             <p
-              className="text-[11px] font-semibold uppercase tracking-wide"
+              className="text-[11px] font-semibold uppercase tracking-wide truncate"
               style={{ color: lang?.color ?? 'rgba(255,255,255,0.35)' }}
             >
               {lang?.label ?? progress.language}
             </p>
           </div>
-          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md border flex-shrink-0 ${
+          <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-md border flex-shrink-0 mt-0.5 ${
             done
               ? 'text-emerald-400 bg-emerald-500/15 border-emerald-400/25'
               : 'text-teal-400/80 bg-teal-500/10 border-teal-400/15'
@@ -44,28 +55,54 @@ function LessonCard({ progress, onResume }) {
           </span>
         </div>
 
-        {/* Progress bar */}
+        {/* ── Exercises meta ── */}
         {progress.exercisesTotal > 0 && (
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] text-white/30">
-                {progress.exercisesCompleted} / {progress.exercisesTotal} exercises
-              </span>
-              <span className="text-[10px] font-bold text-white/50">{pct}%</span>
-            </div>
-            <div className="h-1 rounded-full bg-white/[0.06]">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${pct}%`,
-                  background: done
-                    ? 'linear-gradient(90deg, #10b981 0%, #06b6d4 100%)'
-                    : 'linear-gradient(90deg, #0d9488 0%, #6366f1 100%)',
-                }}
-              />
-            </div>
+          <div className="flex items-center gap-1.5 mb-4">
+            <span className="text-xs font-medium text-white/50">
+              {progress.exercisesTotal} exercises
+            </span>
           </div>
         )}
+
+        {/* ── Progress bar ── */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] text-white/30 font-medium">Progress</span>
+            <span className="text-[11px] font-bold text-white/60">{pct}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-white/[0.06]">
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${pct}%`,
+                background: done
+                  ? 'linear-gradient(90deg, #10b981 0%, #06b6d4 100%)'
+                  : 'linear-gradient(90deg, #0d9488 0%, #6366f1 100%)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* ── Exercise dots + count ── */}
+        {dots.length > 0 && (
+          <div className="flex items-center gap-1.5">
+            {dots.map((d, i) => (
+              <div
+                key={i}
+                className="rounded-full flex-shrink-0 transition-all"
+                style={{
+                  width:      d.passed ? 8 : 6,
+                  height:     d.passed ? 8 : 6,
+                  background: d.passed ? '#2dd4bf' : 'rgba(255,255,255,0.08)',
+                }}
+              />
+            ))}
+            <span className="text-[11px] text-white/35 ml-0.5">
+              {progress.exercisesCompleted} / {progress.exercisesTotal} done
+            </span>
+          </div>
+        )}
+
       </div>
     </div>
   )
