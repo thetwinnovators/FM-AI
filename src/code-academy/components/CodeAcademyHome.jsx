@@ -19,6 +19,11 @@ export default function CodeAcademyHome({ onStart, isLoading, error, progressLis
   const filteredConcepts = searchQuery.trim()
     ? concepts.filter((c) => c.toLowerCase().includes(searchQuery.toLowerCase()))
     : concepts
+  // If the typed query doesn't match any predefined concept exactly, offer it as a custom topic
+  const customConcept = searchQuery.trim() &&
+    !concepts.some((c) => c.toLowerCase() === searchQuery.trim().toLowerCase())
+    ? searchQuery.trim()
+    : null
 
   function handleGoal(goal) {
     setSelectedLanguage(goal.language)
@@ -99,6 +104,21 @@ export default function CodeAcademyHome({ onStart, isLoading, error, progressLis
                 className="w-full mb-3 px-3 py-2 rounded-lg text-sm bg-white/[0.06] border border-white/[0.10] text-white placeholder-white/25 focus:outline-none focus:border-indigo-400/50"
               />
               <div className="flex flex-wrap gap-2">
+                {/* Custom freeform topic — shown when the search text isn't in the predefined list */}
+                {customConcept && (
+                  <button
+                    key="__custom__"
+                    onClick={() => setSelectedConcept(customConcept)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border transition-all"
+                    style={{
+                      borderColor: selectedConcept === customConcept ? 'rgba(45,212,191,0.6)' : 'rgba(45,212,191,0.25)',
+                      background: selectedConcept === customConcept ? 'rgba(13,148,136,0.22)' : 'rgba(13,148,136,0.08)',
+                      color: selectedConcept === customConcept ? '#5eead4' : 'rgba(153,246,228,0.7)',
+                    }}
+                  >
+                    + "{customConcept}"
+                  </button>
+                )}
                 {filteredConcepts.map((concept) => (
                   <button
                     key={concept}
