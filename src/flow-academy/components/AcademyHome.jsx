@@ -427,6 +427,14 @@ export default function AcademyHome() {
 
   return (
     <div className="flex flex-col min-h-full">
+      {/* Page header */}
+      <div className="flex items-center gap-2 px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+        <GraduationCap size={14} className="text-teal-400 flex-shrink-0" />
+        <span className="text-sm font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+          Flow Academy
+        </span>
+      </div>
+
       {/* Tabs bar — always visible at top */}
       <div className="flex gap-1 px-6 pt-4 border-b border-white/[0.08] flex-shrink-0">
         {TABS.map((t) => (
