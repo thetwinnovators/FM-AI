@@ -55,15 +55,13 @@ export default function CategoryChartsPanel({ onChartsUpdated }) {
     try {
       const fetched = await fetchCharts([{ category, chartType: type }])
       if (fetched.length > 0) {
-        setAllCharts((prev) => {
-          const merged = [
-            ...prev.filter((c) => !(c.category === category && c.chartType === type)),
-            ...fetched,
-          ]
-          radarStorage.saveCharts(merged)
-          onChartsUpdated?.(merged)
-          return merged
-        })
+        const merged = [
+          ...allCharts.filter((c) => !(c.category === category && c.chartType === type)),
+          ...fetched,
+        ]
+        radarStorage.saveCharts(merged)
+        setAllCharts(merged)
+        onChartsUpdated?.(merged)
       } else {
         setSyncError(true)
       }
@@ -72,7 +70,7 @@ export default function CategoryChartsPanel({ onChartsUpdated }) {
     } finally {
       setSyncing(false)
     }
-  }, [syncing, onChartsUpdated])
+  }, [syncing, onChartsUpdated, allCharts])
 
   return (
     <div className="flex flex-col gap-3.5">
