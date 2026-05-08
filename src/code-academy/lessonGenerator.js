@@ -32,7 +32,11 @@ function lessonStructureMessages(language, concept) {
         '  "summary": "One sentence: what the student can do after this lesson",\n' +
         '  "difficulty": "beginner",\n' +
         '  "objectives": ["You will learn to...", "You will understand..."],\n' +
-        '  "conceptBody": ["2-3 short plain sentences explaining the concept — what it is and why it matters, before any code", "Another 1-2 sentence paragraph if needed"],\n' +
+        '  "conceptBody": [\n' +
+        '    "Paragraph 1 (2-3 sentences): What IS this concept, in plain language a 10-year-old understands. Define it. Give a concrete real-world analogy.",\n' +
+        '    "Paragraph 2 (2-3 sentences): What problem does it solve? Why would a coder USE this? What becomes possible?",\n' +
+        '    "Paragraph 3 (1-2 sentences): How does the code example below use it? What will the student see happen?"\n' +
+        '  ],\n' +
         '  "prerequisites": [],\n' +
         '  "terminology": [\n' +
         '    {\n' +
@@ -52,7 +56,7 @@ function lessonStructureMessages(language, concept) {
         'Rules:\n' +
         '- title: max 6 words, no jargon\n' +
         '- objectives: 2-3 items starting with "You will"\n' +
-        '- conceptBody: 2-3 short plain paragraphs (as array of strings) explaining the concept before the code example\n' +
+        '- conceptBody: EXACTLY 3 separate strings in the array — one per paragraph. Each string must be its own paragraph. Do NOT join paragraphs with commas. Do NOT put multiple paragraphs in one string.\n' +
         '- prerequisites: empty [] for intro topics\n' +
         '- terminology: 3-5 key terms actually used in this lesson\n' +
         '- workedExample.code: real runnable code, not pseudocode\n' +
