@@ -7,7 +7,7 @@ import { buildIframeSrc } from '../validatorEngine.js'
  * - For all languages: pass/fail badge + reason text
  */
 export default function OutputPanel({ language, userCode, validationResult, hasRun }) {
-  const showPreview = (language === 'html' || language === 'css') && userCode && userCode.trim()
+  const showPreview = hasRun && (language === 'html' || language === 'css') && userCode && userCode.trim()
 
   if (!hasRun && !showPreview) {
     return (

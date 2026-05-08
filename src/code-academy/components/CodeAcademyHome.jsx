@@ -23,6 +23,7 @@ export default function CodeAcademyHome({ onStart, isLoading, error, progressLis
   function handleGoal(goal) {
     setSelectedLanguage(goal.language)
     setSelectedConcept(goal.concept)
+    setSearchQuery('')
   }
 
   const canStart = selectedLanguage && selectedConcept && !isLoading

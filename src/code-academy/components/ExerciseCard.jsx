@@ -6,6 +6,8 @@ import { CheckCircle2, ArrowRight } from 'lucide-react'
 export default function ExerciseCard({ exercise, exerciseIndex, totalExercises, validationResult, onNext }) {
   const passed = validationResult?.passed === true
 
+  if (!exercise || totalExercises <= 0) return null
+
   return (
     <div
       className={`rounded-xl border overflow-hidden transition-colors ${
