@@ -138,7 +138,8 @@ export function saveWinningApps(apps: WinningApp[]): void {
 // ── Reset ─────────────────────────────────────────────────────────────────────
 
 export function clearAll(): void {
-  // Only clear scan data — charts and winning apps survive reset
+  // Only clear scan data — charts and winning apps survive reset.
+  // Note: removals bypass write(), so enqueue() must be called explicitly here.
   ;[KEYS.signals, KEYS.clusters, KEYS.concepts, KEYS.meta].forEach((k) => localStorage.removeItem(k))
   enqueue()
   scheduleSync()
