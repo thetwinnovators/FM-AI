@@ -34,6 +34,11 @@ export interface OpportunityCluster {
   // Set by the AI opportunity filter after each scan
   aiValidated?:        boolean        // undefined = not yet evaluated, true = approved, false = rejected
   aiRejectionReason?:  string
+  // Market-layer scoring — populated by scoreOpportunity(); undefined until first scored
+  gapScore?:          number
+  marketScore?:       number
+  buildabilityScore?: number
+  inferredCategory?:  string | null
   createdAt:        string
   updatedAt:        string
 }
@@ -74,4 +79,26 @@ export interface RadarScanMeta {
   totalSignals:    number
   totalClusters:   number
   scanDurationMs?: number
+}
+
+export interface CategoryChart {
+  category:  string                    // e.g. 'productivity'
+  chartType: 'top_free' | 'top_grossing'
+  fetchedAt: string                    // ISO timestamp
+  apps: Array<{
+    rank:      number
+    name:      string
+    publisher: string
+    appId:     string
+  }>
+}
+
+export interface WinningApp {
+  id:           string
+  name:         string
+  category:     string
+  pricingModel: 'free' | 'subscription' | 'iap' | 'mixed' | 'one_time'
+  notes:        string   // free-text: complaints, strengths, context
+  addedAt:      string
+  updatedAt:    string
 }
