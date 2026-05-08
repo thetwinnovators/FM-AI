@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { scoreCluster, applyBuildabilityFilter, getTop3 } from '../opportunityScorer.js'
-import type { OpportunityCluster, PainSignal } from '../../types.js'
+import { scoreCluster, applyBuildabilityFilter, getTop3, scoreOpportunity } from '../opportunityScorer.js'
+import type { OpportunityCluster, PainSignal, CategoryChart, WinningApp } from '../../types.js'
 
 function makeCluster(overrides: Partial<OpportunityCluster> = {}): OpportunityCluster {
   const now = new Date().toISOString()
@@ -107,5 +107,64 @@ describe('getTop3', () => {
     const allSignals = [...good, small].flatMap((c) => makeSignals(c))
     const top3 = getTop3([small, ...good], allSignals)
     expect(top3.map((c) => c.id)).not.toContain('z')
+  })
+})
+
+// ── scoreOpportunity ──────────────────────────────────────────────────────────
+
+function makeChart(category: string): CategoryChart {
+  return {
+    category, chartType: 'top_free', fetchedAt: new Date().toISOString(),
+    apps: Array.from({ length: 10 }, (_, i) => ({ rank: i + 1, name: `App ${i}`, publisher: 'Pub', appId: `a${i}` })),
+  }
+}
+
+function makeWinningApp(category: string, pricing: WinningApp['pricingModel'] = 'subscription', notes = 'complaints here'): WinningApp {
+  const now = new Date().toISOString()
+  return { id: crypto.randomUUID(), name: 'App', category, pricingModel: pricing, notes, addedAt: now, updatedAt: now }
+}
+
+describe('scoreOpportunity', () => {
+  it('returns a totalScore between 0 and 100', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const result = scoreOpportunity(c, signals, [], [])
+    expect(result.totalScore).toBeGreaterThanOrEqual(0)
+    expect(result.totalScore).toBeLessThanOrEqual(100)
+  })
+
+  it('totalScore = Math.round(0.40*market + 0.40*gap + 0.20*buildability)', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const result = scoreOpportunity(c, signals, [], [])
+    const expected = Math.round(0.40 * result.marketScore + 0.40 * result.gapScore + 0.20 * result.buildabilityScore)
+    expect(result.totalScore).toBe(expected)
+  })
+
+  it('marketScore increases when chart data is provided for the inferred category', () => {
+    // Use a cluster with productivity terms so inferCategory returns 'productivity'
+    const c = makeCluster({ termFrequency: { task: 8, todo: 6, organize: 4, plan: 3 } })
+    const signals = makeSignals(c)
+    const withoutMarket = scoreOpportunity(c, signals, [], [])
+    const chart = makeChart('productivity')
+    const withMarket = scoreOpportunity(c, signals, [chart], [])
+    expect(withMarket.marketScore).toBeGreaterThan(withoutMarket.marketScore)
+  })
+
+  it('buildabilityScore is 100 for a buildable, non-saturated cluster with paid apps and notes', () => {
+    const c = makeCluster({ termFrequency: { task: 8, todo: 6, organize: 4, plan: 3 } })
+    const signals = makeSignals(c)
+    const apps = [makeWinningApp('productivity')]
+    const result = scoreOpportunity(c, signals, [], apps)
+    expect(result.buildabilityScore).toBe(100)
+  })
+
+  it('buildabilityScore loses 35 points for unbuildable cluster', () => {
+    const c = makeCluster({ termFrequency: { 'multi-user': 5, admin: 3, oauth: 2 } })
+    const signals = makeSignals(c)
+    const apps = [makeWinningApp('productivity')]
+    const result = scoreOpportunity(c, signals, [], apps)
+    // unbuildable = BUILDABILITY_REGEX matches → loses 35 pts; max = 65
+    expect(result.buildabilityScore).toBeLessThanOrEqual(65)
   })
 })

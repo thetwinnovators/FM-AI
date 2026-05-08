@@ -1,4 +1,6 @@
 import type { OpportunityCluster, PainSignal } from '../types.js'
+import type { CategoryChart, WinningApp } from '../types.js'
+import { computeMarketScore } from './marketScorer.js'
 
 const BUILDABILITY_REGEX =
   /multi.?user|role.?manag|admin.?panel|real.?time.?collab|payment.?process|video.?stream|iot|bluetooth|hipaa|enterprise.?scale|native.?app|oauth|websocket|backend.?required/i
@@ -86,4 +88,55 @@ export function getTop3(
     .filter((c) => qualifies(c, signals))
     .sort((a, b) => b.opportunityScore - a.opportunityScore)
     .slice(0, 3)
+}
+
+/**
+ * Unified opportunity score for a cluster incorporating market data.
+ * Replaces the raw scoreCluster call in the scan pipeline and rescore hook.
+ *
+ *   Total = 0.40 × MarketScore + 0.40 × GapScore + 0.20 × BuildabilityScore
+ */
+export function scoreOpportunity(
+  cluster:     OpportunityCluster,
+  signals:     PainSignal[],
+  charts:      CategoryChart[],
+  winningApps: WinningApp[],
+): {
+  gapScore:          number
+  marketScore:       number
+  buildabilityScore: number
+  totalScore:        number
+  inferredCategory:  string | null
+} {
+  // GapScore: normalise the raw cluster score to 0–100 (raw rarely exceeds 100)
+  const rawGap  = scoreCluster(cluster, signals)
+  const gapScore = Math.min(100, rawGap)
+
+  // MarketScore + inferredCategory
+  const { marketScore, inferredCategory } = computeMarketScore(cluster, charts, winningApps)
+
+  // BuildabilityScore (0–100) composed of four binary factors
+  const isBuildable  = applyBuildabilityFilter(cluster, signals)
+  const notSaturated = !SATURATION_REGEX.test(Object.keys(cluster.termFrequency).join(' '))
+
+  const appsInCategory = inferredCategory
+    ? winningApps.filter((a) => a.category === inferredCategory)
+    : []
+  const hasPaidPricing   = appsInCategory.some(
+    (a) => a.pricingModel === 'subscription' || a.pricingModel === 'iap',
+  )
+  const hasCompetitorNotes = appsInCategory.some((a) => a.notes.trim().length > 0)
+
+  const buildabilityScore = (isBuildable       ? 35 : 0)
+                          + (notSaturated       ? 25 : 0)
+                          + (hasPaidPricing     ? 20 : 0)
+                          + (hasCompetitorNotes ? 20 : 0)
+
+  const totalScore = Math.round(
+    0.40 * marketScore +
+    0.40 * gapScore +
+    0.20 * buildabilityScore,
+  )
+
+  return { gapScore, marketScore, buildabilityScore, totalScore, inferredCategory }
 }
