@@ -215,7 +215,22 @@ export function unreadBriefCount(briefs = {}) {
 }
 
 export function allBriefsSorted(briefs = {}) {
-  const all = Object.values(briefs)
+  // Deduplicate news_digests that share the same calendar day (same-day ID
+  // prefix, or legacy UUIDs that were generated on the same day). Keep only
+  // the most-recently generated one per day so stale duplicates never show.
+  const deduped = Object.values(briefs).filter((brief, _i, arr) => {
+    if (brief.type !== 'news_digest') return true
+    const dayKey = new Date(brief.generatedAt).toISOString().slice(0, 10)
+    const sameDayDigests = arr.filter(
+      (b) => b.type === 'news_digest' &&
+             new Date(b.generatedAt).toISOString().slice(0, 10) === dayKey,
+    )
+    // Keep only the newest for this day
+    const newest = sameDayDigests.reduce((a, b) => (b.generatedAt > a.generatedAt ? b : a))
+    return brief.id === newest.id
+  })
+
+  const all    = deduped
   const unread = all.filter((b) => b.readAt == null)
   const read   = all.filter((b) => b.readAt != null)
 

@@ -42,8 +42,13 @@ export async function generateNewsDigest(stories) {
     { type: 'risks', content: raw.risks ?? '' },
   ]
 
+  // Stable date-scoped ID: one news_digest per calendar day.
+  // Concurrent generations on the same day use the same key, so the second
+  // addBrief call simply overwrites the first — no duplicates accumulate.
+  const todayKey = new Date().toISOString().slice(0, 10)  // e.g. "2026-05-07"
+
   return {
-    id: crypto.randomUUID(),
+    id: `news_digest_${todayKey}`,
     type: 'news_digest',
     title: `Today in AI — ${highlightCount} development${highlightCount !== 1 ? 's' : ''}`,
     topicId: null,
