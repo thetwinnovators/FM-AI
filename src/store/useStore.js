@@ -37,6 +37,8 @@ const EMPTY = {
   // an "out of date" hint.
   topicSummaries: {},   // topicId -> { overview, report, generatedAt, itemSignature }
   courses: {},          // Flow Academy — courseId -> LearningCourse (lessons inline)
+  codeLessons: {},      // Code Academy — lessonKey -> CodeLesson (cached AI-generated)
+  codeProgress: {},     // Code Academy — lessonKey -> CodeLessonProgress
   briefs: {},
 }
 
@@ -884,6 +886,32 @@ export function useStore() {
       .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')),
   [])
 
+  // ── Code Academy ─────────────────────────────────────────────────────────────
+
+  const addCodeLesson = useCallback((key, lesson) => {
+    const cur = memoryState
+    persist({ ...cur, codeLessons: { ...cur.codeLessons, [key]: lesson } })
+  }, [])
+
+  const getCodeLesson = useCallback((key) => memoryState.codeLessons?.[key] || null, [])
+
+  const saveCodeProgress = useCallback((key, patch) => {
+    const cur = memoryState
+    const existing = cur.codeProgress?.[key] || {
+      lessonKey: key,
+      attempts: 0,
+      hintsUsed: 0,
+      exercisesCompleted: 0,
+      exercisesTotal: 0,
+      masteryState: 'not_started',
+    }
+    persist({ ...cur, codeProgress: { ...cur.codeProgress, [key]: { ...existing, ...patch } } })
+  }, [])
+
+  const getCodeProgress = useCallback((key) => memoryState.codeProgress?.[key] || null, [])
+
+  const allCodeProgress = useCallback(() => Object.values(memoryState.codeProgress || {}), [])
+
   return {
     ...state,
     toggleSave, toggleFollow, dismiss,
@@ -904,5 +932,7 @@ export function useStore() {
     addBrief,
     markBriefRead,
     markAllBriefsRead,
+    // Code Academy
+    addCodeLesson, getCodeLesson, saveCodeProgress, getCodeProgress, allCodeProgress,
   }
 }
