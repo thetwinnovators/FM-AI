@@ -52,6 +52,16 @@ describe('generateCodeLesson', () => {
     expect(await generateCodeLesson('python', 'Variables')).toBeNull()
   })
 
+  it('returns null when structure response is missing title', async () => {
+    chatJson.mockResolvedValueOnce({ ...MOCK_STRUCTURE, title: '' })
+    expect(await generateCodeLesson('python', 'Variables')).toBeNull()
+  })
+
+  it('returns null when structure response is missing workedExample.code', async () => {
+    chatJson.mockResolvedValueOnce({ ...MOCK_STRUCTURE, workedExample: {} })
+    expect(await generateCodeLesson('python', 'Variables')).toBeNull()
+  })
+
   it('returns null when exercises array is empty', async () => {
     chatJson.mockResolvedValueOnce(MOCK_STRUCTURE).mockResolvedValueOnce({ exercises: [] })
     expect(await generateCodeLesson('python', 'Variables')).toBeNull()

@@ -218,7 +218,7 @@ export async function chatJson(messages, opts = {}) {
     stream: false,
     format: 'json',
     keep_alive: '15m',
-    options: { temperature: opts.temperature ?? 0.1 },
+    options: { temperature: opts.temperature ?? 0.1, ...(opts.num_ctx ? { num_ctx: opts.num_ctx } : {}) },
   }, opts.signal)
 
   if (!json?.message?.content) return null

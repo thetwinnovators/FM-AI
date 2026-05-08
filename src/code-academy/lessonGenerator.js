@@ -166,7 +166,7 @@ export async function generateCodeLesson(language, concept) {
       prerequisites: Array.isArray(structureRaw.prerequisites) ? structureRaw.prerequisites.map(String) : [],
       terminology:   Array.isArray(structureRaw.terminology)   ? structureRaw.terminology.map(shapeTerm) : [],
       workedExample,
-      exercises:     exercisesRaw.exercises.map(shapeExercise),
+      exercises:     exercisesRaw.exercises.map((ex, i) => shapeExercise(ex, i)),
       commonMistakes:Array.isArray(structureRaw.commonMistakes)? structureRaw.commonMistakes.map(String): [],
       generatedAt:   new Date().toISOString(),
     }
