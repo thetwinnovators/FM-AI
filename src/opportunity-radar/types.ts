@@ -35,9 +35,11 @@ export interface OpportunityCluster {
   aiValidated?:        boolean        // undefined = not yet evaluated, true = approved, false = rejected
   aiRejectionReason?:  string
   // Market-layer scoring — populated by scoreOpportunity(); undefined until first scored
-  gapScore?:          number
-  marketScore?:       number
-  buildabilityScore?: number
+  gapScore?:          number          // 0–100; normalised from raw pain signal score
+  marketScore?:       number          // 0–100; from computeMarketScore()
+  buildabilityScore?: number          // 0–100; extends isBuildable boolean with market factors
+  // Three states: undefined = not yet scored, null = scored but no category matched,
+  // string = matched category slug (e.g. 'productivity')
   inferredCategory?:  string | null
   createdAt:        string
   updatedAt:        string
