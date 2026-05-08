@@ -1,18 +1,38 @@
 import { useState, useEffect } from 'react'
 import {
   ArrowLeft, Play, RotateCcw, Lightbulb,
-  Loader2, PartyPopper, ChevronRight,
+  Loader2, PartyPopper, ChevronRight, Code2, Target,
 } from 'lucide-react'
 import CodeEditorPanel   from './CodeEditorPanel.jsx'
 import WorkedExampleCard from './WorkedExampleCard.jsx'
 import TermHoverCard     from './TermHoverCard.jsx'
 import { buildIframeSrc } from '../validatorEngine.js'
 
+// ─── Persistent page-level header ─────────────────────────────────────────────
+// Always visible — mirrors Flow Academy's CourseFrame header pattern.
+function AcademyHeader({ onHome }) {
+  return (
+    <div className="flex items-center gap-2 px-5 py-3 flex-shrink-0 border-b border-white/[0.06]">
+      <Code2 size={14} className="text-teal-400 flex-shrink-0" />
+      <button
+        onClick={onHome}
+        className="text-sm font-semibold transition-colors"
+        style={{ color: 'var(--color-text-secondary)' }}
+        onMouseEnter={e => e.currentTarget.style.color = '#2dd4bf'}
+        onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
+      >
+        Code Academy
+      </button>
+    </div>
+  )
+}
+
 /**
- * The lesson workspace.
+ * The lesson workspace — three states:
  *
- * intro  → clean article: title, summary, objectives, worked example, key terms
- * exercise → W3Schools-style split: editor (left) | output (right), no sidebars
+ *  lesson     → light-mode article card (mirrors Flow Academy CourseFrame)
+ *  exercising → W3Schools-style split: editor left | output right
+ *  complete   → celebration
  */
 export default function CodeAcademyPage({ academy }) {
   const {
@@ -23,18 +43,19 @@ export default function CodeAcademyPage({ academy }) {
   } = academy
 
   const [hintsOpen, setHintsOpen] = useState(false)
-
-  // Collapse hints when the exercise changes
   useEffect(() => { setHintsOpen(false) }, [exerciseIndex])
 
-  // ── Loading ──────────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (stage === 'loading') {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 mx-auto rounded-full border-2 border-teal-400 border-t-transparent animate-spin" />
-          <p className="text-sm font-medium text-white/70">Flow AI is writing your lesson…</p>
-          <p className="text-xs text-white/35">This takes about 15–30 seconds</p>
+      <div className="flex flex-col h-full">
+        <AcademyHeader onHome={backToHome} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="w-10 h-10 mx-auto rounded-full border-2 border-teal-400 border-t-transparent animate-spin" />
+            <p className="text-sm font-medium text-white/70">Flow AI is writing your lesson…</p>
+            <p className="text-xs text-white/35">This takes about 15–30 seconds</p>
+          </div>
         </div>
       </div>
     )
@@ -42,23 +63,26 @@ export default function CodeAcademyPage({ academy }) {
 
   if (!lesson) return null
 
-  // ── Complete ─────────────────────────────────────────────────────────
+  // ── Complete ───────────────────────────────────────────────────────────────
   if (stage === 'complete') {
     return (
-      <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-        <PartyPopper size={40} className="text-teal-400 mb-4" />
-        <h2 className="text-2xl font-semibold text-white mb-2">Lesson complete!</h2>
-        <p className="text-sm text-white/50 mb-6 max-w-sm">
-          You finished <strong className="text-white/80">{lesson.title}</strong>.{' '}
-          Keep going — pick your next concept below.
-        </p>
-        <button
-          onClick={backToHome}
-          className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
-          style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
-        >
-          Pick next lesson
-        </button>
+      <div className="flex flex-col h-full">
+        <AcademyHeader onHome={backToHome} />
+        <div className="flex-1 flex flex-col items-center justify-center px-6 py-20 text-center">
+          <PartyPopper size={40} className="text-teal-400 mb-4" />
+          <h2 className="text-2xl font-semibold text-white mb-2">Lesson complete!</h2>
+          <p className="text-sm text-white/50 mb-6 max-w-sm">
+            You finished <strong className="text-white/80">{lesson.title}</strong>.{' '}
+            Keep going — pick your next concept.
+          </p>
+          <button
+            onClick={backToHome}
+            className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
+          >
+            Pick next lesson
+          </button>
+        </div>
       </div>
     )
   }
@@ -68,125 +92,115 @@ export default function CodeAcademyPage({ academy }) {
   const showPreview = hasRun && (lesson.language === 'html' || lesson.language === 'css') && userCode?.trim()
   const isLast      = exerciseIndex + 1 >= (lesson.exercises?.length ?? 0)
 
-  // ── Lesson intro ─────────────────────────────────────────────────────
+  // ── Lesson intro (light-mode card — mirrors Flow Academy CourseFrame) ──────
   if (stage === 'lesson') {
     return (
       <div className="flex flex-col h-full">
+        <AcademyHeader onHome={backToHome} />
 
-        {/* Breadcrumb */}
-        <div
-          className="flex items-center gap-3 px-5 py-3 flex-shrink-0"
-          style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
-        >
-          <button
-            onClick={backToHome}
-            className="flex items-center gap-1.5 text-xs transition-colors"
-            style={{ color: 'rgba(255,255,255,0.35)' }}
-            onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.35)'}
+        <div className="flex-1 overflow-y-auto p-5 pb-10">
+
+          {/* Light-mode card — same spec as Flow Academy's CourseFrame white panel */}
+          <div
+            className="max-w-[700px] mx-auto rounded-2xl border border-slate-300/60 shadow-sm overflow-hidden"
+            style={{ background: '#eef0f4', color: '#0f172a' }}
           >
-            <ArrowLeft size={12} />
-            Code Academy
-          </button>
-          <span style={{ color: 'rgba(255,255,255,0.15)' }}>/</span>
-          <span className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
-            {lesson.title}
-          </span>
-          <span
-            className="ml-auto text-[10px] px-2 py-0.5 rounded font-medium uppercase tracking-wider"
-            style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.28)' }}
-          >
-            {lesson.language}
-          </span>
-        </div>
+            <div className="px-10 pt-8 pb-12">
 
-        {/* Article */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-[680px] mx-auto px-8 py-10">
+              {/* Back button */}
+              <button
+                onClick={backToHome}
+                className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-800 mb-6 transition-colors"
+              >
+                ← Code Academy
+              </button>
 
-            <p className="text-[11px] font-semibold uppercase tracking-widest mb-2"
-              style={{ color: 'rgba(45,212,191,0.6)' }}>
-              {lesson.language} · {lesson.concept}
-            </p>
-            <h1
-              className="font-bold mb-3 leading-tight"
-              style={{ fontSize: '26px', color: 'rgba(255,255,255,0.9)' }}
-            >
-              {lesson.title}
-            </h1>
-            <p className="leading-relaxed mb-8" style={{ fontSize: '15px', color: 'rgba(255,255,255,0.52)' }}>
-              {lesson.summary}
-            </p>
-
-            {/* Objectives */}
-            {lesson.objectives?.length > 0 && (
-              <div className="mb-8">
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'rgba(255,255,255,0.25)' }}>
-                  What you'll learn
+              {/* Lesson header */}
+              <div className="mb-6">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-1.5"
+                  style={{ color: '#0d9488' }}>
+                  {lesson.language} · {lesson.concept}
                 </p>
-                <ul className="space-y-2.5">
-                  {lesson.objectives.map((obj, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm"
-                      style={{ color: 'rgba(255,255,255,0.58)' }}>
-                      <span className="flex-shrink-0 mt-0.5" style={{ color: '#2dd4bf' }}>→</span>
-                      {obj}
-                    </li>
-                  ))}
-                </ul>
+                <h2 className="text-2xl font-bold text-slate-900">{lesson.title}</h2>
+                {lesson.summary && (
+                  <p className="mt-2 text-sm text-slate-600 leading-relaxed">{lesson.summary}</p>
+                )}
               </div>
-            )}
 
-            {/* Worked example */}
-            {lesson.workedExample && (
-              <div className="mb-8">
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'rgba(255,255,255,0.25)' }}>
-                  Example
-                </p>
-                <WorkedExampleCard example={lesson.workedExample} />
-              </div>
-            )}
-
-            {/* Key terms */}
-            {lesson.terminology?.length > 0 && (
-              <div className="mb-10">
-                <p className="text-[10px] font-semibold uppercase tracking-wider mb-3"
-                  style={{ color: 'rgba(255,255,255,0.25)' }}>
-                  Key terms
-                </p>
-                <div className="flex flex-wrap gap-x-6 gap-y-2">
-                  {lesson.terminology.map((term) => (
-                    <TermHoverCard key={term.term} term={term.term} definition={term} />
-                  ))}
+              {/* What you'll learn — teal box matching Flow Academy */}
+              {lesson.objectives?.length > 0 && (
+                <div className="mb-6 p-5 rounded-xl bg-teal-50 border border-teal-100">
+                  <h3 className="text-xs font-semibold text-teal-700 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                    <Target size={11} /> What you will learn
+                  </h3>
+                  <ul className="space-y-2">
+                    {lesson.objectives.map((obj, i) => (
+                      <li key={i} className="text-sm text-slate-700 flex items-start gap-2.5">
+                        <span className="text-teal-500 font-bold flex-shrink-0 mt-0.5">·</span>
+                        {obj}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-            )}
+              )}
 
-            <button
-              onClick={beginExercises}
-              className="w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
-              style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
-            >
-              Start {lesson.exercises?.length ?? 0} exercises →
-            </button>
+              {/* Worked example */}
+              {lesson.workedExample && (
+                <div className="mb-6">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                    Example
+                  </h3>
+                  {/* Description or title for the example */}
+                  {lesson.workedExample.title && (
+                    <p className="text-sm text-slate-700 mb-3 leading-relaxed">
+                      {lesson.workedExample.title}
+                    </p>
+                  )}
+                  <WorkedExampleCard example={lesson.workedExample} />
+                </div>
+              )}
 
+              {/* Key terms */}
+              {lesson.terminology?.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+                    Key terms
+                  </h3>
+                  <div className="flex flex-wrap gap-x-6 gap-y-2">
+                    {lesson.terminology.map((term) => (
+                      <TermHoverCard key={term.term} term={term.term} definition={term} />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Start exercises CTA */}
+              <button
+                onClick={beginExercises}
+                className="w-full py-3.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 hover:opacity-90 transition-opacity"
+                style={{ background: 'linear-gradient(135deg, #0d9488 0%, #6366f1 100%)' }}
+              >
+                Start {lesson.exercises?.length ?? 0} exercises →
+              </button>
+
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
-  // ── Exercise stage ────────────────────────────────────────────────────
+  // ── Exercise stage (W3Schools-style split) ─────────────────────────────────
   return (
     <div className="flex flex-col h-full">
 
-      {/* ── Action bar (W3Schools-style toolbar) ── */}
+      <AcademyHeader onHome={backToHome} />
+
+      {/* Action bar */}
       <div
         className="flex items-center gap-2 px-4 py-2 flex-shrink-0"
         style={{ background: '#161b27', borderBottom: '1px solid rgba(255,255,255,0.07)' }}
       >
-        {/* Back link */}
         <button
           onClick={backToHome}
           className="flex items-center gap-1 text-[11px] mr-2 transition-colors"
@@ -197,10 +211,7 @@ export default function CodeAcademyPage({ academy }) {
           <ArrowLeft size={11} /> Back
         </button>
 
-        <span
-          className="text-[11px] truncate max-w-[170px]"
-          style={{ color: 'rgba(255,255,255,0.2)' }}
-        >
+        <span className="text-[11px] truncate max-w-[170px]" style={{ color: 'rgba(255,255,255,0.2)' }}>
           {lesson.title}
         </span>
 
@@ -226,7 +237,7 @@ export default function CodeAcademyPage({ academy }) {
           ))}
         </div>
 
-        {/* Buttons — swap to Next after passing */}
+        {/* Swap buttons after passing */}
         {passed ? (
           <button
             onClick={nextExercise}
@@ -251,7 +262,7 @@ export default function CodeAcademyPage({ academy }) {
             <button
               onClick={resetCode}
               disabled={isRunning}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors disabled:opacity-40"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-medium disabled:opacity-40 transition-colors"
               style={{ color: 'rgba(255,255,255,0.38)' }}
               onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.65)'}
               onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.38)'}
@@ -279,7 +290,7 @@ export default function CodeAcademyPage({ academy }) {
         </span>
       </div>
 
-      {/* ── Task description ── */}
+      {/* Task description */}
       <div
         className="flex-shrink-0 px-5 py-3"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
@@ -295,14 +306,11 @@ export default function CodeAcademyPage({ academy }) {
         </span>
       </div>
 
-      {/* ── Hints (inline, collapsible) ── */}
+      {/* Inline hints */}
       {visibleHints?.length > 0 && hintsOpen && (
         <div
           className="flex-shrink-0 px-5 py-3 space-y-1.5"
-          style={{
-            background:   'rgba(251,191,36,0.04)',
-            borderBottom: '1px solid rgba(251,191,36,0.1)',
-          }}
+          style={{ background: 'rgba(251,191,36,0.04)', borderBottom: '1px solid rgba(251,191,36,0.1)' }}
         >
           {visibleHints.map((hint, i) => (
             <p key={i} className="text-xs leading-relaxed" style={{ color: 'rgba(251,191,36,0.75)' }}>
@@ -322,14 +330,11 @@ export default function CodeAcademyPage({ academy }) {
         </div>
       )}
 
-      {/* ── W3Schools-style split: Editor | Output ── */}
+      {/* W3Schools-style split: Editor | Output */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Left — Editor with live syntax highlight */}
-        <div
-          className="flex-1 overflow-hidden"
-          style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
-        >
+        {/* Left — live syntax-highlighted editor */}
+        <div className="flex-1 overflow-hidden" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
           <CodeEditorPanel
             code={userCode}
             language={lesson.language}
@@ -339,18 +344,11 @@ export default function CodeAcademyPage({ academy }) {
           />
         </div>
 
-        {/* Right — Output */}
-        <div
-          className="flex-1 overflow-auto flex flex-col"
-          style={{ background: '#0f1117' }}
-        >
-          {/* Output header */}
+        {/* Right — output */}
+        <div className="flex-1 overflow-auto flex flex-col" style={{ background: '#0f1117' }}>
           <div
             className="flex items-center px-5 py-2.5 flex-shrink-0 text-[10px] font-semibold uppercase tracking-wider"
-            style={{
-              color:        'rgba(255,255,255,0.22)',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
-            }}
+            style={{ color: 'rgba(255,255,255,0.22)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
           >
             Output
             {hasRun && (
@@ -363,13 +361,9 @@ export default function CodeAcademyPage({ academy }) {
             )}
           </div>
 
-          {/* Output body */}
           <div className="flex-1 p-5">
             {!hasRun ? (
-              <p
-                className="text-xs mt-8 text-center"
-                style={{ color: 'rgba(255,255,255,0.14)' }}
-              >
+              <p className="text-xs mt-8 text-center" style={{ color: 'rgba(255,255,255,0.14)' }}>
                 Press{' '}
                 <kbd
                   className="px-1.5 py-0.5 rounded text-[10px]"
@@ -381,8 +375,6 @@ export default function CodeAcademyPage({ academy }) {
               </p>
             ) : (
               <div className="space-y-5">
-
-                {/* HTML / CSS live preview */}
                 {showPreview && (
                   <div className="rounded-lg overflow-hidden border border-white/[0.08]">
                     <iframe
@@ -394,7 +386,6 @@ export default function CodeAcademyPage({ academy }) {
                   </div>
                 )}
 
-                {/* Validation message */}
                 {validationResult && (
                   <div>
                     <p
@@ -404,12 +395,8 @@ export default function CodeAcademyPage({ academy }) {
                       {validationResult.reason}
                     </p>
 
-                    {/* AI explanation on failure */}
                     {!validationResult.passed && (aiFeedback || isFetchingFeedback) && (
-                      <div
-                        className="mt-4 pt-4"
-                        style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}
-                      >
+                      <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
                         <p
                           className="text-[10px] font-semibold uppercase tracking-wider mb-2"
                           style={{ color: 'rgba(255,255,255,0.2)' }}
@@ -417,12 +404,8 @@ export default function CodeAcademyPage({ academy }) {
                           Explanation
                         </p>
                         {isFetchingFeedback && !aiFeedback ? (
-                          <div
-                            className="flex items-center gap-2 text-xs"
-                            style={{ color: 'rgba(255,255,255,0.25)' }}
-                          >
-                            <Loader2 size={11} className="animate-spin" />
-                            Getting explanation…
+                          <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                            <Loader2 size={11} className="animate-spin" /> Getting explanation…
                           </div>
                         ) : (
                           <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -433,7 +416,6 @@ export default function CodeAcademyPage({ academy }) {
                     )}
                   </div>
                 )}
-
               </div>
             )}
           </div>
