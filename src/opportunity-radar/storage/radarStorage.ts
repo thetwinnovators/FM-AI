@@ -1,12 +1,14 @@
-import type { PainSignal, OpportunityCluster, AppConcept, RadarScanMeta } from '../types.js'
+import type { PainSignal, OpportunityCluster, AppConcept, RadarScanMeta, CategoryChart, WinningApp } from '../types.js'
 import { pullFromDisk, pushToDisk } from '../../lib/sync/fileSync.js'
 import { enqueue } from '../../memory-index/syncQueue.js'
 
 const KEYS = {
-  signals:  'fm_radar_signals',
-  clusters: 'fm_radar_clusters',
-  concepts: 'fm_radar_concepts',
-  meta:     'fm_radar_meta',
+  signals:     'fm_radar_signals',
+  clusters:    'fm_radar_clusters',
+  concepts:    'fm_radar_concepts',
+  meta:        'fm_radar_meta',
+  charts:      'fm_radar_charts',
+  winningApps: 'fm_radar_winning_apps',
 } as const
 
 function read<T>(key: string, fallback: T): T {
@@ -35,10 +37,12 @@ function scheduleSync(): void {
           ? { ...(pulled.data as object) }
           : {}
       base.radar = {
-        signals:  read<PainSignal[]>(KEYS.signals,  []),
-        clusters: read<OpportunityCluster[]>(KEYS.clusters, []),
-        concepts: read<AppConcept[]>(KEYS.concepts, []),
-        meta:     read<RadarScanMeta>(KEYS.meta, { lastScanAt: null, totalSignals: 0, totalClusters: 0 }),
+        signals:     read<PainSignal[]>(KEYS.signals,  []),
+        clusters:    read<OpportunityCluster[]>(KEYS.clusters, []),
+        concepts:    read<AppConcept[]>(KEYS.concepts, []),
+        meta:        read<RadarScanMeta>(KEYS.meta, { lastScanAt: null, totalSignals: 0, totalClusters: 0 }),
+        charts:      read<CategoryChart[]>(KEYS.charts, []),
+        winningApps: read<WinningApp[]>(KEYS.winningApps, []),
       }
       await pushToDisk(base)
     } catch {
@@ -109,10 +113,33 @@ export function saveMeta(meta: RadarScanMeta): void {
   scheduleSync()
 }
 
+// ── Charts ───────────────────────────────────────────────────────────────────
+
+export function loadCharts(): CategoryChart[] {
+  return read<CategoryChart[]>(KEYS.charts, [])
+}
+
+export function saveCharts(charts: CategoryChart[]): void {
+  write(KEYS.charts, charts)
+  scheduleSync()
+}
+
+// ── Winning apps ─────────────────────────────────────────────────────────────
+
+export function loadWinningApps(): WinningApp[] {
+  return read<WinningApp[]>(KEYS.winningApps, [])
+}
+
+export function saveWinningApps(apps: WinningApp[]): void {
+  write(KEYS.winningApps, apps)
+  scheduleSync()
+}
+
 // ── Reset ─────────────────────────────────────────────────────────────────────
 
 export function clearAll(): void {
-  Object.values(KEYS).forEach((k) => localStorage.removeItem(k))
+  // Only clear scan data — charts and winning apps survive reset
+  ;[KEYS.signals, KEYS.clusters, KEYS.concepts, KEYS.meta].forEach((k) => localStorage.removeItem(k))
   enqueue()
   scheduleSync()
 }
@@ -122,6 +149,8 @@ const radarStorage = {
   loadClusters, saveClusters,
   loadConcepts, saveConcept, getConceptByClusterId,
   loadMeta, saveMeta,
+  loadCharts, saveCharts,
+  loadWinningApps, saveWinningApps,
   clearAll,
 }
 
