@@ -109,14 +109,15 @@ export function scoreOpportunity(
   inferredCategory:  string | null
 } {
   // GapScore: normalise the raw cluster score to 0–100 (raw rarely exceeds 100)
-  const rawGap  = scoreCluster(cluster, signals)
+  const isBuildableForScoring = applyBuildabilityFilter(cluster, signals)
+  const clusterForScoring = { ...cluster, isBuildable: isBuildableForScoring }
+  const rawGap  = scoreCluster(clusterForScoring, signals)
   const gapScore = Math.min(100, rawGap)
 
   // MarketScore + inferredCategory
   const { marketScore, inferredCategory } = computeMarketScore(cluster, charts, winningApps)
 
   // BuildabilityScore (0–100) composed of four binary factors
-  const isBuildable  = applyBuildabilityFilter(cluster, signals)
   const notSaturated = !SATURATION_REGEX.test(Object.keys(cluster.termFrequency).join(' '))
 
   const appsInCategory = inferredCategory
@@ -127,10 +128,10 @@ export function scoreOpportunity(
   )
   const hasCompetitorNotes = appsInCategory.some((a) => a.notes.trim().length > 0)
 
-  const buildabilityScore = (isBuildable       ? 35 : 0)
-                          + (notSaturated       ? 25 : 0)
-                          + (hasPaidPricing     ? 20 : 0)
-                          + (hasCompetitorNotes ? 20 : 0)
+  const buildabilityScore = (isBuildableForScoring ? 35 : 0)
+                          + (notSaturated        ? 25 : 0)
+                          + (hasPaidPricing      ? 20 : 0)
+                          + (hasCompetitorNotes  ? 20 : 0)
 
   const totalScore = Math.round(
     0.40 * marketScore +

@@ -156,6 +156,7 @@ describe('scoreOpportunity', () => {
     const signals = makeSignals(c)
     const apps = [makeWinningApp('productivity')]
     const result = scoreOpportunity(c, signals, [], apps)
+    expect(result.inferredCategory).toBe('productivity')
     expect(result.buildabilityScore).toBe(100)
   })
 
