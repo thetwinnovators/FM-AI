@@ -26,7 +26,7 @@ export default function WorkedExampleCard({ example }) {
       <Highlight theme={THEME} code={String(example.code || '').trimEnd()} language={lang}>
         {({ tokens, getLineProps, getTokenProps }) => (
           <pre
-            className="m-0 overflow-x-auto"
+            className="m-0"
             style={{
               background:  '#1a1d2e',
               color:       '#abb2bf',
@@ -34,6 +34,8 @@ export default function WorkedExampleCard({ example }) {
               fontSize:    '13px',
               lineHeight:  '1.7',
               padding:     '18px 22px',
+              whiteSpace:  'pre-wrap',
+              wordBreak:   'break-all',
             }}
           >
             {tokens.map((line, i) => (
