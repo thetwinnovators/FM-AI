@@ -57,6 +57,15 @@ describe('validateCode routing', () => {
     expect(chatJson).not.toHaveBeenCalled()
     expect(result.passed).toBe(true)
   })
+
+  it('returns passed:false with fallback reason when chatJson returns null', async () => {
+    chatJson.mockResolvedValueOnce(null)
+    const ex = { prompt: 'print hello', successCriteria: [], validatorType: 'llm', hints: [] }
+    const result = await validateCode('print("hello")', ex, 'python')
+    expect(result.passed).toBe(false)
+    expect(typeof result.reason).toBe('string')
+    expect(result.reason.length).toBeGreaterThan(0)
+  })
 })
 
 describe('buildIframeSrc', () => {

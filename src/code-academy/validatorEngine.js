@@ -144,11 +144,12 @@ export async function validateCode(userCode, exercise, language) {
  */
 export function buildIframeSrc(code, language) {
   if (language === 'css') {
+    const safeCss = code.replace(/<\/style/gi, '<\\/style').replace(/<script/gi, '<scr\\ipt')
     return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
 <style>
 body { margin: 16px; font-family: system-ui, sans-serif; }
-${code}
+${safeCss}
 </style>
 </head><body>
 <h1>Heading Example</h1>
