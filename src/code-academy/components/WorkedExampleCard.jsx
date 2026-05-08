@@ -1,90 +1,118 @@
-import { useState } from 'react'
 import { Highlight, themes } from 'prism-react-renderer'
-import { ChevronRight, Eye } from 'lucide-react'
 
-const CODE_THEME = {
-  ...themes.vsDark,
-  plain: { ...themes.vsDark.plain, backgroundColor: '#1a1d2e' },
+const THEME = {
+  ...themes.oneDark,
+  plain: { ...themes.oneDark.plain, backgroundColor: '#1a1d2e' },
+}
+
+function getPrismLang(language) {
+  if (language === 'html') return 'markup'
+  return language || 'python'
 }
 
 /**
- * Shows a worked example with:
- * - Syntax-highlighted code block
- * - Step-by-step explanation cards (collapsible)
- * - Optional expected output
+ * Shows a worked code example with syntax highlighting, optional expected
+ * output, and always-visible explanation steps. No toggle — just reads top
+ * to bottom like a tutorial.
  */
 export default function WorkedExampleCard({ example }) {
-  const [expanded, setExpanded] = useState(false)
   if (!example) return null
-  const lang = example.language || 'html'
+  const lang = getPrismLang(example.language)
 
   return (
-    <div className="rounded-xl border border-indigo-200 overflow-hidden mb-6">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 border-b border-indigo-100">
-        <div className="flex items-center gap-2">
-          <Eye size={14} className="text-indigo-500" />
-          <span className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">Worked Example</span>
-        </div>
-        <span className="text-[10px] font-mono text-indigo-400 uppercase">{lang}</span>
-      </div>
+    <div className="rounded-xl overflow-hidden border border-white/[0.08]">
 
-      {/* Code block */}
-      <div style={{ background: '#1a1d2e' }}>
-        <Highlight theme={CODE_THEME} code={String(example.code || '').trimEnd()} language={lang}>
-          {({ tokens, getLineProps, getTokenProps }) => (
-            <pre className="px-5 py-4 font-mono text-sm leading-relaxed overflow-x-auto m-0">
-              {tokens.map((line, i) => (
-                <div key={i} {...getLineProps({ line })} className="flex">
-                  <span className="select-none w-7 text-right mr-4 text-white/20 text-[11px] flex-shrink-0 leading-6">
-                    {i + 1}
-                  </span>
-                  <span>
-                    {line.map((token, key) => (
-                      <span key={key} {...getTokenProps({ token })} />
-                    ))}
-                  </span>
-                </div>
-              ))}
-            </pre>
-          )}
-        </Highlight>
-      </div>
+      {/* Syntax-highlighted code */}
+      <Highlight theme={THEME} code={String(example.code || '').trimEnd()} language={lang}>
+        {({ tokens, getLineProps, getTokenProps }) => (
+          <pre
+            className="m-0 overflow-x-auto"
+            style={{
+              background:  '#1a1d2e',
+              fontFamily:  '"Fira Code", Consolas, monospace',
+              fontSize:    '13px',
+              lineHeight:  '1.7',
+              padding:     '18px 22px',
+            }}
+          >
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })} style={{ display: 'flex' }}>
+                <span
+                  style={{
+                    userSelect:  'none',
+                    width:       '1.8em',
+                    textAlign:   'right',
+                    marginRight: '1.5em',
+                    flexShrink:  0,
+                    color:       'rgba(255,255,255,0.18)',
+                    fontSize:    '11px',
+                    lineHeight:  '1.7',
+                  }}
+                >
+                  {i + 1}
+                </span>
+                <span>
+                  {line.map((token, k) => (
+                    <span key={k} {...getTokenProps({ token })} />
+                  ))}
+                </span>
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
 
       {/* Expected output */}
       {example.expectedOutput && (
-        <div className="px-4 py-2.5 bg-slate-900 border-t border-white/[0.06]">
-          <span className="text-[10px] text-white/30 uppercase tracking-wider mr-2">Output:</span>
-          <code className="text-[12px] text-green-400 font-mono">{example.expectedOutput}</code>
+        <div
+          className="px-5 py-2.5"
+          style={{ background: '#111520', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <span
+            className="text-[10px] uppercase tracking-wider mr-2"
+            style={{ color: 'rgba(255,255,255,0.22)' }}
+          >
+            Output:
+          </span>
+          <code
+            style={{
+              fontFamily: '"Fira Code", Consolas, monospace',
+              fontSize:   '12px',
+              color:      '#5eead4',
+            }}
+          >
+            {example.expectedOutput}
+          </code>
         </div>
       )}
 
-      {/* Step-by-step explanation toggle */}
-      {example.explanationSteps && example.explanationSteps.length > 0 && (
-        <div className="bg-white">
-          <button
-            onClick={() => setExpanded((v) => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 transition-colors border-t border-indigo-100"
+      {/* Explanation steps — always visible */}
+      {example.explanationSteps?.length > 0 && (
+        <div
+          className="px-5 py-4"
+          style={{ background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.06)' }}
+        >
+          <p
+            className="text-[10px] font-semibold uppercase tracking-wider mb-3"
+            style={{ color: 'rgba(255,255,255,0.22)' }}
           >
-            <span>How does this code work?</span>
-            <ChevronRight
-              size={14}
-              className={`transition-transform ${expanded ? 'rotate-90' : ''}`}
-            />
-          </button>
-
-          {expanded && (
-            <ol className="px-4 pb-4 space-y-2.5 border-t border-indigo-50">
-              {example.explanationSteps.map((step, i) => (
-                <li key={i} className="flex items-start gap-3 pt-2.5">
-                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[11px] font-bold flex items-center justify-center mt-0.5">
-                    {i + 1}
-                  </span>
-                  <p className="text-sm text-slate-700 leading-relaxed">{step}</p>
-                </li>
-              ))}
-            </ol>
-          )}
+            How it works
+          </p>
+          <ol className="space-y-3">
+            {example.explanationSteps.map((step, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <span
+                  className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
+                >
+                  {i + 1}
+                </span>
+                <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                  {step}
+                </p>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
     </div>
