@@ -9,10 +9,9 @@ import radarStorage    from '../opportunity-radar/storage/radarStorage.js'
 import { runPainSearch }    from '../opportunity-radar/services/painSearchService.js'
 import { extractSignals }   from '../opportunity-radar/services/signalExtractor.js'
 import { KeywordClusterer } from '../opportunity-radar/services/clusterService.js'
-import { applyBuildabilityFilter, scoreOpportunity } from '../opportunity-radar/services/opportunityScorer.js'
+import { applyBuildabilityFilter, scoreOpportunity, getTop3 } from '../opportunity-radar/services/opportunityScorer.js'
 import { aiValidateClusters }  from '../opportunity-radar/services/aiOpportunityFilter.js'
 import { generateConcept }     from '../opportunity-radar/services/conceptGenerator.js'
-import { getTop3 }             from '../opportunity-radar/services/opportunityScorer.js'
 import { ALL_SOURCES, SOURCE_LABELS } from '../opportunity-radar/services/painSearchService.js'
 
 const SCAN_STALE_MS = 6 * 60 * 60 * 1000
@@ -56,7 +55,8 @@ export default function OpportunityRadar() {
   const rescoreClusters = useCallback((currentCharts, currentApps) => {
     const allSignals = radarStorage.loadSignals()
     if (allSignals.length === 0) return
-    const updated = clusters.map((c) => {
+    const latestClusters = radarStorage.loadClusters()
+    const updated = latestClusters.map((c) => {
       const scores = scoreOpportunity(c, allSignals, currentCharts, currentApps)
       return {
         ...c,
@@ -70,7 +70,7 @@ export default function OpportunityRadar() {
     })
     radarStorage.saveClusters(updated)
     setClusters(updated)
-  }, [clusters])
+  }, [])
 
   // ── Market data change callbacks ────────────────────────────────────────────
   const handleChartsUpdated = useCallback((newCharts) => {
@@ -149,7 +149,7 @@ export default function OpportunityRadar() {
       const newMeta = {
         lastScanAt:     new Date().toISOString(),
         totalSignals:   allSignals.length,
-        totalClusters:  scored.length,
+        totalClusters:  validated.length,
         scanDurationMs: Date.now() - start,
       }
       radarStorage.saveMeta(newMeta)
@@ -392,15 +392,16 @@ export default function OpportunityRadar() {
       )}
 
       {/* ── Modals (always rendered, not tab-scoped) ───────────────────────── */}
-      {evidenceClusterId && (
-        <EvidencePanel
-          cluster={clusters.find((c) => c.id === evidenceClusterId)}
-          signals={signals.filter((s) =>
-            clusters.find((c) => c.id === evidenceClusterId)?.signalIds.includes(s.id),
-          )}
-          onClose={() => setEvidenceClusterId(null)}
-        />
-      )}
+      {evidenceClusterId && (() => {
+        const ec = clusters.find((c) => c.id === evidenceClusterId)
+        return ec ? (
+          <EvidencePanel
+            cluster={ec}
+            signals={signals.filter((s) => ec.signalIds.includes(s.id))}
+            onClose={() => setEvidenceClusterId(null)}
+          />
+        ) : null
+      })()}
 
       {activeConceptId && (
         <ConceptView
