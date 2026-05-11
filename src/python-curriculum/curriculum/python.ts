@@ -903,6 +903,570 @@ print(nearest)`,
 }
 
 // ---------------------------------------------------------------------------
+// Group 6 — Input and Output
+// ---------------------------------------------------------------------------
+
+const GROUP_INPUT_OUTPUT: LessonGroup = {
+  id: 'input-output',
+  title: 'Input and Output',
+  subLessons: [
+    {
+      id:    'io-print-basics',
+      title: 'Print Basics',
+      slug:  'print-basics',
+      tldr:  'print() ends every message with a newline by default, so each print starts a fresh line.',
+      searchableTerms: ['print', 'newline', 'output', 'end', 'screen'],
+      explanation: [
+        'You already know `print` shows text on the screen. Behind the scenes, it does one more thing: it adds a newline at the end. A newline is the invisible character that moves the cursor to the next line. That is why two `print` calls in a row show their messages on two separate lines.',
+        'You can change this behaviour with a special option called `end`. By writing `print("hi", end="")` you tell Python not to add a newline. The next `print` will continue on the same line. You will see lots of options like this as you learn — they make `print` flexible enough to handle almost any output you need.',
+      ],
+      example: {
+        code: `# Each print call starts on a new line.
+print("First")
+print("Second")
+# Use end="" to stay on the same line.
+print("A", end="")
+print("B")`,
+        output: 'First\nSecond\nAB',
+      },
+      challenge: {
+        type:           'code_run',
+        prompt:         'Use print to display the message: Welcome',
+        starterCode:    '# Print the message below\n',
+        expectedOutput: 'Welcome',
+        hints: [
+          'Use print with the message in quotes.',
+          'The message inside the quotes is what gets displayed.',
+        ],
+        solution: 'print("Welcome")',
+      },
+    },
+    {
+      id:    'io-print-multiple',
+      title: 'Printing Multiple Values',
+      slug:  'print-multiple',
+      tldr:  'print() can take several values separated by commas and adds a space between them.',
+      searchableTerms: ['print multiple', 'comma', 'separator', 'sep', 'arguments'],
+      explanation: [
+        'You can pass `print` more than one value at a time by separating them with commas. For example, `print("score", 42)` shows `score 42`. By default, Python puts a single space between each value. This is handy when you want to mix text and variables without writing concatenation everywhere.',
+        'You can change the separator with the `sep` option. So `print("a", "b", "c", sep="-")` outputs `a-b-c`. You can pass any string as the separator, including an empty string `""` to glue values together with nothing between them. Multiple-value printing is a quick, beginner-friendly way to format simple output.',
+      ],
+      example: {
+        code: `# Multiple values separated by commas.
+print("Score:", 100)
+print("a", "b", "c")
+# A custom separator using sep.
+print("2025", "05", "10", sep="-")`,
+        output: 'Score: 100\na b c\n2025-05-10',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does print("hi", "there") display?',
+        options: [
+          'hithere',
+          'hi,there',
+          'hi there',
+          'hi-there',
+        ],
+        correctOption: 2,
+        hints: [
+          'By default, print adds a space between values separated by commas.',
+          'The comma in the code is the separator between arguments, not the output.',
+        ],
+        solution: 'print("hi", "there") displays "hi there" with a space between the words.',
+      },
+      recommendedAfter: 'io-print-basics',
+    },
+    {
+      id:    'io-input-function',
+      title: 'The input Function',
+      slug:  'input-function',
+      tldr:  'input() pauses the program and waits for the user to type a line of text.',
+      searchableTerms: ['input', 'user input', 'keyboard', 'prompt', 'interactive'],
+      explanation: [
+        'The `input` function lets your program talk back to the user. When Python reaches an `input` call, it stops and waits for the user to type something and press Enter. Whatever they typed is returned as a string. You usually pass a prompt message into `input` so the user knows what to type. For example, `name = input("What is your name? ")` shows the question, waits for typing, then stores the answer in `name`.',
+        'There is one important catch: `input` always returns a string, even if the user types a number. If you want to do maths with their input, you have to convert it first. Wrap the call in `int()` for a whole number, like `age = int(input("Your age? "))`. Without the conversion, `"12" + 1` would give a type error because Python cannot add a number to text.',
+      ],
+      example: {
+        code: `# Ask for the user's name and store it.
+name = input("What is your name? ")
+
+# Ask for a number and convert it to int.
+age = int(input("Your age? "))
+
+# Use the variables.
+print("Hello!")`,
+        output: 'Hello!',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'When a user types 42 at this prompt:\n\nvalue = input("Enter a number: ")\n\nWhat data type is stored in value?',
+        options: [
+          'integer',
+          'float',
+          'string',
+          'boolean',
+        ],
+        correctOption: 2,
+        hints: [
+          'The input function always returns the same data type.',
+          'To turn the answer into a number, you need to wrap input in int() or float().',
+        ],
+        solution: 'value is a string — input always returns a string, even if it looks like a number.',
+      },
+      recommendedAfter: 'io-print-multiple',
+    },
+    {
+      id:    'io-formatting-output',
+      title: 'Formatting Output',
+      slug:  'formatting-output',
+      tldr:  'f-strings let you drop variables directly into a string by writing f"...{variable}...".',
+      searchableTerms: ['f-string', 'format', 'interpolation', 'template', 'braces'],
+      explanation: [
+        'An f-string is a special kind of string that lets you insert variables and expressions directly into the text. You write an `f` right before the opening quote, then put any variable in curly braces `{}`. For example, `f"Hello, {name}!"` puts the value of the `name` variable right inside the string. This is much cleaner than using `+` to concatenate.',
+        'F-strings can hold any expression inside the braces, not just variables. So `f"Total: {price * quantity}"` works fine. You can even add formatting after a colon — `f"{number:.2f}"` shows a float with exactly two decimal places. F-strings were added in Python 3.6 and are now the most popular way to format output.',
+      ],
+      example: {
+        code: `# F-strings drop variables right into the text.
+name = "Alex"
+age = 12
+greeting = f"Hello {name}, you are {age}!"
+
+# Expressions also work inside the braces.
+price = 9.99
+qty = 3
+total = f"Total: {price * qty}"
+print(name)`,
+        output: 'Alex',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Given this code:\n\nname = "Sam"\nmessage = f"Hi {name}!"\n\nWhat is stored in message?',
+        options: [
+          'Hi {name}!',
+          'Hi Sam!',
+          'f"Hi {name}!"',
+          'Hi name!',
+        ],
+        correctOption: 1,
+        hints: [
+          'In an f-string, {name} is replaced with the value of the variable.',
+          'The variable name holds the value Sam.',
+        ],
+        solution: 'message is "Hi Sam!" because the f-string puts the value of name into the braces.',
+      },
+      recommendedAfter: 'io-input-function',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 7 — Conditionals
+// ---------------------------------------------------------------------------
+
+const GROUP_CONDITIONALS: LessonGroup = {
+  id: 'conditionals',
+  title: 'Conditionals',
+  subLessons: [
+    {
+      id:    'cond-if-statement',
+      title: 'The if Statement',
+      slug:  'if-statement',
+      tldr:  'An if statement runs a block of code only when a condition is True.',
+      searchableTerms: ['if statement', 'condition', 'branch', 'colon', 'indentation'],
+      explanation: [
+        'An `if` statement lets your program make a decision. The structure is: the word `if`, then a condition that is either True or False, then a colon `:`, then an indented block of code. The indented code runs only if the condition is True. If the condition is False, Python skips the block entirely and moves on.',
+        'Indentation matters in Python — it is how Python knows what is inside the `if` block and what is not. The standard is four spaces. As long as the lines are indented the same way, they all belong to the `if`. The moment a line goes back to no indentation, Python considers the `if` block finished.',
+      ],
+      example: {
+        code: `# The if statement makes a decision.
+score = 85
+
+if score > 50:
+    # This line only runs because score is greater than 50.
+    print("You passed!")
+
+print("Done")`,
+        output: 'You passed!\nDone',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does this code print?\n\nx = 5\nif x > 3:\n    print("big")\nprint("end")',
+        options: [
+          'big',
+          'end',
+          'big\\nend',
+          'nothing',
+        ],
+        correctOption: 2,
+        hints: [
+          'Check whether the condition x > 3 is True or False.',
+          'If True, both prints run. If False, only the second print runs.',
+        ],
+        solution: '5 is greater than 3, so the if block runs and prints "big", then "end" prints after.',
+      },
+    },
+    {
+      id:    'cond-else-clause',
+      title: 'The else Clause',
+      slug:  'else-clause',
+      tldr:  'else runs a different block of code when the if condition is False.',
+      searchableTerms: ['else', 'otherwise', 'alternative', 'two branches', 'binary'],
+      explanation: [
+        'The `else` clause is the partner of `if`. It gives you a second block of code to run when the `if` condition is False. The structure is: write your `if` block, then on the next non-indented line write `else:`, then an indented block underneath. Only one of the two blocks ever runs — never both, and never neither.',
+        'Together, `if/else` makes your program able to handle both possibilities. For example, "if the player has enough coins, buy the sword, otherwise show an error message." This kind of two-way decision is the foundation of almost every interactive program — games, websites, apps — they all use `if/else` thousands of times.',
+      ],
+      example: {
+        code: `# if/else picks between two outcomes.
+age = 10
+
+if age >= 13:
+    print("You can sign up.")
+else:
+    # This runs because 10 is not >= 13.
+    print("Too young, sorry.")`,
+        output: 'Too young, sorry.',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does this code print?\n\ntemp = 70\nif temp > 80:\n    print("hot")\nelse:\n    print("cool")',
+        options: [
+          'hot',
+          'cool',
+          'hot\\ncool',
+          'nothing',
+        ],
+        correctOption: 1,
+        hints: [
+          'Check whether 70 is greater than 80.',
+          'Only one block runs — the if block or the else block.',
+        ],
+        solution: '70 is not greater than 80, so the else block runs and prints "cool".',
+      },
+      recommendedAfter: 'cond-if-statement',
+    },
+    {
+      id:    'cond-elif-clause',
+      title: 'The elif Clause',
+      slug:  'elif-clause',
+      tldr:  'elif lets you check more conditions in order, like asking a series of questions.',
+      searchableTerms: ['elif', 'else if', 'chain', 'ladder', 'multiple conditions'],
+      explanation: [
+        'When you have more than two possibilities, you need `elif`, which is short for "else if". It lets you chain multiple conditions. Python checks them top to bottom and runs the first block whose condition is True. Once one block runs, the rest are skipped — even if a later condition would also be True.',
+        'A common pattern is to grade a score. If it is 90 or above, print "A". Else if it is 80 or above, print "B". Else if it is 70 or above, print "C". Else print "F". An optional `else` at the very bottom catches everything that did not match any condition. You can have as many `elif` clauses as you need.',
+      ],
+      example: {
+        code: `# elif chains multiple decisions.
+score = 75
+
+if score >= 90:
+    print("A")
+elif score >= 80:
+    print("B")
+elif score >= 70:
+    # This branch runs.
+    print("C")
+else:
+    print("F")`,
+        output: 'C',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does this code print?\n\nx = 50\nif x > 100:\n    print("huge")\nelif x > 25:\n    print("medium")\nelif x > 10:\n    print("small")\nelse:\n    print("tiny")',
+        options: [
+          'huge',
+          'medium',
+          'small',
+          'tiny',
+        ],
+        correctOption: 1,
+        hints: [
+          'Python checks each condition in order from top to bottom.',
+          'It runs the first block where the condition is True, then stops.',
+        ],
+        solution: '50 is not > 100, but is > 25, so "medium" prints and the rest are skipped.',
+      },
+      recommendedAfter: 'cond-else-clause',
+    },
+    {
+      id:    'cond-comparison-operators',
+      title: 'Comparison Operators',
+      slug:  'comparison-operators',
+      tldr:  'Use ==, !=, <, >, <=, >= to compare values. They always return True or False.',
+      searchableTerms: ['comparison', 'equality', 'equal', 'greater than', 'less than'],
+      explanation: [
+        'Comparison operators let you compare two values. The result is always a boolean — `True` or `False`. The six comparison operators are: `==` (equal to), `!=` (not equal to), `<` (less than), `>` (greater than), `<=` (less than or equal to), and `>=` (greater than or equal to). Notice that "equal to" is `==`, not `=`. A single `=` is for assignment.',
+        'You use these comparisons inside `if` statements all the time. For example, `if age == 18` checks whether age is exactly 18. `if score >= 50` checks whether the score reached the passing mark. Mixing these up is one of the most common beginner mistakes — using `=` (assignment) when you meant `==` (comparison) leads to errors that can be hard to spot.',
+      ],
+      example: {
+        code: `# Comparison operators return True or False.
+a = 10
+b = 20
+
+result1 = (a == b)
+# result1 is False
+result2 = (a < b)
+# result2 is True
+result3 = (a != b)
+# result3 is True
+print("Compared")`,
+        output: 'Compared',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which operator checks if two values are EQUAL?',
+        options: [
+          '=',
+          '==',
+          '!=',
+          '<>',
+        ],
+        correctOption: 1,
+        hints: [
+          'A single = is used to assign a value to a variable.',
+          'For comparison, you use a doubled version.',
+        ],
+        solution: 'The == operator checks equality. A single = is assignment.',
+      },
+      recommendedAfter: 'cond-elif-clause',
+    },
+    {
+      id:    'cond-logical-operators',
+      title: 'Logical Operators',
+      slug:  'logical-operators',
+      tldr:  'Combine booleans with and, or, and not to build more complex conditions.',
+      searchableTerms: ['logical', 'and', 'or', 'not', 'boolean operator'],
+      explanation: [
+        'Sometimes one condition is not enough. Logical operators let you combine conditions. `and` returns True only if both sides are True. `or` returns True if at least one side is True. `not` flips a boolean — `not True` is `False`, and `not False` is `True`. Notice they are written as English words, not symbols.',
+        'A real example: a movie theatre might require `age >= 13 and has_ticket == True`. Both must be True for entry. A coupon might apply if `total > 50 or member == True`. Either condition is enough. Logical operators let your program handle these everyday "both/either/not" decisions with very natural-looking code.',
+      ],
+      example: {
+        code: `# and, or, not combine booleans.
+age = 14
+has_pass = True
+
+# Both must be True for "and".
+if age >= 13 and has_pass:
+    print("Welcome!")
+else:
+    print("Sorry")`,
+        output: 'Welcome!',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does the expression  True and False  evaluate to?',
+        options: [
+          'True',
+          'False',
+          'None',
+          'Error',
+        ],
+        correctOption: 1,
+        hints: [
+          '"and" needs BOTH sides to be True to return True.',
+          'If even one side is False, the result is False.',
+        ],
+        solution: 'True and False is False because "and" requires both sides to be True.',
+      },
+      recommendedAfter: 'cond-comparison-operators',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 8 — Loops
+// ---------------------------------------------------------------------------
+
+const GROUP_LOOPS: LessonGroup = {
+  id: 'loops',
+  title: 'Loops',
+  subLessons: [
+    {
+      id:    'loop-for-loop',
+      title: 'The for Loop',
+      slug:  'for-loop',
+      tldr:  'A for loop repeats a block of code once for each item in a sequence.',
+      searchableTerms: ['for loop', 'iteration', 'repeat', 'sequence', 'in'],
+      explanation: [
+        'A `for` loop lets you repeat actions for every item in a group. The structure is: `for variable in sequence:` followed by an indented block. The variable takes on each value in turn, and the block runs once per value. For example, `for letter in "hi":` would run the block twice — once with `letter` equal to `"h"` and once with `letter` equal to `"i"`.',
+        'For loops save you from writing the same code over and over. Without a loop, printing the letters of "Python" would need six separate `print` calls. With a loop, it takes two lines. Anything you can iterate over — strings, lists, dictionaries — works with a `for` loop. This makes them one of the most powerful tools in Python.',
+      ],
+      example: {
+        code: `# A for loop steps through each character.
+for letter in "abc":
+    # The block runs three times.
+    print(letter)
+print("done")`,
+        output: 'a\nb\nc\ndone',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'How many times does this loop run?\n\nfor ch in "hello":\n    print(ch)',
+        options: [
+          '4',
+          '5',
+          '6',
+          '1',
+        ],
+        correctOption: 1,
+        hints: [
+          'The loop runs once for each character in the string.',
+          'Count the letters in "hello".',
+        ],
+        solution: 'The loop runs 5 times — once for each of the 5 letters in "hello".',
+      },
+    },
+    {
+      id:    'loop-range-function',
+      title: 'The range Function',
+      slug:  'range-function',
+      tldr:  'range() creates a sequence of numbers, perfect for looping a specific number of times.',
+      searchableTerms: ['range', 'sequence', 'numbers', 'count', 'iteration'],
+      explanation: [
+        'The `range` function creates a sequence of numbers without you having to type them all. The most common form is `range(n)`, which produces the numbers `0, 1, 2, ..., n-1`. Notice it stops BEFORE `n`, not at it. So `range(5)` gives `0, 1, 2, 3, 4`. You usually pair `range` with a `for` loop to repeat something a set number of times.',
+        'You can also use `range(start, stop)` to choose where to begin, or `range(start, stop, step)` to skip values. `range(2, 8)` gives `2, 3, 4, 5, 6, 7`. `range(0, 10, 2)` gives `0, 2, 4, 6, 8` — every second number. The stop number is always excluded, which can be confusing at first, but you get used to it.',
+      ],
+      example: {
+        code: `# range(5) gives 0, 1, 2, 3, 4.
+for i in range(5):
+    print(i)
+# Loop runs 5 times in total.`,
+        output: '0\n1\n2\n3\n4',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'How many numbers does range(3, 8) produce?',
+        options: [
+          '3',
+          '4',
+          '5',
+          '8',
+        ],
+        correctOption: 2,
+        hints: [
+          'range starts at the first number and stops BEFORE the second number.',
+          'Count: 3, 4, 5, 6, 7.',
+        ],
+        solution: 'range(3, 8) produces 5 numbers: 3, 4, 5, 6, 7.',
+      },
+      recommendedAfter: 'loop-for-loop',
+    },
+    {
+      id:    'loop-while-loop',
+      title: 'The while Loop',
+      slug:  'while-loop',
+      tldr:  'A while loop keeps repeating as long as its condition stays True.',
+      searchableTerms: ['while loop', 'condition', 'repeat', 'infinite', 'iteration'],
+      explanation: [
+        'A `while` loop runs as long as a condition is True. The structure is: `while condition:` followed by an indented block. Python checks the condition before each repeat. If it is True, it runs the block again. If it is False, the loop ends. Use `while` when you do not know in advance how many times you need to repeat — like "keep asking until the user types the right password."',
+        'Beware of infinite loops. If the condition never becomes False, the loop runs forever and your program freezes. The most common mistake is forgetting to update the variable used in the condition. Always make sure that something inside the loop will eventually make the condition False — for example, `count = count + 1` so that `while count < 10` will one day become False.',
+      ],
+      example: {
+        code: `# Repeat while count is less than 3.
+count = 0
+while count < 3:
+    print(count)
+    # Update the variable to avoid an infinite loop.
+    count = count + 1`,
+        output: '0\n1\n2',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'How many times does this loop run?\n\nn = 0\nwhile n < 4:\n    print(n)\n    n = n + 1',
+        options: [
+          '3',
+          '4',
+          '5',
+          'forever',
+        ],
+        correctOption: 1,
+        hints: [
+          'The loop runs when n is 0, 1, 2, and 3. It stops when n becomes 4.',
+          'Count how many values of n satisfy n < 4.',
+        ],
+        solution: 'The loop runs 4 times — once each for n = 0, 1, 2, and 3.',
+      },
+      recommendedAfter: 'loop-range-function',
+    },
+    {
+      id:    'loop-break-statement',
+      title: 'The break Statement',
+      slug:  'break-statement',
+      tldr:  'break instantly exits a loop, even if the condition is still True.',
+      searchableTerms: ['break', 'exit loop', 'stop', 'terminate', 'continue'],
+      explanation: [
+        'The `break` keyword stops a loop immediately. The moment Python reaches `break`, it jumps out of the loop and continues with whatever code comes after. You typically put `break` inside an `if` so it only triggers in a certain situation — for example, "keep looking through the list, and stop the moment you find what you want."',
+        'There is also a related keyword called `continue`. Where `break` exits the loop entirely, `continue` only skips the rest of the current iteration and goes to the next one. So if you want to ignore a single bad value but keep looping, use `continue`. If you want to bail out of the whole loop, use `break`. Both are tools for changing the normal flow.',
+      ],
+      example: {
+        code: `# Loop through numbers but stop early at 3.
+for i in range(10):
+    if i == 3:
+        # Break exits the loop immediately.
+        break
+    print(i)
+print("after loop")`,
+        output: '0\n1\n2\nafter loop',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does this loop print?\n\nfor i in range(5):\n    if i == 2:\n        break\n    print(i)',
+        options: [
+          '0',
+          '0\\n1',
+          '0\\n1\\n2',
+          '0\\n1\\n2\\n3\\n4',
+        ],
+        correctOption: 1,
+        hints: [
+          'The loop runs for i = 0, 1, 2... but break exits at i = 2.',
+          'When break runs, the print after it does not happen.',
+        ],
+        solution: 'When i is 0 and 1, those values print. When i is 2, break exits before the print runs.',
+      },
+      recommendedAfter: 'loop-while-loop',
+    },
+    {
+      id:    'loop-loop-patterns',
+      title: 'Loop Patterns',
+      slug:  'loop-patterns',
+      tldr:  'Common patterns: counting, summing, finding the max — most loop problems use these.',
+      searchableTerms: ['pattern', 'counter', 'accumulator', 'sum', 'maximum'],
+      explanation: [
+        'Loops follow common patterns. The counter pattern uses a variable that starts at 0 and increases by 1 each round: `count = count + 1`. The accumulator pattern adds values into a running total: `total = total + value`. The maximum pattern keeps track of the biggest value seen so far. Once you spot these patterns, lots of loop problems become easier.',
+        'A typical accumulator looks like this: start with `total = 0` before the loop, then inside the loop write `total = total + item`. After the loop, `total` holds the sum of every item. The same idea works for counting: start with `count = 0`, then `count = count + 1` whenever you see something you want to count. Practising these patterns is the fastest way to get comfortable with loops.',
+      ],
+      example: {
+        code: `# Accumulator pattern — sum the numbers 1 to 5.
+total = 0
+for i in range(1, 6):
+    total = total + i
+# total is 15
+print(total)`,
+        output: '15',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What is the value of total after this loop?\n\ntotal = 0\nfor i in range(4):\n    total = total + i',
+        options: [
+          '0',
+          '4',
+          '6',
+          '10',
+        ],
+        correctOption: 2,
+        hints: [
+          'range(4) gives 0, 1, 2, 3.',
+          'Add them all together: 0 + 1 + 2 + 3.',
+        ],
+        solution: 'total is 6 because 0 + 1 + 2 + 3 = 6.',
+      },
+      recommendedAfter: 'loop-break-statement',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
 // PYTHON_CURRICULUM — exported aggregate
 // ---------------------------------------------------------------------------
 
@@ -912,4 +1476,7 @@ export const PYTHON_CURRICULUM: LessonGroup[] = [
   GROUP_DATA_TYPES,
   GROUP_STRINGS,
   GROUP_NUMBERS,
+  GROUP_INPUT_OUTPUT,
+  GROUP_CONDITIONALS,
+  GROUP_LOOPS,
 ]
