@@ -3,7 +3,7 @@ import { Play, RotateCcw } from 'lucide-react'
 import { simulateOutput } from '../validator'
 
 export default function TryItEditor({ starterCode }) {
-  const [code, setCode] = useState(starterCode || '')
+  const [code, setCode] = useState('')
   const [output, setOutput] = useState(null)
   const [hasRun, setHasRun] = useState(false)
   const [unsupported, setUnsupported] = useState(false)
