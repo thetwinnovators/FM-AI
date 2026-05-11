@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { GraduationCap } from 'lucide-react'
 import { useStore } from '../store/useStore.js'
 import { useCodeAcademy } from '../code-academy/useCodeAcademy.js'
 import CodeAcademyHome from '../code-academy/components/CodeAcademyHome.jsx'
@@ -22,16 +21,8 @@ export default function CodeAcademy() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Page title — matches Flow Academy header style */}
-      <div className="px-6 pt-6 pb-1 flex-shrink-0">
-        <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-          <GraduationCap size={20} className="text-teal-400" /> Code Academy
-        </h1>
-      </div>
-
-      {/* Tabs — matches Flow Academy tab bar style */}
       {showTabs && (
-        <div className="flex gap-1 px-6 pt-4 border-b border-white/[0.08] flex-shrink-0">
+        <div className="flex gap-1 px-6 pt-5 border-b border-white/[0.08] flex-shrink-0">
           {TABS.map((t) => (
             <button
               key={t.id}
