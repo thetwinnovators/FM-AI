@@ -81,6 +81,23 @@ export function simulateOutput(code: string): string | null {
   return results.length > 0 ? results.join('\n') : null
 }
 
+// Returns the set of simple variable assignments visible in the code,
+// for display in the Try-it editor's variable inspector.
+export function extractVars(code: string): Record<string, string> {
+  const vars: Record<string, string> = {}
+  const intPat = /^\s*([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*(?:#.*)?$/
+  const strPat = /^\s*([A-Za-z_]\w*)\s*=\s*["']([^"']+)["']\s*(?:#.*)?$/
+  for (const line of code.split('\n')) {
+    const t = line.trim()
+    if (!t || t.startsWith('#')) continue
+    const im = t.match(intPat)
+    if (im) { vars[im[1]] = im[2]; continue }
+    const sm = t.match(strPat)
+    if (sm) { vars[sm[1]] = `"${sm[2]}"`; continue }
+  }
+  return vars
+}
+
 export function normalise(s: string): string {
   return s.trim()
 }

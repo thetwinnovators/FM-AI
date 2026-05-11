@@ -1,15 +1,18 @@
 import { useState } from 'react'
 import { Play, RotateCcw } from 'lucide-react'
-import { simulateOutput } from '../validator'
+import { simulateOutput, extractVars } from '../validator'
 
 export default function TryItEditor({ starterCode }) {
   const [code, setCode] = useState('')
   const [output, setOutput] = useState(null)
+  const [vars, setVars] = useState({})
   const [hasRun, setHasRun] = useState(false)
   const [unsupported, setUnsupported] = useState(false)
 
   function run() {
     const result = simulateOutput(code)
+    const varMap = extractVars(code)
+    setVars(varMap)
     if (result !== null) {
       setOutput(result)
       setUnsupported(false)
@@ -21,13 +24,15 @@ export default function TryItEditor({ starterCode }) {
   }
 
   function reset() {
-    setCode(starterCode || '')
+    setCode('')
     setOutput(null)
+    setVars({})
     setHasRun(false)
     setUnsupported(false)
   }
 
   const lineCount = Math.max(code.split('\n').length, 4)
+  const varEntries = Object.entries(vars)
 
   return (
     <div
@@ -102,7 +107,7 @@ export default function TryItEditor({ starterCode }) {
         </button>
       </div>
 
-      {/* Output */}
+      {/* Output + Variable inspector */}
       {hasRun && (
         <>
           <div
@@ -129,6 +134,35 @@ export default function TryItEditor({ starterCode }) {
               ? '⚠ This sandbox simulates basic print() statements.\nTry: print("text") or print(1 + 2)'
               : (output || '(no output)')}
           </pre>
+
+          {varEntries.length > 0 && (
+            <>
+              <div
+                className="flex items-center gap-2 px-4 py-2 border-t"
+                style={{ background: '#0a0c15', borderColor: 'rgba(255,255,255,0.05)' }}
+              >
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'rgba(97,175,239,0.7)', flexShrink: 0, display: 'inline-block' }} />
+                <span
+                  className="text-[10px] font-semibold uppercase tracking-widest"
+                  style={{ color: 'rgba(97,175,239,0.5)', letterSpacing: '0.12em' }}
+                >
+                  Variables
+                </span>
+              </div>
+              <div
+                className="px-4 py-3"
+                style={{ background: '#080a12', fontFamily: 'monospace', fontSize: 12 }}
+              >
+                {varEntries.map(([k, v]) => (
+                  <div key={k} style={{ lineHeight: 1.9 }}>
+                    <span style={{ color: '#61afef' }}>{k}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.25)' }}> = </span>
+                    <span style={{ color: v.startsWith('"') ? '#98c379' : '#d19a66' }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
     </div>
