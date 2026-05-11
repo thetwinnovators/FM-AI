@@ -8,6 +8,7 @@ import FolderCard from '../components/document/FolderCard.jsx'
 import FileTypeChip from '../components/document/FileTypeChip.jsx'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { extractDocument, ACCEPT_ATTR } from '../lib/document/extract.js'
+import { normalizeMarkdown, PROCESSING_VERSION } from '../lib/document/normalizeMarkdown.js'
 
 const PAGE_SIZE = 24
 
@@ -121,11 +122,26 @@ export default function Documents() {
         failures.push(`${f.name} — ${result.error}`)
         continue
       }
+      let normalizedMarkdown = null
+      let processingStatus = 'failed'
+      let processingError = null
+      try {
+        normalizedMarkdown = normalizeMarkdown(result.text, f.type || '')
+        processingStatus = 'processed'
+      } catch (err) {
+        processingError = err?.message || 'Normalization failed'
+      }
+
       const meta = addDocument({
         title: f.name.replace(/\.[^.]+$/, '').slice(0, 80),
         plainText: result.text,
         sourceType: 'upload',
         fileName: f.name,
+        mimeType: f.type || null,
+        normalizedMarkdown,
+        processingStatus,
+        processingError,
+        processingVersion: PROCESSING_VERSION,
       })
       if (meta?.id) {
         ok += 1

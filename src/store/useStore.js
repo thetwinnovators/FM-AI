@@ -570,14 +570,74 @@ export function useStore() {
       excerpt: plainText.slice(0, 240) || null,
       wordCount,
       folderId: data.folderId || null,
+      // Markdown processing fields
+      processingStatus: data.normalizedMarkdown ? 'processed' : (data.processingStatus || null),
+      processingError: data.processingError || null,
+      lastProcessedAt: data.normalizedMarkdown ? now : null,
+      processingVersion: data.normalizedMarkdown ? (data.processingVersion || null) : null,
     }
-    const content = { id, plainText, raw: data.raw || null }
+    const content = {
+      id,
+      plainText,
+      raw: data.raw || null,
+      normalizedMarkdown: data.normalizedMarkdown || null,
+    }
     persist({
       ...cur,
       documents: { ...cur.documents, [id]: meta },
       documentContents: { ...cur.documentContents, [id]: content },
     })
     return meta
+  }, [])
+
+  // Re-run Markdown normalization on an already-stored document.
+  // Reads the stored plainText, converts it, and updates both the content and
+  // the processing status fields on the meta record.
+  const reprocessDocument = useCallback((id) => {
+    const cur = memoryState
+    const meta = cur.documents?.[id]
+    const content = cur.documentContents?.[id]
+    if (!meta || !content?.plainText) return
+
+    // Import lazily so the normalizer is only loaded when actually used
+    import('../lib/document/normalizeMarkdown.js').then(({ normalizeMarkdown, PROCESSING_VERSION }) => {
+      const now = new Date().toISOString()
+      let normalizedMarkdown = null
+      let processingStatus = 'failed'
+      let processingError = null
+
+      try {
+        normalizedMarkdown = normalizeMarkdown(content.plainText, meta.mimeType || '')
+        processingStatus = 'processed'
+      } catch (err) {
+        processingError = err?.message || 'Normalization failed'
+      }
+
+      // Read latest state at completion time to avoid clobbering concurrent edits
+      const latest = memoryState
+      const latestMeta = latest.documents?.[id]
+      const latestContent = latest.documentContents?.[id]
+      if (!latestMeta || !latestContent) return
+
+      persist({
+        ...latest,
+        documents: {
+          ...latest.documents,
+          [id]: {
+            ...latestMeta,
+            processingStatus,
+            processingError,
+            lastProcessedAt: now,
+            processingVersion: PROCESSING_VERSION,
+            updatedAt: now,
+          },
+        },
+        documentContents: {
+          ...latest.documentContents,
+          [id]: { ...latestContent, normalizedMarkdown },
+        },
+      })
+    })
   }, [])
 
   const updateDocument = useCallback((id, patch) => {
@@ -961,7 +1021,7 @@ export function useStore() {
     notesFor, addNote, removeNote,
     addUserTopic, removeUserTopic, updateUserTopic, userTopicBySlug,
     addManualContent, removeManualContent, manualContentForTopic, manualContentByUrl,
-    addDocument, updateDocument, removeDocument, documentById, documentContentById, documentsForTopic, requestSummary,
+    addDocument, updateDocument, removeDocument, reprocessDocument, documentById, documentContentById, documentsForTopic, requestSummary,
     addFolder, renameFolder, removeFolder, ensureFolderByName,
     setTopicSummary, clearTopicSummary,
     createConversation, updateConversation, deleteConversation, addChatMessage, patchChatMessage,

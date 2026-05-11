@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Sparkles, Trash2, Save, Pencil, Plus, RefreshCw, Loader2, Copy, Check, Download, Wand2 } from 'lucide-react'
+import { ChevronLeft, Sparkles, Trash2, Save, Pencil, Plus, RefreshCw, Loader2, Copy, Check, Download, Wand2, FileCode2, AlertCircle } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
 import { OLLAMA_CONFIG } from '../lib/llm/ollamaConfig.js'
 import { generateResponse } from '../lib/llm/ollama.js'
 import FileTypeChip from '../components/document/FileTypeChip.jsx'
+import MarkdownViewer from '../components/document/MarkdownViewer.jsx'
 
 function formatDate(iso) {
   if (!iso) return ''
@@ -17,7 +18,7 @@ export default function Document() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { topics: seedTopics, topicById } = useSeed()
-  const { documentById, documentContentById, updateDocument, removeDocument, userTopics, requestSummary } = useStore()
+  const { documentById, documentContentById, updateDocument, removeDocument, reprocessDocument, userTopics, requestSummary } = useStore()
   const confirm = useConfirm()
 
   const meta = documentById(id)
@@ -344,17 +345,51 @@ export default function Document() {
       {/* Content viewer */}
       <section className="rounded-lg border border-black/10 bg-slate-100 shadow-sm p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-gray-700">Content</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-gray-700">Content</h2>
+            {/* Processing status badge */}
+            {meta.processingStatus === 'processed' && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded border border-teal-400/30 text-teal-600 bg-teal-50">
+                <FileCode2 size={9} /> Markdown
+              </span>
+            )}
+            {meta.processingStatus === 'reprocessing' && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-gray-400">
+                <Loader2 size={9} className="animate-spin" /> reformatting…
+              </span>
+            )}
+            {meta.processingStatus === 'failed' && (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-500" title={meta.processingError || 'Normalization failed'}>
+                <AlertCircle size={9} /> plain text
+              </span>
+            )}
+          </div>
+
           {content?.plainText ? (
             <div className="flex items-center gap-1">
+              {/* Reprocess button — available for any stored document */}
+              <button
+                onClick={() => {
+                  updateDocument(meta.id, { processingStatus: 'reprocessing' })
+                  reprocessDocument(meta.id)
+                }}
+                disabled={meta.processingStatus === 'reprocessing'}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium text-gray-500 hover:text-gray-800 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                title="Re-convert to Markdown"
+              >
+                <FileCode2 size={13} />
+                {meta.processingStatus === 'reprocessing' ? 'Processing…' : 'Reprocess'}
+              </button>
+
               <button
                 onClick={async () => {
+                  const textToCopy = content.normalizedMarkdown || content.plainText
                   try {
-                    await navigator.clipboard.writeText(content.plainText)
+                    await navigator.clipboard.writeText(textToCopy)
                   } catch {
                     try {
                       const el = document.createElement('textarea')
-                      el.value = content.plainText
+                      el.value = textToCopy
                       el.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0'
                       document.body.appendChild(el)
                       el.focus()
@@ -372,28 +407,40 @@ export default function Document() {
                 {copied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
                 {copied ? 'Copied' : 'Copy'}
               </button>
+
               <button
                 onClick={() => {
-                  const blob = new Blob([content.plainText], { type: 'text/plain' })
+                  const text = content.normalizedMarkdown || content.plainText
+                  const ext = content.normalizedMarkdown ? 'md' : 'txt'
+                  const blob = new Blob([text], { type: 'text/plain' })
                   const url = URL.createObjectURL(blob)
                   const a = document.createElement('a')
                   a.href = url
-                  a.download = `${content.title || 'document'}.txt`
+                  a.download = `${meta.title || 'document'}.${ext}`
                   a.click()
                   URL.revokeObjectURL(url)
                 }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[12px] font-medium text-gray-500 hover:text-gray-800 hover:bg-slate-200 transition-colors"
-                title="Download as .txt"
+                title="Download"
               >
                 <Download size={13} /> Download
               </button>
             </div>
           ) : null}
         </div>
+
         {content?.plainText ? (
-          <pre className="whitespace-pre-wrap break-words text-base leading-relaxed text-gray-800 font-sans max-h-[70vh] overflow-auto">
-            {content.plainText}
-          </pre>
+          content.normalizedMarkdown ? (
+            // Markdown view — structured, readable
+            <div className="max-h-[72vh] overflow-auto pr-1">
+              <MarkdownViewer markdown={content.normalizedMarkdown} />
+            </div>
+          ) : (
+            // Plain text fallback
+            <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-800 font-sans max-h-[72vh] overflow-auto">
+              {content.plainText}
+            </pre>
+          )
         ) : (
           <p className="text-sm text-gray-500">Content unavailable.</p>
         )}
