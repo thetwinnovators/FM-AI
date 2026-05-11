@@ -34,6 +34,7 @@ const MCPToolCatalogPage     = lazy(() => import('./mcp/pages/MCPToolCatalogPage
 const MCPExecutionLogPage    = lazy(() => import('./mcp/pages/MCPExecutionLogPage.jsx'))
 const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.jsx'))
 const CodeAcademy            = lazy(() => import('./views/CodeAcademy.jsx'))
+const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
 
 // ─── Scroll restoration ───────────────────────────────────────────────────────
 // Scrolls the main content panel to the top on every route change so the user
@@ -71,6 +72,7 @@ function AnimatedRoutes() {
           <Route path="/chat/:id"                      element={<Chat />} />
           <Route path="/education"                     element={<Education />} />
           <Route path="/code-academy"                  element={<CodeAcademy />} />
+          <Route path="/briefs"                        element={<Briefs />} />
           <Route path="/memory"                        element={<Memory />} />
           <Route path="/connections"                   element={<MCPIntegrationsPage />} />
           <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />

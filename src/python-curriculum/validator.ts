@@ -20,23 +20,40 @@ function evalIntMath(expr: string): string | null {
   }
 }
 
-// Extracts output from print() calls. Handles:
-//   print("string")  print('string')  print(int op int)
-// Does NOT handle print(variable) — returns null if only variable prints found.
+// Extracts output from print() calls. Single-pass: tracks integer variable
+// assignments so print(var) resolves to the current value.
+// Handles: print("string")  print('string')  print(int op int)  print(var)
 export function simulateOutput(code: string): string | null {
-  const lines   = code.split('\n')
+  const lines      = code.split('\n')
   const results: string[] = []
-  const strPat  = /print\(\s*["']([^"']+)["']\s*\)/
-  const mathPat = /print\(\s*((\d+)\s*[+\-*]\s*(\d+))\s*\)/
+  const vars: Record<string, number> = {}
+
+  const assignPat  = /^\s*([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*(?:#.*)?$/
+  const strPat     = /print\(\s*["']([^"']+)["']\s*\)/
+  const mathPat    = /print\(\s*((\d+)\s*[+\-*]\s*(\d+))\s*\)/
+  const varPat     = /print\(\s*([A-Za-z_]\w*)\s*\)/
 
   for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const assignMatch = trimmed.match(assignPat)
+    if (assignMatch) {
+      vars[assignMatch[1]] = parseInt(assignMatch[2], 10)
+      continue
+    }
+
     const strMatch  = line.match(strPat)
     const mathMatch = line.match(mathPat)
+    const varMatch  = line.match(varPat)
+
     if (strMatch) {
       results.push(strMatch[1])
     } else if (mathMatch) {
       const val = evalIntMath(mathMatch[1])
       if (val !== null) results.push(val)
+    } else if (varMatch && varMatch[1] in vars) {
+      results.push(String(vars[varMatch[1]]))
     }
   }
 

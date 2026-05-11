@@ -123,8 +123,9 @@ function BriefItem({ brief, onClick }) {
  * @param {DOMRect} props.anchorRect   — bounding rect of the trigger button
  * @param {function} props.onClose     — close the dropdown
  * @param {function} props.onOpenBrief — (brief) => void
+ * @param {function} props.onViewAll   — navigate to /briefs full page
  */
-export default function BriefsDropdown({ anchorRect, onClose, onOpenBrief }) {
+export default function BriefsDropdown({ anchorRect, onClose, onOpenBrief, onViewAll }) {
   const { briefs, markBriefRead, markAllBriefsRead } = useStore()
   const sorted = allBriefsSorted(briefs)
   const dropdownRef = useRef(null)
@@ -203,14 +204,15 @@ export default function BriefsDropdown({ anchorRect, onClose, onOpenBrief }) {
       </div>
 
       {/* Footer */}
-      <div
-        className="px-4 py-2.5 text-center border-t"
+      <button
+        onClick={() => { onClose(); onViewAll?.() }}
+        className="w-full px-4 py-2.5 text-center border-t transition-colors hover:bg-white/[0.03]"
         style={{ borderColor: 'rgba(255,255,255,0.06)' }}
       >
-        <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
+        <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
           View all briefs →
         </span>
-      </div>
+      </button>
     </div>,
     document.body,
   )

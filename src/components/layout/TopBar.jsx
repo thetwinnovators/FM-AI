@@ -426,6 +426,7 @@ export default function TopBar() {
               anchorRect={briefsBtnRef.current?.getBoundingClientRect()}
               onClose={() => setBriefsOpen(false)}
               onOpenBrief={(brief) => setActiveBrief(brief)}
+              onViewAll={() => { setBriefsOpen(false); navigate('/briefs') }}
             />
           )}
           <BriefModal
