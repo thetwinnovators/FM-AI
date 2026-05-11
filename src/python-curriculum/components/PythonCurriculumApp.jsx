@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react'
-import { loadAllProgress } from '../storage/progressStorage'
+import { useState } from 'react'
+import { useStore } from '../../store/useStore'
 import LanguagePicker from './LanguagePicker'
 import LessonMap from './LessonMap'
 import SubLessonView from './SubLessonView'
@@ -8,11 +8,11 @@ export default function PythonCurriculumApp() {
   const [stage, setStage]           = useState('language')  // 'language' | 'map' | 'lesson'
   const [selectedLesson, setSelectedLesson] = useState(null) // { groupId, subLessonId }
   const [mapScrollTop, setMapScrollTop]     = useState(0)
-  const [progress, setProgress]     = useState(() => loadAllProgress())
 
-  const refreshProgress = useCallback(() => {
-    setProgress(loadAllProgress())
-  }, [])
+  const { pythonProgress } = useStore()
+  const progress = pythonProgress ?? {}
+
+  function refreshProgress() {} // store updates trigger re-render automatically
 
   function navigate(newStage, params) {
     if (newStage === 'lesson' && params) setSelectedLesson(params)
@@ -31,7 +31,6 @@ export default function PythonCurriculumApp() {
         onScrollChange={setMapScrollTop}
         onSelectLesson={(groupId, subLessonId) => navigate('lesson', { groupId, subLessonId })}
         onBack={() => navigate('language')}
-        onProgressChange={refreshProgress}
       />
     )
   }

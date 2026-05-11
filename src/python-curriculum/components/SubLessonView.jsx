@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import { ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { PYTHON_CURRICULUM } from '../curriculum/python'
-import { saveProgress } from '../storage/progressStorage'
+import { useStore } from '../../store/useStore'
 import ChallengePanel from './ChallengePanel'
 import CodeBlock from './CodeBlock'
 import TryItEditor from './TryItEditor'
 
 export default function SubLessonView({ groupId, subLessonId, progress, onBack, onProgressChange, onNext }) {
+  const { updatePythonProgress } = useStore()
   const [tldrOpen, setTldrOpen] = useState(false)
 
   const group = useMemo(
@@ -25,7 +26,7 @@ export default function SubLessonView({ groupId, subLessonId, progress, onBack, 
 
   useEffect(() => {
     if (!subLessonId) return
-    saveProgress(subLessonId, { viewed: true })
+    updatePythonProgress(subLessonId, { viewed: true })
     onProgressChange()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subLessonId])
@@ -35,16 +36,16 @@ export default function SubLessonView({ groupId, subLessonId, progress, onBack, 
   }
 
   function handlePracticed() {
-    saveProgress(subLessonId, { practiced: true })
+    updatePythonProgress(subLessonId, { practiced: true })
     onProgressChange()
   }
   function handleComplete() {
-    saveProgress(subLessonId, { completed: true })
+    updatePythonProgress(subLessonId, { completed: true })
     onProgressChange()
     onNext()
   }
   function handleSkip() {
-    saveProgress(subLessonId, { skipped: true })
+    updatePythonProgress(subLessonId, { skipped: true })
     onProgressChange()
     onNext()
   }

@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { ArrowLeft, Search, CheckCircle2, Download, Upload } from 'lucide-react'
+import { ArrowLeft, Search, CheckCircle2 } from 'lucide-react'
 import { PYTHON_CURRICULUM } from '../curriculum/python'
-import { exportProgress, importProgress } from '../storage/progressStorage'
 
 function lessonStatus(p) {
   if (!p)          return 'not_started'
@@ -18,22 +17,9 @@ function cardStyle(status) {
   return { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }
 }
 
-export default function LessonMap({ progress, onSelectLesson, onBack, onProgressChange, initialScrollTop, onScrollChange }) {
+export default function LessonMap({ progress, onSelectLesson, onBack, initialScrollTop, onScrollChange }) {
   const [query, setQuery] = useState('')
   const containerRef = useRef(null)
-  const importRef = useRef(null)
-
-  async function handleImport(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    try {
-      await importProgress(file)
-      onProgressChange?.()
-    } catch {
-      alert('Could not import — make sure you selected a valid progress file.')
-    }
-    e.target.value = ''
-  }
 
   useEffect(() => {
     if (containerRef.current && initialScrollTop) containerRef.current.scrollTop = initialScrollTop
@@ -76,25 +62,6 @@ export default function LessonMap({ progress, onSelectLesson, onBack, onProgress
         <h1 className="text-xl font-bold flex-1 text-center" style={{ color: 'rgba(255,255,255,0.88)' }}>
           Python Curriculum
         </h1>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={exportProgress}
-            title="Export progress"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
-            style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-          >
-            <Download size={11} /> Export
-          </button>
-          <button
-            onClick={() => importRef.current?.click()}
-            title="Import progress"
-            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px]"
-            style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-          >
-            <Upload size={11} /> Import
-          </button>
-          <input ref={importRef} type="file" accept=".json" className="hidden" onChange={handleImport} />
-        </div>
       </div>
 
       <div className="relative mb-8">

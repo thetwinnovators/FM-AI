@@ -39,6 +39,7 @@ const EMPTY = {
   courses: {},          // Flow Academy — courseId -> LearningCourse (lessons inline)
   codeLessons: {},      // Code Academy — lessonKey -> CodeLesson (cached AI-generated)
   codeProgress: {},     // Code Academy — lessonKey -> CodeLessonProgress
+  pythonProgress: {},   // Python Curriculum — subLessonId -> SubLessonProgress
   briefs: {},
 }
 
@@ -943,6 +944,15 @@ export function useStore() {
 
   const allCodeProgress = useCallback(() => Object.values(memoryState.codeProgress || {}), [])
 
+  const updatePythonProgress = useCallback((id, partial) => {
+    const cur = memoryState
+    const existing = cur.pythonProgress?.[id] || {
+      subLessonId: id, viewed: false, practiced: false, completed: false, skipped: false, lastOpenedAt: '',
+    }
+    const updated = { ...existing, ...partial, subLessonId: id, lastOpenedAt: new Date().toISOString() }
+    persist({ ...cur, pythonProgress: { ...cur.pythonProgress, [id]: updated } })
+  }, [])
+
   return {
     ...state,
     toggleSave, toggleFollow, dismiss,
@@ -966,5 +976,7 @@ export function useStore() {
     markAllBriefsRead,
     // Code Academy
     addCodeLesson, deleteCodeLesson, getCodeLesson, saveCodeProgress, getCodeProgress, allCodeProgress,
+    // Python Curriculum
+    updatePythonProgress,
   }
 }
