@@ -2069,6 +2069,693 @@ print("done")`,
 }
 
 // ---------------------------------------------------------------------------
+// Group 12 — Object-Oriented Programming (OOP)
+// ---------------------------------------------------------------------------
+
+const GROUP_OOP: LessonGroup = {
+  id: 'oop',
+  title: 'Object-Oriented Programming',
+  subLessons: [
+    {
+      id:    'oop-what-is-a-class',
+      title: 'What is a Class?',
+      slug:  'what-is-a-class',
+      tldr:  'A class is a blueprint for creating objects that share the same structure and behaviour.',
+      searchableTerms: ['class', 'object', 'oop', 'blueprint', 'instance'],
+      explanation: [
+        'A class is a blueprint for creating things. Think of it like a cookie cutter — the class describes the shape, and each cookie made from it is an object. For example, a `Car` class might describe that all cars have a colour and a speed, and that they can drive and stop. Each individual car you create from the class is called an object or an instance.',
+        'You define a class using the `class` keyword, followed by the name (by convention written in PascalCase, with each word capitalised) and a colon. The lines indented underneath describe what every instance of the class will have. This style of programming, where you organise code around classes and objects, is called Object-Oriented Programming or OOP. It is used everywhere in modern software.',
+      ],
+      example: {
+        code: `# A class is a blueprint.
+class Car:
+    pass
+
+# Each call to Car() creates a new instance.
+my_car = Car()
+your_car = Car()
+
+# my_car and your_car are two separate objects.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What is the difference between a class and an object?',
+        options: [
+          'They are the same thing',
+          'A class is a blueprint; an object is an instance made from it',
+          'A class is a function; an object is a variable',
+          'An object is a blueprint; a class is made from it',
+        ],
+        correctOption: 1,
+        hints: [
+          'Think of the cookie cutter analogy.',
+          'The class describes the shape; objects are the actual cookies.',
+        ],
+        solution: 'A class is the blueprint. An object is a specific instance created from it.',
+      },
+    },
+    {
+      id:    'oop-init-method',
+      title: 'The __init__ Method',
+      slug:  'init-method',
+      tldr:  'The __init__ method runs automatically when a new object is created and sets up its data.',
+      searchableTerms: ['init', 'constructor', 'dunder', 'self', 'initialization'],
+      explanation: [
+        'The `__init__` method is a special method that Python calls automatically every time you create a new object from a class. The name is short for "initialise" and the double underscores on both sides mark it as special (programmers call these "dunder methods"). The first parameter is always `self`, which refers to the new object being created. After that, you list any data you want to pass in.',
+        'Inside `__init__`, you assign values to attributes of the object using `self.attribute_name = value`. For example, `self.colour = colour` stores the colour passed in as an attribute on the new car. After `__init__` finishes, the object is fully set up and ready to use. You will use `__init__` in almost every class you write.',
+      ],
+      example: {
+        code: `# __init__ sets up each new object.
+class Car:
+    def __init__(self, colour, speed):
+        self.colour = colour
+        self.speed = speed
+
+# Each Car() call passes arguments to __init__.
+my_car = Car("red", 0)`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What is the purpose of the __init__ method?',
+        options: [
+          'To delete an object when no longer needed',
+          'To set up data on a new object when it is created',
+          'To compare two objects',
+          'To convert an object to a string',
+        ],
+        correctOption: 1,
+        hints: [
+          '__init__ runs automatically each time you create a new object.',
+          'It is short for "initialise" — to give something its starting values.',
+        ],
+        solution: '__init__ initialises a new object, setting up its starting data.',
+      },
+      recommendedAfter: 'oop-what-is-a-class',
+    },
+    {
+      id:    'oop-instance-variables',
+      title: 'Instance Variables',
+      slug:  'instance-variables',
+      tldr:  'Instance variables are attributes stored on each object using self.name in the class.',
+      searchableTerms: ['instance variable', 'attribute', 'self', 'dot notation', 'property'],
+      explanation: [
+        'An instance variable is a piece of data attached to a specific object. You create instance variables inside the class methods by writing `self.name = value`. Each object made from the class gets its own copy of these variables, independent of every other object. So one car can be red and another can be blue, even though they come from the same `Car` class.',
+        'You access instance variables from outside the class using dot notation: `my_car.colour`. This reads the colour attribute on the `my_car` object. You can also change them: `my_car.colour = "green"`. Instance variables are the data — what the object knows. Methods (coming next) are the actions — what the object can do.',
+      ],
+      example: {
+        code: `# Each object has its own instance variables.
+class Car:
+    def __init__(self, colour):
+        self.colour = colour
+
+red_car = Car("red")
+blue_car = Car("blue")
+
+# red_car.colour is "red", blue_car.colour is "blue".`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'In this code, what is the value of car.colour?\n\nclass Car:\n    def __init__(self, colour):\n        self.colour = colour\n\ncar = Car("yellow")',
+        options: [
+          'Car',
+          'self',
+          'colour',
+          '"yellow"',
+        ],
+        correctOption: 3,
+        hints: [
+          'The argument "yellow" is passed into __init__.',
+          'Inside __init__, self.colour is set to that value.',
+        ],
+        solution: 'car.colour is "yellow" — the value passed in and stored as an instance variable.',
+      },
+      recommendedAfter: 'oop-init-method',
+    },
+    {
+      id:    'oop-methods',
+      title: 'Methods',
+      slug:  'methods',
+      tldr:  'A method is a function defined inside a class. It takes self as its first parameter.',
+      searchableTerms: ['method', 'function', 'self', 'behaviour', 'action'],
+      explanation: [
+        'A method is a function that belongs to a class. You define one just like a regular function, except it lives inside the class and its first parameter is always `self`. The `self` refers to the specific object the method is being called on. So `def drive(self): self.speed = self.speed + 10` could be a method that speeds up a car by 10.',
+        'You call a method using dot notation: `my_car.drive()`. Python automatically passes `my_car` as the `self` argument, so you do not list it yourself. Methods are how objects do things. Combined with instance variables (the data), methods (the behaviour) are the two halves of every class. Together they let you model real-world things in your code.',
+      ],
+      example: {
+        code: `# A class with a method.
+class Car:
+    def __init__(self):
+        self.speed = 0
+
+    def drive(self):
+        self.speed = self.speed + 10
+
+# Call the method with dot notation.
+my_car = Car()
+my_car.drive()`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What is the first parameter of every method defined inside a class?',
+        options: [
+          'this',
+          'self',
+          'me',
+          'instance',
+        ],
+        correctOption: 1,
+        hints: [
+          'Python uses a specific keyword for this — different from JavaScript and Java.',
+          'It is a short English word starting with "s".',
+        ],
+        solution: 'self is the first parameter of every method. It refers to the object the method was called on.',
+      },
+      recommendedAfter: 'oop-instance-variables',
+    },
+    {
+      id:    'oop-inheritance',
+      title: 'Inheritance',
+      slug:  'inheritance',
+      tldr:  'A child class can inherit attributes and methods from a parent class, then add its own.',
+      searchableTerms: ['inheritance', 'parent', 'child', 'subclass', 'extends'],
+      explanation: [
+        'Inheritance lets one class build on top of another. The new class (called the child or subclass) gets everything from the original (the parent or superclass) for free, and can add or change things. You write inheritance by putting the parent class name in parentheses after the child name: `class SportsCar(Car):`. Now `SportsCar` has all of `Car`\'s methods and instance variables.',
+        'This is useful when you have several kinds of similar things. For example, a `Vehicle` class might handle the common behaviour, while `Car`, `Truck`, and `Motorcycle` are children that each add their own special features. Inheritance keeps your code organised and avoids repeating yourself. The child can also override a parent method by defining one with the same name.',
+      ],
+      example: {
+        code: `# Parent class.
+class Animal:
+    def speak(self):
+        print("Some sound")
+
+# Child class inherits from Animal.
+class Dog(Animal):
+    def speak(self):
+        # Override the parent method.
+        print("Woof!")`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'In  class Dog(Animal):, what is Animal called?',
+        options: [
+          'A child class',
+          'A subclass',
+          'A parent (or superclass)',
+          'An instance',
+        ],
+        correctOption: 2,
+        hints: [
+          'Dog is the new class being defined. Animal is what it inherits from.',
+          'The class that gives, not the one that receives, is the parent.',
+        ],
+        solution: 'Animal is the parent class. Dog inherits from it, making Dog the child or subclass.',
+      },
+      recommendedAfter: 'oop-methods',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 13 — APIs and Requests
+// ---------------------------------------------------------------------------
+
+const GROUP_APIS: LessonGroup = {
+  id: 'apis',
+  title: 'APIs and Requests',
+  subLessons: [
+    {
+      id:    'api-what-is-an-api',
+      title: 'What is an API?',
+      slug:  'what-is-an-api',
+      tldr:  'An API is a way for two programs to talk to each other over the internet.',
+      searchableTerms: ['api', 'application programming interface', 'web service', 'endpoint', 'rest'],
+      explanation: [
+        'API stands for Application Programming Interface. It is a way for two programs to talk to each other. When you check the weather on your phone, the app uses an API to ask a weather service for the latest data, and the service replies with numbers like temperature and humidity. The app then displays them nicely. Without APIs, every app would have to gather data itself.',
+        'Most APIs on the web work like this: your program sends a request to a URL, and the server sends back a response with the data. The most common style is called REST, where you use standard HTTP methods like GET (to read) or POST (to send). Lots of websites offer free APIs — for weather, jokes, stock prices, dog photos, and almost anything else you can imagine.',
+      ],
+      example: {
+        code: `# Conceptual example (uses the requests library).
+# import requests
+# response = requests.get("https://api.example.com/weather")
+# data = response.json()
+# Now data holds the weather information.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What does API stand for?',
+        options: [
+          'Automatic Programming Internet',
+          'Application Programming Interface',
+          'Advanced Python Integration',
+          'Asynchronous Page Indexer',
+        ],
+        correctOption: 1,
+        hints: [
+          'API has three words behind its three letters.',
+          'It is about how programs (applications) interact with each other.',
+        ],
+        solution: 'API stands for Application Programming Interface.',
+      },
+    },
+    {
+      id:    'api-http-requests',
+      title: 'HTTP Requests',
+      slug:  'http-requests',
+      tldr:  'HTTP requests are how programs ask servers for data. GET reads data, POST sends new data.',
+      searchableTerms: ['http', 'get', 'post', 'request', 'method'],
+      explanation: [
+        'HTTP stands for HyperText Transfer Protocol. It is the language web browsers and servers use to talk to each other. When you visit a website, your browser sends an HTTP request to the server, and the server responds with the page. Your Python programs can do the same thing by sending HTTP requests through libraries like `requests` or `urllib`.',
+        'HTTP has several methods. The two you use most often are `GET` (asking the server for data, like reading a page) and `POST` (sending new data to the server, like submitting a form). There are also `PUT`, `DELETE`, and `PATCH` for updating and deleting. Each request has a URL, optional headers (extra info), and sometimes a body (the data you are sending).',
+      ],
+      example: {
+        code: `# Using the requests library (conceptual).
+import requests
+
+# GET: ask the server for data.
+response = requests.get("https://api.example.com/data")
+
+# POST: send new data to the server.
+# response = requests.post(url, json={"name": "Sam"})`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which HTTP method is used to READ data from a server?',
+        options: [
+          'POST',
+          'PUT',
+          'GET',
+          'DELETE',
+        ],
+        correctOption: 2,
+        hints: [
+          'POST sends new data. DELETE removes data.',
+          'The method for "getting" something has a very obvious name.',
+        ],
+        solution: 'GET is the HTTP method used to read data from a server.',
+      },
+      recommendedAfter: 'api-what-is-an-api',
+    },
+    {
+      id:    'api-json-data',
+      title: 'JSON Data',
+      slug:  'json-data',
+      tldr:  'JSON is a text format for sending structured data over the internet. It looks like a Python dictionary.',
+      searchableTerms: ['json', 'data format', 'serialization', 'dictionary', 'parse'],
+      explanation: [
+        'JSON stands for JavaScript Object Notation. It is the most common format for sending data between programs over the web. JSON uses curly braces for objects (like Python dictionaries) and square brackets for arrays (like Python lists). For example, `{"name": "Sam", "age": 12}` is valid JSON and almost identical to a Python dictionary.',
+        'When an API sends you a response, it is usually in JSON. Python\'s built-in `json` module turns JSON text into Python data with `json.loads(text)`, and turns Python data into JSON text with `json.dumps(data)`. The `requests` library has a handy shortcut: `response.json()` does the conversion in one step. After that, you can use the data like any normal Python dictionary or list.',
+      ],
+      example: {
+        code: `# JSON looks like Python dictionaries.
+import json
+
+# Text that came from an API.
+text = '{"name": "Sam", "age": 12}'
+
+# Convert JSON text to a Python dict.
+data = json.loads(text)
+# data["name"] is "Sam"`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which Python data type does a JSON object turn into?',
+        options: [
+          'list',
+          'string',
+          'dictionary',
+          'tuple',
+        ],
+        correctOption: 2,
+        hints: [
+          'JSON objects use curly braces with key-value pairs.',
+          'Which Python type uses curly braces and key-value pairs?',
+        ],
+        solution: 'A JSON object turns into a Python dictionary — both use curly braces and key-value pairs.',
+      },
+      recommendedAfter: 'api-http-requests',
+    },
+    {
+      id:    'api-api-response',
+      title: 'Working with an API Response',
+      slug:  'api-response',
+      tldr:  'Check the status code, parse the JSON, then access the data with normal Python.',
+      searchableTerms: ['response', 'status code', '200', 'parse', 'access'],
+      explanation: [
+        'When you send an HTTP request, the server replies with a response object. Two important parts are the status code and the body. The status code is a number telling you whether things went well: `200` means OK, `404` means not found, `500` means the server had an error. Always check `response.status_code` before using the data.',
+        'If the status is `200`, you can read the data with `response.json()`. This converts the JSON body into a Python dictionary or list. From there, access the fields like any other Python data: `data["name"]` for a key, `data[0]` for the first list item. Most API tutorials follow the pattern: request, check status, parse JSON, use data — that is the whole flow.',
+      ],
+      example: {
+        code: `# Typical API call (conceptual).
+import requests
+
+response = requests.get("https://api.example.com/weather")
+
+if response.status_code == 200:
+    data = response.json()
+    # Use data["temperature"], data["humidity"], etc.
+else:
+    print("Request failed")`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What HTTP status code means "OK, the request was successful"?',
+        options: [
+          '100',
+          '200',
+          '404',
+          '500',
+        ],
+        correctOption: 1,
+        hints: [
+          '404 means "not found" and 500 means "server error".',
+          'The success code is in the 200s.',
+        ],
+        solution: '200 means OK — the request was successful.',
+      },
+      recommendedAfter: 'api-json-data',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 14 — Files
+// ---------------------------------------------------------------------------
+
+const GROUP_FILES: LessonGroup = {
+  id: 'files',
+  title: 'Files',
+  subLessons: [
+    {
+      id:    'file-reading-files',
+      title: 'Reading Files',
+      slug:  'reading-files',
+      tldr:  'Use open() with mode "r" to read a file, and .read() or .readlines() to get the contents.',
+      searchableTerms: ['read file', 'open', 'mode', 'with', 'context manager'],
+      explanation: [
+        'Python can read text files from your computer using the `open` function. You call `open(filename, "r")` where `"r"` means "read mode." That gives you a file object. You can then call `.read()` to get the whole content as one string, or `.readlines()` to get a list of lines. After you are done, you should close the file with `.close()`.',
+        'The cleaner way is to use a `with` statement: `with open("data.txt", "r") as f: text = f.read()`. The `with` block automatically closes the file for you when it finishes, even if there is an error. Always prefer `with` — it is shorter and safer. Reading files is the foundation for working with logs, configuration, saved data, and lots more.',
+      ],
+      example: {
+        code: `# Read a whole file using "with".
+with open("notes.txt", "r") as f:
+    text = f.read()
+
+# text is now a string with the file's contents.
+# The file is automatically closed after the with block.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which mode string tells open() to READ a file?',
+        options: [
+          '"w"',
+          '"r"',
+          '"a"',
+          '"x"',
+        ],
+        correctOption: 1,
+        hints: [
+          '"w" is for writing and "a" is for appending.',
+          'The mode for reading matches the first letter of the word.',
+        ],
+        solution: '"r" is the read mode in the open function.',
+      },
+    },
+    {
+      id:    'file-writing-files',
+      title: 'Writing Files',
+      slug:  'writing-files',
+      tldr:  'Open a file with mode "w" and use .write() to save text. Mode "w" overwrites the whole file.',
+      searchableTerms: ['write file', 'save', 'overwrite', 'mode w', 'write method'],
+      explanation: [
+        'To write text to a file, use `open(filename, "w")`. The `"w"` mode means "write mode" and it does something important: if the file already exists, its contents are completely erased before you start writing. If it does not exist, Python creates it. Once you have the file object, use `.write(text)` to put a string into the file.',
+        'Be careful with write mode — it really does erase everything. If you want to keep the existing content, use append mode `"a"` (which we will see next). Like with reading, the `with` statement is the safest way: `with open("output.txt", "w") as f: f.write("hello")`. The file is created or replaced, the text goes in, and the file is closed automatically.',
+      ],
+      example: {
+        code: `# Write a string to a file.
+with open("output.txt", "w") as f:
+    f.write("Hello, file!\\n")
+    f.write("Line 2\\n")
+
+# If output.txt existed, it was overwritten.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What happens to an existing file when you open it with mode "w"?',
+        options: [
+          'New content is added to the end',
+          'The file is renamed automatically',
+          'The existing content is erased',
+          'Python raises an error',
+        ],
+        correctOption: 2,
+        hints: [
+          'Write mode does not preserve the old content.',
+          'To keep old content, you would use append mode instead.',
+        ],
+        solution: 'Mode "w" erases the existing content before writing. Use "a" to keep it.',
+      },
+      recommendedAfter: 'file-reading-files',
+    },
+    {
+      id:    'file-appending-files',
+      title: 'Appending to Files',
+      slug:  'appending-files',
+      tldr:  'Mode "a" adds new text to the end of a file without erasing what is already there.',
+      searchableTerms: ['append', 'mode a', 'add to file', 'log', 'end of file'],
+      explanation: [
+        'Append mode keeps the existing content of a file and adds new text at the end. You open the file with `open(filename, "a")`. If the file does not exist, Python creates it just like with write mode. The big difference is that any `.write()` calls add to whatever is already there, instead of replacing it.',
+        'Append mode is perfect for logs — files where you keep a running record of events without losing the old ones. A game might append a line to `scores.txt` every time a player finishes a level. A website might append a line to `visits.txt` for every visitor. Each new entry is added to the bottom, building up a complete history over time.',
+      ],
+      example: {
+        code: `# Append a line to an existing file.
+with open("log.txt", "a") as f:
+    f.write("New event\\n")
+
+# Old content is preserved; "New event" is added at the end.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which mode adds new text to the END of an existing file without erasing it?',
+        options: [
+          '"r"',
+          '"w"',
+          '"a"',
+          '"+"',
+        ],
+        correctOption: 2,
+        hints: [
+          '"r" reads. "w" overwrites.',
+          'The append mode is named after the action.',
+        ],
+        solution: '"a" is the append mode. It adds new content at the end.',
+      },
+      recommendedAfter: 'file-writing-files',
+    },
+    {
+      id:    'file-file-paths',
+      title: 'File Paths',
+      slug:  'file-paths',
+      tldr:  'A file path tells Python where a file is. Relative paths are based on the current working directory.',
+      searchableTerms: ['path', 'directory', 'relative', 'absolute', 'os'],
+      explanation: [
+        'A file path is the address of a file on your computer. There are two kinds. An absolute path starts from the very top — for example, `C:\\Users\\Sam\\notes.txt` on Windows or `/home/sam/notes.txt` on Mac and Linux. A relative path is shorter — like just `notes.txt` — and is interpreted relative to wherever your Python program is running from (the "current working directory").',
+        'When you write `open("notes.txt", "r")`, Python looks in the current directory. If the file is in a subfolder, you include the folder name: `open("data/notes.txt", "r")`. The forward slash works on every operating system. For more complex path work, Python\'s `pathlib` module is the modern way — it handles paths in a clean, cross-platform manner.',
+      ],
+      example: {
+        code: `# Relative path — file is in the same folder as the program.
+with open("notes.txt", "r") as f:
+    text = f.read()
+
+# Relative path with a subfolder.
+with open("data/scores.txt", "r") as f:
+    scores = f.read()`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What is the difference between an absolute path and a relative path?',
+        options: [
+          'They are the same thing',
+          'An absolute path is shorter; a relative path is longer',
+          'An absolute path starts from the top; a relative path starts from the current folder',
+          'A relative path only works for images',
+        ],
+        correctOption: 2,
+        hints: [
+          'An absolute path begins with the drive (Windows) or root /.',
+          'A relative path is based on where your program is running.',
+        ],
+        solution: 'Absolute paths start from the root of the filesystem. Relative paths start from the current working directory.',
+      },
+      recommendedAfter: 'file-appending-files',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 15 — Error Handling
+// ---------------------------------------------------------------------------
+
+const GROUP_ERRORS: LessonGroup = {
+  id: 'errors',
+  title: 'Error Handling',
+  subLessons: [
+    {
+      id:    'err-what-is-an-error',
+      title: 'What is an Error?',
+      slug:  'what-is-an-error',
+      tldr:  'An error (also called an exception) happens when Python cannot continue running your code.',
+      searchableTerms: ['error', 'exception', 'crash', 'traceback', 'bug'],
+      explanation: [
+        'An error in Python is also called an exception. It is what happens when Python runs into something it cannot do — like dividing by zero, asking for an item that does not exist, or trying to add a number to text. When an exception happens, Python stops your program and prints a traceback, which is a list of where the error came from.',
+        'Common exceptions include `ZeroDivisionError` (you divided by zero), `TypeError` (wrong type, like adding a string and a number), `ValueError` (right type but bad value, like calling `int("hello")`), `IndexError` (list index out of range), and `KeyError` (dictionary key not found). Recognising these names is the first step to fixing them.',
+      ],
+      example: {
+        code: `# Examples of errors.
+# These lines would each raise an exception:
+
+# result = 10 / 0           # ZeroDivisionError
+# total = "hi" + 5          # TypeError
+# number = int("hello")     # ValueError
+
+print("This line works fine")`,
+        output: 'This line works fine',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What error would Python raise for this line?\n\nresult = 10 / 0',
+        options: [
+          'TypeError',
+          'ValueError',
+          'ZeroDivisionError',
+          'IndexError',
+        ],
+        correctOption: 2,
+        hints: [
+          'The mistake is dividing by zero, which is mathematically undefined.',
+          'Python has a specific exception name for this exact problem.',
+        ],
+        solution: '10 / 0 raises ZeroDivisionError — Python cannot divide by zero.',
+      },
+    },
+    {
+      id:    'err-try-except',
+      title: 'try and except',
+      slug:  'try-except',
+      tldr:  'Wrap risky code in a try block. If it fails, the except block handles the error gracefully.',
+      searchableTerms: ['try', 'except', 'catch', 'handle', 'graceful'],
+      explanation: [
+        'The `try`/`except` block lets you handle errors instead of letting your program crash. You put the risky code inside the `try` block. If anything in there raises an exception, Python jumps to the `except` block instead of stopping. The structure is: `try:` followed by code, then `except:` followed by what to do if something goes wrong.',
+        'A real example: asking the user for a number. If they type "hello" instead of a number, `int("hello")` raises a `ValueError`. Wrapping the conversion in a `try`/`except` lets you show a friendly message and ask again, rather than crashing. This pattern — try the risky thing, handle the failure — is everywhere in real-world Python code.',
+      ],
+      example: {
+        code: `# Handle bad input with try/except.
+try:
+    age = int(input("Your age: "))
+    print("Got it!")
+except:
+    # This runs if int() fails.
+    print("That was not a number.")`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What block contains the code that should run if an exception occurs?',
+        options: [
+          'try',
+          'except',
+          'else',
+          'finally',
+        ],
+        correctOption: 1,
+        hints: [
+          'The try block contains the risky code itself.',
+          'The block named after the act of catching the error contains the recovery code.',
+        ],
+        solution: 'The except block contains the code that handles the exception.',
+      },
+      recommendedAfter: 'err-what-is-an-error',
+    },
+    {
+      id:    'err-multiple-exceptions',
+      title: 'Handling Multiple Exceptions',
+      slug:  'multiple-exceptions',
+      tldr:  'You can catch specific exception types and have different except blocks for different errors.',
+      searchableTerms: ['multiple exceptions', 'except type', 'specific', 'value error', 'type error'],
+      explanation: [
+        'Instead of using a bare `except:`, you can name the specific exception you want to catch: `except ValueError:`. This block only runs for that kind of error. You can chain several `except` clauses to handle different errors in different ways. For example, one block for `ValueError` (bad input) and another for `ZeroDivisionError` (math gone wrong).',
+        'Catching specific exceptions is much better than catching every error at once. If you write a bare `except:`, you might accidentally hide a bug that has nothing to do with what you expected. By naming the exception, you make your code clearer and safer. You can also catch multiple types together with a tuple: `except (ValueError, TypeError):`.',
+      ],
+      example: {
+        code: `# Different except blocks for different errors.
+try:
+    n = int(input("Number: "))
+    result = 10 / n
+except ValueError:
+    print("That wasn't a number.")
+except ZeroDivisionError:
+    print("Can't divide by zero.")`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Why is it better to use  except ValueError:  instead of plain  except: ?',
+        options: [
+          'It is shorter to type',
+          'It only catches that specific error, leaving other bugs visible',
+          'It catches more errors',
+          'It runs faster',
+        ],
+        correctOption: 1,
+        hints: [
+          'A bare except catches everything, even bugs you did not expect.',
+          'Naming the exception keeps your code safer and clearer.',
+        ],
+        solution: 'Specific excepts only catch the error you mean, so other bugs are not accidentally hidden.',
+      },
+      recommendedAfter: 'err-try-except',
+    },
+    {
+      id:    'err-finally-block',
+      title: 'The finally Block',
+      slug:  'finally-block',
+      tldr:  'The finally block runs no matter what — whether the try succeeded, failed, or raised an error.',
+      searchableTerms: ['finally', 'cleanup', 'always runs', 'try finally', 'guaranteed'],
+      explanation: [
+        'The `finally` block is the last part of a `try`/`except` and it runs no matter what. Whether the `try` succeeded, whether an `except` caught an error, even whether you used `return` to leave the function — `finally` still runs before the function actually exits. This makes it perfect for cleanup tasks like closing files or releasing resources.',
+        'For example, if you open a file and something goes wrong while reading it, you still want to close the file. Putting the close in `finally` guarantees it happens. Modern Python often uses `with` statements instead of `finally` for files, but `finally` is still useful in more complex situations. The full structure is `try / except / else / finally`, though you rarely need all four.',
+      ],
+      example: {
+        code: `# finally runs no matter what.
+try:
+    print("Trying")
+    # x = 1 / 0   # uncomment to see the error path
+except ZeroDivisionError:
+    print("Caught error")
+finally:
+    # This always prints, success or failure.
+    print("Cleaning up")`,
+        output: 'Trying\nCleaning up',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'When does code inside a finally block run?',
+        options: [
+          'Only when the try block succeeds',
+          'Only when an exception is raised',
+          'Always, whether or not an exception occurred',
+          'Only when no except matches',
+        ],
+        correctOption: 2,
+        hints: [
+          'The word "finally" is a clue — it happens at the very end.',
+          'It does not care whether things went well or badly.',
+        ],
+        solution: 'finally runs in every case — success, caught exception, even an uncaught one.',
+      },
+      recommendedAfter: 'err-multiple-exceptions',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
 // PYTHON_CURRICULUM — exported aggregate
 // ---------------------------------------------------------------------------
 
@@ -2084,4 +2771,8 @@ export const PYTHON_CURRICULUM: LessonGroup[] = [
   GROUP_FUNCTIONS,
   GROUP_LISTS,
   GROUP_DICTIONARIES,
+  GROUP_OOP,
+  GROUP_APIS,
+  GROUP_FILES,
+  GROUP_ERRORS,
 ]
