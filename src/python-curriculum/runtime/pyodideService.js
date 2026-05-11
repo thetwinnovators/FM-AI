@@ -51,7 +51,6 @@ class _FMMockRequests:
     def put(self, url, **kw):    return self._respond(url)
     def delete(self, url, **kw): return self._respond(url)
 _sys.modules['requests'] = _FMMockRequests(_json.loads(_fm_mocks_json))
-del _FMResponse, _FMMockRequests
 `
 
 // mocks: Record<string, { status?: number; json?: unknown }> | null
@@ -65,7 +64,8 @@ export async function runPython(code, mocks = null) {
   try {
     py.runPython(code)
   } catch (e) {
-    return { output: null, error: String(e.message || e) }
+    const msg = (e.type && e.message) ? `${e.type}: ${e.message}` : String(e.message || e)
+    return { output: null, error: msg.trimEnd() }
   }
   const output = py.runPython('_fm_buf.getvalue()').trimEnd()
   return { output, error: null }
