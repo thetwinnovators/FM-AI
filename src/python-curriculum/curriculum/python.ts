@@ -8,6 +8,9 @@
 //   - normalise = trim whitespace only (case-sensitive).
 //   - validate = exact string match after normalise.
 
+export interface MockDef  { status?: number; json?: unknown }
+export type    MockMap   = Record<string, MockDef>
+
 export interface SubLessonChallenge {
   type:            'code_run' | 'multiple_choice' | 'fill_blank' | 'read_only'
   prompt:          string
@@ -18,6 +21,7 @@ export interface SubLessonChallenge {
   blankAnswer?:    string
   hints:           string[]
   solution:        string
+  mocks?:          MockMap
 }
 
 export interface SubLesson {
@@ -30,6 +34,7 @@ export interface SubLesson {
   example: {
     code:    string
     output?: string
+    mocks?:  MockMap
   }
   challenge:          SubLessonChallenge
   recommendedAfter?:  string
@@ -2328,14 +2333,16 @@ const GROUP_APIS: LessonGroup = {
         'HTTP has several methods. The two you use most often are `GET` (asking the server for data, like reading a page) and `POST` (sending new data to the server, like submitting a form). There are also `PUT`, `DELETE`, and `PATCH` for updating and deleting. Each request has a URL, optional headers (extra info), and sometimes a body (the data you are sending).',
       ],
       example: {
-        code: `# Using the requests library (conceptual).
+        code: `# Using the requests library.
 import requests
 
 # GET: ask the server for data.
 response = requests.get("https://api.example.com/data")
-
-# POST: send new data to the server.
-# response = requests.post(url, json={"name": "Sam"})`,
+print(response.status_code)   # 200 = success`,
+        output: '200',
+        mocks: {
+          'https://api.example.com/data': { status: 200, json: { message: 'Hello from the API!' } },
+        },
       },
       challenge: {
         type:   'multiple_choice',
@@ -2405,16 +2412,19 @@ data = json.loads(text)
         'If the status is `200`, you can read the data with `response.json()`. This converts the JSON body into a Python dictionary or list. From there, access the fields like any other Python data: `data["name"]` for a key, `data[0]` for the first list item. Most API tutorials follow the pattern: request, check status, parse JSON, use data — that is the whole flow.',
       ],
       example: {
-        code: `# Typical API call (conceptual).
-import requests
+        code: `import requests
 
 response = requests.get("https://api.example.com/weather")
 
 if response.status_code == 200:
     data = response.json()
-    # Use data["temperature"], data["humidity"], etc.
+    print(data["temperature"])   # try data["humidity"] too!
 else:
     print("Request failed")`,
+        output: '72',
+        mocks: {
+          'https://api.example.com/weather': { status: 200, json: { temperature: 72, humidity: 55 } },
+        },
       },
       challenge: {
         type:   'multiple_choice',

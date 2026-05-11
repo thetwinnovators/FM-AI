@@ -143,7 +143,7 @@ export default function SubLessonView({ groupId, subLessonId, progress, onBack, 
             )}
           </div>
 
-          <TryItEditor starterCode={subLesson.example.code} />
+          <TryItEditor starterCode={subLesson.example.code} mocks={subLesson.example.mocks} />
 
           <button
             onClick={() => setTldrOpen((v) => !v)}

@@ -26,7 +26,7 @@ export default function ChallengePanel({ challenge, onPracticed, onComplete, onS
     if (challenge.type === 'code_run') {
       setLoading(true)
       try {
-        const { output, error } = await runPython(code)
+        const { output, error } = await runPython(code, challenge.mocks ?? null)
         const newAttempts = attempts + 1
         if (error) {
           setResult({ passed: false, userOutput: null, error })

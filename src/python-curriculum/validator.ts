@@ -1,5 +1,12 @@
 export type ChallengeType = 'code_run' | 'multiple_choice' | 'fill_blank' | 'read_only'
 
+export interface MockDef {
+  status?: number
+  json?:   unknown
+}
+
+export type MockMap = Record<string, MockDef>
+
 export interface ValidationResult {
   passed:     boolean
   userOutput: string | null

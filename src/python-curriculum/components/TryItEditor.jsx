@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Play, RotateCcw } from 'lucide-react'
 import { runPython } from '../runtime/pyodideService'
 
-export default function TryItEditor({ starterCode }) {
+export default function TryItEditor({ starterCode, mocks }) {
   const [code, setCode]       = useState(starterCode ?? '')
   const [output, setOutput]   = useState(null)
   const [isError, setIsError] = useState(false)
@@ -13,7 +13,7 @@ export default function TryItEditor({ starterCode }) {
     if (!code.trim() || loading) return
     setLoading(true)
     try {
-      const { output: out, error } = await runPython(code)
+      const { output: out, error } = await runPython(code, mocks ?? null)
       if (error) {
         setOutput(error)
         setIsError(true)
