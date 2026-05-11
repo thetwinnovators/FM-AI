@@ -1,6 +1,11 @@
 import { useState } from 'react'
 import { CheckCircle2, XCircle, ChevronDown } from 'lucide-react'
 import { validate } from '../validator'
+import { runPython } from '../runtime/pyodideService'
+
+function normalise(s) {
+  return String(s ?? '').trim()
+}
 
 export default function ChallengePanel({ challenge, onPracticed, onComplete, onSkip }) {
   const [code, setCode]             = useState(challenge.starterCode ?? '')
@@ -10,20 +15,38 @@ export default function ChallengePanel({ challenge, onPracticed, onComplete, onS
   const [attempts, setAttempts]     = useState(0)
   const [hintsShown, setHintsShown] = useState(0)
   const [showSolution, setShowSolution] = useState(false)
+  const [loading, setLoading]       = useState(false)
 
   const MAX_HINTS = challenge.hints?.length ?? 0
 
-  function getUserInput() {
-    if (challenge.type === 'multiple_choice') return selectedOption
-    if (challenge.type === 'fill_blank')     return fillValue
-    return undefined
-  }
-
-  function handleRun() {
+  async function handleRun() {
+    if (loading) return
     if (attempts === 0) onPracticed()
-    const r           = validate(code, challenge, getUserInput())
+
+    if (challenge.type === 'code_run') {
+      setLoading(true)
+      try {
+        const { output, error } = await runPython(code)
+        const newAttempts = attempts + 1
+        if (error) {
+          setResult({ passed: false, userOutput: null, error })
+        } else {
+          const passed = normalise(output) === normalise(challenge.expectedOutput)
+          setResult({ passed, userOutput: output, error: null })
+          if (newAttempts >= 3 && !passed) setShowSolution(true)
+        }
+        setAttempts(newAttempts)
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    // multiple_choice / fill_blank
+    const userInput = challenge.type === 'multiple_choice' ? selectedOption : fillValue
+    const r         = validate(code, challenge, userInput)
     const newAttempts = attempts + 1
-    setResult(r)
+    setResult({ ...r, error: null })
     setAttempts(newAttempts)
     if (newAttempts >= 3 && !r.passed) setShowSolution(true)
   }
@@ -38,6 +61,8 @@ export default function ChallengePanel({ challenge, onPracticed, onComplete, onS
       </div>
     )
   }
+
+  const canCheck = challenge.type !== 'multiple_choice' || selectedOption != null
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,9 +125,19 @@ export default function ChallengePanel({ challenge, onPracticed, onComplete, onS
           {result.passed
             ? <CheckCircle2 size={16} style={{ color: '#2dd4bf', flexShrink: 0, marginTop: 1 }} />
             : <XCircle      size={16} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />}
-          <div>
+          <div className="flex flex-col gap-1 min-w-0">
             {result.passed ? (
               <span style={{ color: '#6ee7b7' }}>Correct!</span>
+            ) : result.error ? (
+              <>
+                <span style={{ color: '#fca5a5' }}>Python error:</span>
+                <pre
+                  className="text-[11px] mt-1 whitespace-pre-wrap break-words"
+                  style={{ color: '#f87171', fontFamily: 'monospace', opacity: 0.85 }}
+                >
+                  {result.error}
+                </pre>
+              </>
             ) : (
               <>
                 <span style={{ color: '#fca5a5' }}>Not quite.</span>
@@ -121,11 +156,11 @@ export default function ChallengePanel({ challenge, onPracticed, onComplete, onS
       {!result?.passed && (
         <button
           onClick={handleRun}
-          disabled={challenge.type === 'multiple_choice' && selectedOption == null}
+          disabled={loading || !canCheck}
           className="py-2.5 rounded-xl text-sm font-semibold disabled:opacity-40"
-          style={{ background: '#0d9488', color: '#fff' }}
+          style={{ background: '#0d9488', color: '#fff', cursor: loading ? 'default' : 'pointer' }}
         >
-          {challenge.type === 'code_run' ? 'Run' : 'Check'}
+          {loading ? 'Running…' : challenge.type === 'code_run' ? 'Run' : 'Check'}
         </button>
       )}
 
