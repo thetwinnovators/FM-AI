@@ -20,40 +20,61 @@ function evalIntMath(expr: string): string | null {
   }
 }
 
-// Extracts output from print() calls. Single-pass: tracks integer variable
-// assignments so print(var) resolves to the current value.
-// Handles: print("string")  print('string')  print(int op int)  print(var)
+// Extracts output from print() calls. Single-pass: tracks both integer and
+// string variable assignments so print(var) resolves to the current value.
+// Handles: print("string")  print(int op int)  print(var)  print(var op int)
 export function simulateOutput(code: string): string | null {
-  const lines      = code.split('\n')
+  const lines   = code.split('\n')
   const results: string[] = []
-  const vars: Record<string, number> = {}
+  const vars:    Record<string, string>  = {}  // all values stored as strings
+  const intVars: Set<string>             = new Set()
 
-  const assignPat  = /^\s*([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*(?:#.*)?$/
-  const strPat     = /print\(\s*["']([^"']+)["']\s*\)/
-  const mathPat    = /print\(\s*((\d+)\s*[+\-*]\s*(\d+))\s*\)/
-  const varPat     = /print\(\s*([A-Za-z_]\w*)\s*\)/
+  const intAssignPat = /^\s*([A-Za-z_]\w*)\s*=\s*(-?\d+)\s*(?:#.*)?$/
+  const strAssignPat = /^\s*([A-Za-z_]\w*)\s*=\s*["']([^"']+)["']\s*(?:#.*)?$/
+  const strPat       = /print\(\s*["']([^"']+)["']\s*\)/
+  const mathPrintPat = /print\(\s*(\w+)\s*([+\-*])\s*(\w+)\s*\)/
+  const varPat       = /print\(\s*([A-Za-z_]\w*)\s*\)/
+
+  function resolveInt(token: string): number | null {
+    const t = token.trim()
+    if (/^-?\d+$/.test(t)) return parseInt(t, 10)
+    if (intVars.has(t)) return parseInt(vars[t], 10)
+    return null
+  }
 
   for (const line of lines) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) continue
 
-    const assignMatch = trimmed.match(assignPat)
-    if (assignMatch) {
-      vars[assignMatch[1]] = parseInt(assignMatch[2], 10)
+    const intAssign = trimmed.match(intAssignPat)
+    if (intAssign) {
+      vars[intAssign[1]] = intAssign[2]
+      intVars.add(intAssign[1])
       continue
     }
 
-    const strMatch  = line.match(strPat)
-    const mathMatch = line.match(mathPat)
-    const varMatch  = line.match(varPat)
+    const strAssign = trimmed.match(strAssignPat)
+    if (strAssign) {
+      vars[strAssign[1]] = strAssign[2]
+      continue
+    }
 
-    if (strMatch) {
-      results.push(strMatch[1])
-    } else if (mathMatch) {
-      const val = evalIntMath(mathMatch[1])
-      if (val !== null) results.push(val)
-    } else if (varMatch && varMatch[1] in vars) {
-      results.push(String(vars[varMatch[1]]))
+    const strMatch = line.match(strPat)
+    if (strMatch) { results.push(strMatch[1]); continue }
+
+    const mathMatch = line.match(mathPrintPat)
+    if (mathMatch) {
+      const a = resolveInt(mathMatch[1])
+      const b = resolveInt(mathMatch[3])
+      if (a !== null && b !== null) {
+        const val = evalIntMath(`${a} ${mathMatch[2]} ${b}`)
+        if (val !== null) { results.push(val); continue }
+      }
+    }
+
+    const varMatch = line.match(varPat)
+    if (varMatch && varMatch[1] in vars) {
+      results.push(vars[varMatch[1]])
     }
   }
 
