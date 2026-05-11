@@ -48,3 +48,36 @@ export function clearAllProgress(): void {
   }
   toRemove.forEach((k) => localStorage.removeItem(k))
 }
+
+export function exportProgress(): void {
+  const data = loadAllProgress()
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = 'flowmap-python-progress.json'
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+export function importProgress(file: File): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const parsed = JSON.parse(e.target?.result as string)
+        if (typeof parsed !== 'object' || parsed === null) throw new Error('Invalid file')
+        Object.entries(parsed).forEach(([id, value]) => {
+          if (typeof value === 'object' && value !== null) {
+            localStorage.setItem(PREFIX + id, JSON.stringify(value))
+          }
+        })
+        resolve()
+      } catch (err) {
+        reject(err)
+      }
+    }
+    reader.onerror = () => reject(new Error('Could not read file'))
+    reader.readAsText(file)
+  })
+}

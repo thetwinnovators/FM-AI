@@ -31,6 +31,7 @@ export default function PythonCurriculumApp() {
         onScrollChange={setMapScrollTop}
         onSelectLesson={(groupId, subLessonId) => navigate('lesson', { groupId, subLessonId })}
         onBack={() => navigate('language')}
+        onProgressChange={refreshProgress}
       />
     )
   }
