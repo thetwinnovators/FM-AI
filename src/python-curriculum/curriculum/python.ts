@@ -1467,6 +1467,608 @@ print(total)`,
 }
 
 // ---------------------------------------------------------------------------
+// Group 9 — Functions
+// ---------------------------------------------------------------------------
+
+const GROUP_FUNCTIONS: LessonGroup = {
+  id: 'functions',
+  title: 'Functions',
+  subLessons: [
+    {
+      id:    'fn-defining-functions',
+      title: 'Defining Functions',
+      slug:  'defining-functions',
+      tldr:  'A function is a reusable block of code you create with the def keyword.',
+      searchableTerms: ['function', 'def', 'define', 'block', 'reusable'],
+      explanation: [
+        'A function is a block of code you give a name. Once you define a function, you can run that block any time by just calling its name. To define a function in Python, you use the keyword `def`, then the function name, then parentheses `()` and a colon. The code that runs when the function is called goes indented underneath.',
+        'Functions help you avoid repeating yourself. If you need to print a welcome banner ten times, you can write it once inside a function called `welcome` and then call `welcome()` ten times. Functions also make your code easier to read because their name tells you what they do. Good function names start with a verb, like `calculate_total` or `print_menu`.',
+      ],
+      example: {
+        code: `# Define a function called greet.
+def greet():
+    print("Hello there!")
+
+# The function does not run until you call it.
+# We will see calling in the next lesson.`,
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which keyword is used to define a function in Python?',
+        options: [
+          'function',
+          'def',
+          'func',
+          'define',
+        ],
+        correctOption: 1,
+        hints: [
+          'The keyword is a three-letter abbreviation.',
+          'Python uses short, lowercase keywords.',
+        ],
+        solution: 'def is the keyword Python uses to define a function.',
+      },
+    },
+    {
+      id:    'fn-calling-functions',
+      title: 'Calling Functions',
+      slug:  'calling-functions',
+      tldr:  'To run a function, write its name followed by parentheses. This is called calling it.',
+      searchableTerms: ['call function', 'invoke', 'parentheses', 'run', 'execute'],
+      explanation: [
+        'Defining a function does not run the code inside it — that only happens when you call the function. To call a function, write its name followed by parentheses, like `greet()`. The parentheses are essential — without them, Python thinks you are referring to the function itself, not running it. You can call a function as many times as you want.',
+        'You have already been calling functions throughout these lessons. `print("hello")` calls the print function. `len("hi")` calls the len function. `input("? ")` calls the input function. The pattern is always the same: name, then parentheses, with arguments inside the parentheses if needed. Once you understand calling, every Python feature feels familiar.',
+      ],
+      example: {
+        code: `# Define greet, then call it.
+def greet():
+    print("Hello!")
+
+# Each call runs the function once.
+greet()
+greet()
+greet()`,
+        output: 'Hello!\nHello!\nHello!',
+      },
+      challenge: {
+        type:   'fill_blank',
+        prompt: 'Fill in the blank to CALL a function named say_hi.\n\n_____',
+        blankAnswer: 'say_hi()',
+        hints: [
+          'To call a function, write its name followed by parentheses.',
+          'Do not forget the empty parentheses at the end.',
+        ],
+        solution: 'say_hi() calls the function. The parentheses are required even if there are no arguments.',
+      },
+      recommendedAfter: 'fn-defining-functions',
+    },
+    {
+      id:    'fn-parameters',
+      title: 'Parameters and Arguments',
+      slug:  'parameters',
+      tldr:  'Parameters let a function accept inputs. You pass actual values, called arguments, when you call it.',
+      searchableTerms: ['parameter', 'argument', 'input', 'pass value', 'positional'],
+      explanation: [
+        'A parameter is a placeholder name inside the parentheses of a function definition. When you call the function and pass a value, that value gets stored in the parameter. So `def greet(name): print("Hi", name)` defines a parameter called `name`. Calling `greet("Sam")` passes `"Sam"` as an argument, and inside the function `name` holds `"Sam"`.',
+        'You can have several parameters separated by commas: `def add(a, b):`. When calling, you must provide the same number of arguments in the same order: `add(3, 5)`. The terminology can be confusing — "parameter" is the name in the definition, "argument" is the actual value passed in. People often use the words interchangeably, but knowing the difference helps when reading documentation.',
+      ],
+      example: {
+        code: `# greet takes a parameter called name.
+def greet(name):
+    print("Hi", name)
+
+# Call with different arguments.
+greet("Alex")
+greet("Sam")`,
+        output: 'Hi Alex\nHi Sam',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'In this function:\n\ndef show(message):\n    print(message)\n\nWhat is "message" called?',
+        options: [
+          'An argument',
+          'A parameter',
+          'A return value',
+          'A variable type',
+        ],
+        correctOption: 1,
+        hints: [
+          'The name inside the function definition is the placeholder.',
+          'An "argument" is the actual value passed in when calling.',
+        ],
+        solution: '"message" is a parameter — the placeholder name in the function definition.',
+      },
+      recommendedAfter: 'fn-calling-functions',
+    },
+    {
+      id:    'fn-return-values',
+      title: 'Return Values',
+      slug:  'return-values',
+      tldr:  'The return keyword sends a value back from a function so the caller can use it.',
+      searchableTerms: ['return', 'output', 'result', 'value', 'send back'],
+      explanation: [
+        'A function can send a value back to whoever called it using the `return` keyword. When Python hits a `return`, it stops the function immediately and the value after `return` becomes the result of the function call. You can then store that result in a variable, like `total = add(3, 5)`, or use it directly in another expression.',
+        'A function without a `return` statement still works, but it gives back the special value `None`. `None` is Python\'s way of saying "nothing." If you call `print(greet("Sam"))` on a function that does not return anything, you will see `None` after the greeting. Understanding when to return a value and when to just perform an action is one of the most important skills in programming.',
+      ],
+      example: {
+        code: `# add returns the sum of its parameters.
+def add(a, b):
+    return a + b
+
+# Store the returned value.
+total = add(3, 5)
+# total is now 8
+print(total)`,
+        output: '8',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'What value does this function return when called as double(7)?\n\ndef double(x):\n    return x * 2',
+        options: [
+          '7',
+          '14',
+          'None',
+          '"14"',
+        ],
+        correctOption: 1,
+        hints: [
+          'The function multiplies its parameter by 2.',
+          '7 * 2 is the returned value.',
+        ],
+        solution: 'double(7) returns 14 because the function returns x * 2.',
+      },
+      recommendedAfter: 'fn-parameters',
+    },
+    {
+      id:    'fn-scope',
+      title: 'Scope',
+      slug:  'scope',
+      tldr:  'Variables defined inside a function only exist inside that function. This is called local scope.',
+      searchableTerms: ['scope', 'local', 'global', 'visibility', 'namespace'],
+      explanation: [
+        'Scope is the rule that decides which variables can be seen from where. Variables defined inside a function have local scope, which means they only exist while the function is running. After the function ends, those local variables disappear. Variables defined outside any function have global scope and can be used anywhere in the file.',
+        'Scope helps keep your code safe and organised. Two different functions can both have a local variable named `total` without affecting each other — each one lives in its own little bubble. If you need to use a value across functions, the cleanest way is to pass it in as a parameter and return a result. Avoid mixing global variables with function logic unless you really need to.',
+      ],
+      example: {
+        code: `# x is local to the function — only exists inside.
+def calculate():
+    x = 10
+    print(x)
+
+calculate()
+# Trying to print(x) here would cause a NameError.`,
+        output: '10',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'In this code, where can the variable result be used?\n\ndef compute():\n    result = 42\n    return result',
+        options: [
+          'Anywhere in the program',
+          'Only inside the compute function',
+          'Only after compute is called',
+          'Only in the line where it is defined',
+        ],
+        correctOption: 1,
+        hints: [
+          'Variables defined inside a function only exist there.',
+          'This is called local scope.',
+        ],
+        solution: 'result is local to compute — it only exists while the function runs.',
+      },
+      recommendedAfter: 'fn-return-values',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 10 — Lists
+// ---------------------------------------------------------------------------
+
+const GROUP_LISTS: LessonGroup = {
+  id: 'lists',
+  title: 'Lists',
+  subLessons: [
+    {
+      id:    'list-creating-lists',
+      title: 'Creating Lists',
+      slug:  'creating-lists',
+      tldr:  'A list stores multiple values in a single variable, written between square brackets.',
+      searchableTerms: ['list', 'array', 'square brackets', 'collection', 'sequence'],
+      explanation: [
+        'A list is an ordered collection of values. You create one by putting values between square brackets `[]`, separated by commas. For example, `colours = ["red", "green", "blue"]` stores three strings in a single variable called `colours`. Lists can hold any kind of value — strings, numbers, booleans, or even other lists. You can also mix types in one list, although usually you stick to one type.',
+        'An empty list is just `[]` with nothing inside. You build it up later by adding items. Lists are perfect any time you have a group of things — a shopping list, a list of high scores, a list of friends. Lists are the most common collection in Python and one of the most useful features of the language.',
+      ],
+      example: {
+        code: `# A list of strings.
+fruits = ["apple", "banana", "cherry"]
+
+# A list of integers.
+scores = [85, 90, 72, 100]
+
+# An empty list to fill later.
+todo = []
+print("Lists created")`,
+        output: 'Lists created',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which line correctly creates a list of three numbers?',
+        options: [
+          'numbers = (1, 2, 3)',
+          'numbers = {1, 2, 3}',
+          'numbers = [1, 2, 3]',
+          'numbers = "1, 2, 3"',
+        ],
+        correctOption: 2,
+        hints: [
+          'Lists use square brackets, not parentheses or curly braces.',
+          'Parentheses make a tuple. Curly braces make a set.',
+        ],
+        solution: 'numbers = [1, 2, 3] creates a list using square brackets.',
+      },
+    },
+    {
+      id:    'list-accessing-items',
+      title: 'Accessing Items',
+      slug:  'accessing-items',
+      tldr:  'Use square brackets and an index number to get an item out of a list. Indexes start at 0.',
+      searchableTerms: ['index', 'access', 'subscript', 'position', 'negative index'],
+      explanation: [
+        'To get an item out of a list, write the list name followed by square brackets with the position number — called an index — inside. Python starts counting at 0, so the first item is at index 0, the second at index 1, and so on. If your list is `colours = ["red", "green", "blue"]`, then `colours[0]` is `"red"` and `colours[2]` is `"blue"`.',
+        'You can also use negative indexes to count from the end. `colours[-1]` is the last item, `colours[-2]` is the second-to-last, and so on. This is handy when you do not know the exact length of the list. If you ask for an index that does not exist — like `colours[10]` on a list of 3 items — Python raises an `IndexError`. Always make sure your index is in range.',
+      ],
+      example: {
+        code: `# Access items by index.
+fruits = ["apple", "banana", "cherry"]
+first = fruits[0]
+# first is "apple"
+last = fruits[-1]
+# last is "cherry"
+print(first)`,
+        output: 'apple',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Given the list  pets = ["cat", "dog", "fish", "bird"], what does pets[2] return?',
+        options: [
+          '"cat"',
+          '"dog"',
+          '"fish"',
+          '"bird"',
+        ],
+        correctOption: 2,
+        hints: [
+          'Counting starts at 0, so the indexes are 0, 1, 2, 3.',
+          'Index 2 is the THIRD item in the list.',
+        ],
+        solution: 'pets[2] returns "fish" — the third item, because indexes start at 0.',
+      },
+      recommendedAfter: 'list-creating-lists',
+    },
+    {
+      id:    'list-list-methods',
+      title: 'List Methods',
+      slug:  'list-methods',
+      tldr:  'Lists have methods like .append(), .remove(), .pop(), and .sort() that modify the list in place.',
+      searchableTerms: ['method', 'append', 'remove', 'pop', 'sort'],
+      explanation: [
+        'Lists come with many built-in methods. `.append(x)` adds `x` to the end of the list. `.remove(x)` deletes the first occurrence of `x`. `.pop()` removes and returns the last item, or `.pop(i)` removes the item at index `i`. `.sort()` rearranges the items into order. Each of these changes the list directly — they do not return a new list.',
+        'Because list methods change the list in place, you do not assign the result. So `numbers.sort()` is correct, but `numbers = numbers.sort()` is a bug — `.sort()` returns `None`, so `numbers` would become `None`. This is different from string methods, which return new strings. Strings cannot be changed (immutable), but lists can (mutable). Knowing this distinction prevents many beginner errors.',
+      ],
+      example: {
+        code: `# List methods modify the list in place.
+fruits = ["apple", "banana"]
+fruits.append("cherry")
+# fruits is now ["apple", "banana", "cherry"]
+fruits.remove("banana")
+# fruits is now ["apple", "cherry"]
+print("Modified")`,
+        output: 'Modified',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which method adds a new item to the END of a list?',
+        options: [
+          '.add()',
+          '.push()',
+          '.append()',
+          '.insert()',
+        ],
+        correctOption: 2,
+        hints: [
+          'The Python name is different from other languages like JavaScript.',
+          'Think of the word that means "attach at the end".',
+        ],
+        solution: '.append(x) adds x to the end of the list.',
+      },
+      recommendedAfter: 'list-accessing-items',
+    },
+    {
+      id:    'list-looping-lists',
+      title: 'Looping Through Lists',
+      slug:  'looping-lists',
+      tldr:  'A for loop visits each item in a list one at a time, perfect for processing every entry.',
+      searchableTerms: ['loop', 'iterate', 'for in', 'traverse', 'visit'],
+      explanation: [
+        'A `for` loop is the natural way to go through every item in a list. The pattern is `for item in my_list:` followed by an indented block. Each time the loop runs, the variable `item` holds the next value from the list. You do not need to track indexes yourself — Python handles that for you. The loop ends automatically when the list runs out of items.',
+        'If you also need the index along with the value, use the built-in `enumerate` function: `for i, item in enumerate(my_list):`. Now `i` holds the index and `item` holds the value. But most of the time you only need the value, so the simpler `for item in my_list:` is the way to go. Looping over a list is one of the most-used patterns in all of Python.',
+      ],
+      example: {
+        code: `# Loop through every fruit.
+fruits = ["apple", "banana", "cherry"]
+for fruit in fruits:
+    print(fruit)
+# Three lines printed — one per fruit.`,
+        output: 'apple\nbanana\ncherry',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'How many times does this loop run?\n\ncolors = ["red", "green", "blue", "yellow"]\nfor c in colors:\n    print(c)',
+        options: [
+          '3',
+          '4',
+          '5',
+          '1',
+        ],
+        correctOption: 1,
+        hints: [
+          'The loop runs once per item in the list.',
+          'Count the items in colors.',
+        ],
+        solution: 'The loop runs 4 times — once for each of the 4 colors in the list.',
+      },
+      recommendedAfter: 'list-list-methods',
+    },
+    {
+      id:    'list-list-slicing',
+      title: 'List Slicing',
+      slug:  'list-slicing',
+      tldr:  'Like strings, lists support slicing with [start:stop] to grab a portion as a new list.',
+      searchableTerms: ['slicing', 'sublist', 'colon', 'range', 'subset'],
+      explanation: [
+        'List slicing works the same way as string slicing. You use square brackets with two indexes separated by a colon: `my_list[start:stop]`. This returns a new list containing the items from index `start` up to but not including index `stop`. For example, `[10, 20, 30, 40, 50][1:4]` returns `[20, 30, 40]`. Leaving a side blank uses the start or end, so `numbers[2:]` returns everything from index 2 to the end.',
+        'Slicing creates a new list — the original is untouched. This is useful when you want to work with part of a list without changing the whole thing. You can also use `my_list[:]` (no numbers) to make a complete copy of a list. This is handy when you want a backup before modifying the original.',
+      ],
+      example: {
+        code: `# List slicing returns a new list.
+numbers = [10, 20, 30, 40, 50]
+middle = numbers[1:4]
+# middle is [20, 30, 40]
+first_two = numbers[:2]
+# first_two is [10, 20]
+print("Sliced")`,
+        output: 'Sliced',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Given  numbers = [1, 2, 3, 4, 5], what does numbers[1:3] return?',
+        options: [
+          '[1, 2]',
+          '[1, 2, 3]',
+          '[2, 3]',
+          '[2, 3, 4]',
+        ],
+        correctOption: 2,
+        hints: [
+          'Slicing starts at the first index and stops BEFORE the second index.',
+          'Indexes 1 and 2 correspond to the second and third items.',
+        ],
+        solution: 'numbers[1:3] returns [2, 3] — items at indexes 1 and 2.',
+      },
+      recommendedAfter: 'list-looping-lists',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
+// Group 11 — Dictionaries
+// ---------------------------------------------------------------------------
+
+const GROUP_DICTIONARIES: LessonGroup = {
+  id: 'dictionaries',
+  title: 'Dictionaries',
+  subLessons: [
+    {
+      id:    'dict-creating-dicts',
+      title: 'Creating Dictionaries',
+      slug:  'creating-dicts',
+      tldr:  'A dictionary stores key-value pairs in curly braces, like {"name": "Sam"}.',
+      searchableTerms: ['dictionary', 'dict', 'key value', 'map', 'curly braces'],
+      explanation: [
+        'A dictionary stores pairs of values: a key and a value. The key is the label, and the value is the data. You write a dictionary using curly braces `{}` with the key, then a colon, then the value, separated by commas. For example, `student = {"name": "Sam", "age": 12}` makes a dictionary where the key `"name"` maps to `"Sam"` and the key `"age"` maps to `12`.',
+        'Think of a dictionary like an actual paper dictionary — you look up a word (the key) to find its definition (the value). Or like a phone contact list — you look up a name (key) to find a number (value). Dictionaries are perfect for any kind of data with named fields. Keys are usually strings, but they can be numbers too. Each key must be unique within the dictionary.',
+      ],
+      example: {
+        code: `# A dictionary with three pairs.
+student = {
+    "name": "Sam",
+    "age": 12,
+    "city": "London"
+}
+
+# An empty dictionary to fill later.
+inventory = {}
+print("Dicts created")`,
+        output: 'Dicts created',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which line correctly creates a dictionary with one key-value pair?',
+        options: [
+          'd = ["name", "Sam"]',
+          'd = ("name": "Sam")',
+          'd = {"name": "Sam"}',
+          'd = {"name" = "Sam"}',
+        ],
+        correctOption: 2,
+        hints: [
+          'Dictionaries use curly braces.',
+          'Each pair uses a colon between key and value, not an equals sign.',
+        ],
+        solution: 'd = {"name": "Sam"} creates a dictionary with curly braces and a colon.',
+      },
+    },
+    {
+      id:    'dict-accessing-values',
+      title: 'Accessing Values',
+      slug:  'accessing-values',
+      tldr:  'Use square brackets with the key to get the value, like student["name"].',
+      searchableTerms: ['access', 'lookup', 'get', 'key', 'value'],
+      explanation: [
+        'To get a value out of a dictionary, write the dictionary name, then square brackets with the key inside. For example, if `student = {"name": "Sam", "age": 12}`, then `student["name"]` is `"Sam"` and `student["age"]` is `12`. This is similar to list access, but you use a key instead of a numeric index.',
+        'If you ask for a key that does not exist — like `student["height"]` — Python raises a `KeyError` and your program stops. To avoid this, you can use the `.get()` method. `student.get("height")` returns `None` if the key is missing instead of crashing. You can also pass a default: `student.get("height", 0)` returns `0` if `"height"` is not there. This makes your code more robust.',
+      ],
+      example: {
+        code: `# Look up a value by its key.
+student = {"name": "Sam", "age": 12}
+person_name = student["name"]
+# person_name is "Sam"
+person_age = student.get("age")
+# person_age is 12
+print("Looked up")`,
+        output: 'Looked up',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Given  car = {"brand": "Tesla", "year": 2025}, what does car["brand"] return?',
+        options: [
+          '"Tesla"',
+          '"year"',
+          '2025',
+          'None',
+        ],
+        correctOption: 0,
+        hints: [
+          'Use the key to look up the value.',
+          '"brand" is the key. What value is paired with it?',
+        ],
+        solution: 'car["brand"] returns "Tesla" — the value paired with the key "brand".',
+      },
+      recommendedAfter: 'dict-creating-dicts',
+    },
+    {
+      id:    'dict-adding-keys',
+      title: 'Adding and Updating Keys',
+      slug:  'adding-keys',
+      tldr:  'Assign a value to a new or existing key with d[key] = value. New keys are added on the fly.',
+      searchableTerms: ['add key', 'update', 'assign', 'modify', 'mutate'],
+      explanation: [
+        'You can add new key-value pairs to a dictionary any time. Just write the dictionary name with the new key in square brackets, and assign a value. For example, `student["grade"] = "B"` adds a `"grade"` key with value `"B"`. If the key already exists, the value is updated to the new one. This makes dictionaries flexible — they grow and change as your program runs.',
+        'Updating works the same way. If `student["age"]` is already 12, writing `student["age"] = 13` replaces 12 with 13. There is no difference in syntax between adding and updating — Python figures out which one you mean by checking if the key already exists. To remove a key entirely, use the `del` keyword: `del student["age"]`.',
+      ],
+      example: {
+        code: `# Start with two pairs.
+student = {"name": "Sam", "age": 12}
+
+# Add a new key.
+student["grade"] = "B"
+
+# Update an existing key.
+student["age"] = 13
+print("Updated")`,
+        output: 'Updated',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'After this code, what value is stored at  d["score"] ?\n\nd = {"score": 10}\nd["score"] = 20\nd["score"] = 30',
+        options: [
+          '10',
+          '20',
+          '30',
+          '60',
+        ],
+        correctOption: 2,
+        hints: [
+          'Each assignment replaces the previous value for that key.',
+          'Only the last assigned value is kept.',
+        ],
+        solution: 'd["score"] is 30 — each new assignment overwrites the previous value.',
+      },
+      recommendedAfter: 'dict-accessing-values',
+    },
+    {
+      id:    'dict-dict-methods',
+      title: 'Dictionary Methods',
+      slug:  'dict-methods',
+      tldr:  'Dictionaries have .keys(), .values(), and .items() methods for getting parts of the data.',
+      searchableTerms: ['keys', 'values', 'items', 'method', 'view'],
+      explanation: [
+        'Dictionaries have three handy methods for inspecting their contents. `.keys()` returns all the keys, `.values()` returns all the values, and `.items()` returns key-value pairs as tuples. These are most useful when you want to loop through a dictionary, because by default a `for` loop on a dictionary visits only the keys.',
+        'A common pattern is `for key, value in my_dict.items():`. This unpacks each pair into two variables, which is much nicer than looking up the value separately. Another useful method is `.pop(key)`, which removes a key and returns its value. And `len(d)` (using the regular len function) tells you how many key-value pairs are in the dictionary.',
+      ],
+      example: {
+        code: `# Methods for inspecting a dictionary.
+student = {"name": "Sam", "age": 12}
+
+# Get just the keys.
+key_list = list(student.keys())
+# key_list is ["name", "age"]
+
+# Get just the values.
+val_list = list(student.values())
+print("Inspected")`,
+        output: 'Inspected',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'Which dictionary method returns all the KEYS?',
+        options: [
+          '.values()',
+          '.keys()',
+          '.items()',
+          '.pairs()',
+        ],
+        correctOption: 1,
+        hints: [
+          'The method name matches the part of the dictionary you want.',
+          'For keys, use .keys(). For values, use .values().',
+        ],
+        solution: '.keys() returns all the keys of a dictionary.',
+      },
+      recommendedAfter: 'dict-adding-keys',
+    },
+    {
+      id:    'dict-looping-dicts',
+      title: 'Looping Through Dictionaries',
+      slug:  'looping-dicts',
+      tldr:  'Use for key in d: to loop over keys, or for k, v in d.items(): to loop over pairs.',
+      searchableTerms: ['loop dict', 'iterate', 'items', 'for in', 'unpacking'],
+      explanation: [
+        'When you write a `for` loop directly on a dictionary, like `for k in student:`, Python gives you the keys one at a time. To get the value, you would need `student[k]`. A cleaner approach is `for k, v in student.items():`, which gives you both the key and the value as separate variables in each iteration.',
+        'Looping is how you process every entry in a dictionary. You might be looking for a specific value, printing a summary, or computing a total. The `.items()` pattern is the most common — it is concise and reads almost like English: "for each key and value in the items of the dictionary." Master this pattern and dictionaries will feel as natural as lists.',
+      ],
+      example: {
+        code: `# Loop with .items() for both key and value.
+prices = {"apple": 1.0, "banana": 0.5}
+
+for fruit, price in prices.items():
+    # fruit takes each key, price takes each value.
+    print(fruit)
+print("done")`,
+        output: 'apple\nbanana\ndone',
+      },
+      challenge: {
+        type:   'multiple_choice',
+        prompt: 'In this loop, what does the variable k hold?\n\nscores = {"a": 1, "b": 2}\nfor k in scores:\n    print(k)',
+        options: [
+          'Each value in scores',
+          'Each key in scores',
+          'Each key-value pair',
+          'The whole dictionary',
+        ],
+        correctOption: 1,
+        hints: [
+          'A plain for loop on a dictionary visits one part at a time.',
+          'By default, it goes through the labels, not the data.',
+        ],
+        solution: 'k holds each KEY in turn — the default for-loop iterates over keys.',
+      },
+      recommendedAfter: 'dict-dict-methods',
+    },
+  ],
+}
+
+// ---------------------------------------------------------------------------
 // PYTHON_CURRICULUM — exported aggregate
 // ---------------------------------------------------------------------------
 
@@ -1479,4 +2081,7 @@ export const PYTHON_CURRICULUM: LessonGroup[] = [
   GROUP_INPUT_OUTPUT,
   GROUP_CONDITIONALS,
   GROUP_LOOPS,
+  GROUP_FUNCTIONS,
+  GROUP_LISTS,
+  GROUP_DICTIONARIES,
 ]
