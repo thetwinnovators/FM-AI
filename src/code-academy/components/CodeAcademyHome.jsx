@@ -200,13 +200,6 @@ export default function CodeAcademyHome({ onStart, onDelete, isLoading, error, p
   return (
     <div className="flex flex-col min-h-full">
 
-      {/* ── Page header ── */}
-      <div className="px-6 pt-6 pb-1 flex-shrink-0">
-        <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-          <Code2 size={20} className="text-teal-400" /> Code Academy
-        </h1>
-      </div>
-
       {/* ── Tabs ── */}
       <div className="flex gap-1 px-6 pt-4 border-b border-white/[0.08] flex-shrink-0">
         {TABS.map((t) => (
