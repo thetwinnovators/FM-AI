@@ -225,6 +225,28 @@ export function isMetaSystemQuestion(query) {
   return META_PATTERNS.some((p) => p.test(q))
 }
 
+// Detect self-referential queries — questions about the user themselves where
+// the answer must come from identity memory, never from document excerpts.
+// When this matches, buildSystemMessage skips retrieval entirely so the model
+// can't be derailed by tangentially-matched excerpts (e.g. trading docs
+// matching "name" via some random token).
+const SELF_REFERENTIAL_PATTERNS = [
+  /\b(what'?s|what is) my (name|surname|first name|last name)\b/i,
+  /\bwho am i\b/i,
+  /\bwhat (do|do you) (know|remember) about me\b/i,
+  /\bdo you (know|remember) (my|me)\b/i,
+  /\b(my|i'?m|i am) (name|called|known as)\b/i,
+  /\bwhat (are|do you know about) my (preferences|interests|topics|stack|setup|tools|hobbies|goals)\b/i,
+  /\bwhat (have i|did i|am i) (saved|told you|asked|been working on)\b/i,
+  /\baddress me as\b/i,
+  /\bcall me (sir|by|mr|ms|mrs)\b/i,
+]
+export function isSelfReferentialQuery(query) {
+  const q = String(query || '')
+  if (!q.trim()) return false
+  return SELF_REFERENTIAL_PATTERNS.some((p) => p.test(q))
+}
+
 // Detect questions that ask the model to actually READ a specific document
 // rather than answer a content question that happens to touch one. When this
 // fires, we swap the snippet for the top match's full plainText (capped) so
@@ -403,8 +425,31 @@ export function buildSystemMessage(retrieved, userQuery = '', allMemory = [], _t
       : META_SYSTEM_MESSAGE
   }
 
+  // Self-referential turns ("what is my name", "who am I", etc.) get an
+  // identity-only prompt. Including document excerpts here just gives the
+  // small model an excuse to derail onto whatever topic happens to share a
+  // token with the query.
+  if (isSelfReferentialQuery(userQuery)) {
+    const block = identityBlock || '[IDENTITY] — (no personal facts saved yet)\n\n'
+    return (
+      PERSONALITY +
+      `THIS TURN — CRITICAL OVERRIDE:\n` +
+      `The user is asking about themselves. The [IDENTITY] block below is your ONLY source for this answer. Rules:\n` +
+      `- Do NOT mention trading, topics, documents, signals, briefs, or anything outside the IDENTITY block.\n` +
+      `- Do NOT add a "Since you asked about X" preamble or note about other subjects.\n` +
+      `- If the IDENTITY block is empty or doesn't cover the question, say so plainly — e.g. "I don't have that saved yet — want me to remember it?" — then stop.\n` +
+      `- Otherwise, answer concisely from the IDENTITY block (use the user's preferred name/title if specified).\n\n` +
+      block +
+      `User asked: "${userQuery}"\n`
+    )
+  }
+
   const preamble =
     PERSONALITY +
+    `PRIORITY ORDER FOR ANSWERING (top wins):\n` +
+    `1. Questions about the user (name, identity, preferences, "what do you know about me") → use the [IDENTITY] block ONLY. Never add unrelated content.\n` +
+    `2. Questions that match a saved document → use EXCERPTS as the source of truth.\n` +
+    `3. Otherwise → answer briefly from general knowledge in FlowMap persona (no training-cutoff language).\n\n` +
     `You are running INSIDE the user's FlowMap app. ` +
     `Identity memory (if present) contains stable personal facts — treat it as authoritative for personal questions. ` +
     `On every task/retrieval turn, FlowMap searches saved documents and includes matching passages under EXCERPTS — your source of truth for content questions.\n\n`
