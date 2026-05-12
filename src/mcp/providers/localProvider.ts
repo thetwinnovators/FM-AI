@@ -27,8 +27,7 @@ async function call(path: string, init: RequestInit = {}): Promise<Response> {
 
 function riskToPermissionMode(risk: MCPToolRiskLevel): ToolPermissionMode {
   if (risk === 'read') return 'auto'
-  if (risk === 'publish') return 'restricted'
-  return 'approval_required'
+  return 'approval_required'  // both 'write' and 'publish' require approval at the permissionMode layer; riskLevel further distinguishes
 }
 
 // Subscribe to the daemon's SSE stream until the job terminates.
