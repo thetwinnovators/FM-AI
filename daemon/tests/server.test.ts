@@ -39,7 +39,7 @@ describe('server', () => {
       headers: { authorization: `Bearer ${TOKEN}` },
     })
     expect(ok.statusCode).toBe(200)
-    expect(ok.json().tools).toHaveLength(20)
+    expect(ok.json().tools).toHaveLength(21)
   })
 
   it('POST /jobs returns a jobId', async () => {

@@ -21,14 +21,15 @@ describe('tools registry', () => {
     rmSync(root, { recursive: true, force: true })
   })
 
-  it('lists all 20 tool definitions', () => {
+  it('lists all 21 tool definitions', () => {
     const defs = registry.list()
-    expect(defs).toHaveLength(20)
+    expect(defs).toHaveLength(21)
     expect(defs.find((d) => d.id === 'file.read')?.risk).toBe('read')
     expect(defs.find((d) => d.id === 'file.delete')?.risk).toBe('publish')
     expect(defs.find((d) => d.id === 'system.exec_inline')?.risk).toBe('publish')
     expect(defs.find((d) => d.id === 'git.status')?.group).toBe('git')
     expect(defs.find((d) => d.id === 'git.commit')?.risk).toBe('write')
+    expect(defs.find((d) => d.id === 'code.run_js')?.group).toBe('code')
   })
 
   it('runs file.write through the registry', async () => {

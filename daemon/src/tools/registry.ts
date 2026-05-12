@@ -3,6 +3,7 @@ import { createFileAdapter } from '../adapters/fileAdapter.js'
 import { createShellAdapter } from '../adapters/shellAdapter.js'
 import { createBrowserAdapter, BrowserAdapter } from '../adapters/browserAdapter.js'
 import { createGitAdapter } from '../adapters/gitAdapter.js'
+import { createNodeSandboxAdapter } from '../adapters/nodeSandboxAdapter.js'
 import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel, CapabilityGroup } from '../types.js'
 
 const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel; group: CapabilityGroup }> = {
@@ -26,6 +27,7 @@ const TOOL_META: Record<string, { displayName: string; description: string; risk
   'git.diff':    { displayName: 'Git diff',    description: 'Show unstaged or staged changes',   risk: 'read',  group: 'git' },
   'git.add':     { displayName: 'Git add',     description: 'Stage files for commit',            risk: 'write', group: 'git' },
   'git.commit':  { displayName: 'Git commit',  description: 'Commit staged changes',             risk: 'write', group: 'git' },
+  'code.run_js': { displayName: 'Run Node.js', description: 'Execute JavaScript in a Node.js sandbox', risk: 'publish', group: 'code' },
 }
 
 export interface RegistryOptions {
@@ -45,6 +47,7 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
   const shell = createShellAdapter({ allowlist: opts.commandAllowlist })
   const browser: BrowserAdapter = createBrowserAdapter()
   const gitAdapt = createGitAdapter({ allowedRoots: opts.allowedRoots })
+  const nodeSandbox = createNodeSandboxAdapter()
 
   const handlers: Record<string, ToolHandler> = {
     'file.read':           async (p) => file.read(p as any),
@@ -67,6 +70,7 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
     'git.diff':    async (p) => gitAdapt.diff(p as any),
     'git.add':     async (p) => gitAdapt.add(p as any),
     'git.commit':  async (p) => gitAdapt.commit(p as any),
+    'code.run_js': async (p) => nodeSandbox.runJs(p as any),
   }
 
   return {

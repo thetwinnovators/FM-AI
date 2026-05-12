@@ -92,4 +92,9 @@ export const schemas: Record<string, ZodSchema> = {
     repoPath: NonEmptyString,
     message: NonEmptyString,
   }).strict(),
+
+  'code.run_js': z.object({
+    code: NonEmptyString,
+    timeoutMs: z.number().int().positive().max(60_000).optional(),
+  }).strict(),
 }
