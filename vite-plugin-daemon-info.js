@@ -1,14 +1,70 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // Exposes the local operator daemon's connection info ({port, token}) from
 // ~/.flowmap/daemon.json to the browser via a Vite dev middleware. The browser
 // can't read that file directly; this proxy is the bridge.
+//
+// Also auto-spawns the daemon as a child of the dev server so the user does not
+// need a second terminal. Daemon stdout/stderr is prefixed with "[daemon]" and
+// the child is killed when Vite exits.
 export default function daemonInfo() {
+  let daemonProc = null
+
+  function startDaemon() {
+    if (daemonProc) return
+    const daemonDir = join(__dirname, 'daemon')
+    if (!existsSync(join(daemonDir, 'package.json'))) return
+
+    // Use `npx tsx` for cross-platform compatibility (Windows + POSIX).
+    daemonProc = spawn('npx', ['tsx', 'src/server.ts'], {
+      cwd: daemonDir,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: process.platform === 'win32',
+    })
+
+    daemonProc.stdout?.on('data', (chunk) => {
+      process.stdout.write(`\x1b[36m[daemon]\x1b[0m ${chunk}`)
+    })
+    daemonProc.stderr?.on('data', (chunk) => {
+      process.stderr.write(`\x1b[31m[daemon]\x1b[0m ${chunk}`)
+    })
+    daemonProc.on('exit', (code, signal) => {
+      if (code !== 0 && signal !== 'SIGTERM' && signal !== 'SIGKILL') {
+        console.warn(`[daemon] exited with code ${code} signal ${signal}`)
+      }
+      daemonProc = null
+    })
+
+    const stop = () => {
+      if (daemonProc) {
+        try { daemonProc.kill('SIGTERM') } catch { /* ignore */ }
+        daemonProc = null
+      }
+    }
+    process.once('exit', stop)
+    process.once('SIGINT', () => { stop(); process.exit(0) })
+    process.once('SIGTERM', () => { stop(); process.exit(0) })
+  }
+
   return {
     name: 'flowmap-daemon-info',
     configureServer(server) {
+      startDaemon()
+
+      server.httpServer?.once('close', () => {
+        if (daemonProc) {
+          try { daemonProc.kill('SIGTERM') } catch { /* ignore */ }
+          daemonProc = null
+        }
+      })
+
       server.middlewares.use('/api/daemon/info', (_req, res) => {
         try {
           const file = join(homedir(), '.flowmap', 'daemon.json')
