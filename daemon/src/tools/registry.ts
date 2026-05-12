@@ -1,0 +1,87 @@
+import { schemas } from './schemas.js'
+import { createFileAdapter } from '../adapters/fileAdapter.js'
+import { createShellAdapter } from '../adapters/shellAdapter.js'
+import { createBrowserAdapter, BrowserAdapter } from '../adapters/browserAdapter.js'
+import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel } from '../types.js'
+
+const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel }> = {
+  'file.read':           { displayName: 'Read file',         description: 'Read text contents of a file', risk: 'read' },
+  'file.list':           { displayName: 'List directory',    description: 'List entries in a directory',  risk: 'read' },
+  'file.exists':         { displayName: 'Check file exists', description: 'Check whether a path exists',  risk: 'read' },
+  'file.write':          { displayName: 'Write file',        description: 'Write or append text to a file', risk: 'write' },
+  'file.delete':         { displayName: 'Delete file',       description: 'Delete a file or directory',   risk: 'publish' },
+  'system.exec':         { displayName: 'Run allowlisted command', description: 'Run an allowlisted binary with args', risk: 'write' },
+  'system.exec_inline':  { displayName: 'Run inline script', description: 'Run an arbitrary shell script (approval required)', risk: 'publish' },
+  'browser.open':        { displayName: 'Open browser',      description: 'Start a new browser session',   risk: 'read' },
+  'browser.navigate':    { displayName: 'Navigate browser',  description: 'Navigate to a URL',             risk: 'read' },
+  'browser.screenshot':  { displayName: 'Take screenshot',   description: 'Capture page or element as PNG', risk: 'read' },
+  'browser.extract':     { displayName: 'Extract DOM data',  description: 'Read text/html/attrs from elements', risk: 'read' },
+  'browser.evaluate':    { displayName: 'Evaluate JS',       description: 'Run JS in the page context',    risk: 'write' },
+  'browser.click':       { displayName: 'Click element',     description: 'Click an element by selector',   risk: 'write' },
+  'browser.fill':        { displayName: 'Fill input',        description: 'Fill an input field',           risk: 'write' },
+  'browser.close':       { displayName: 'Close browser',     description: 'Close a browser session',       risk: 'read' },
+}
+
+export interface RegistryOptions {
+  allowedRoots: string[]
+  commandAllowlist: string[]
+  screenshotsDir: string
+}
+
+export interface ToolRegistry {
+  list(): ToolDefinition[]
+  run(toolId: string, params: unknown, ctx: ToolHandlerContext): Promise<unknown>
+  shutdown(): Promise<void>
+}
+
+export function buildRegistry(opts: RegistryOptions): ToolRegistry {
+  const file = createFileAdapter({ allowedRoots: opts.allowedRoots })
+  const shell = createShellAdapter({ allowlist: opts.commandAllowlist })
+  const browser: BrowserAdapter = createBrowserAdapter()
+
+  const handlers: Record<string, ToolHandler> = {
+    'file.read':           async (p) => file.read(p as any),
+    'file.list':           async (p) => file.list(p as any),
+    'file.exists':         async (p) => file.exists(p as any),
+    'file.write':          async (p) => file.write(p as any),
+    'file.delete':         async (p) => file.delete(p as any),
+    'system.exec':         async (p) => shell.run(p as any),
+    'system.exec_inline':  async () => { throw new Error('adapter_failure: exec_inline not implemented in Phase 1') },
+    'browser.open':        async (p) => browser.open(p as any),
+    'browser.navigate':    async (p) => browser.navigate(p as any),
+    'browser.screenshot':  async (p, ctx) => browser.screenshot({ ...(p as any), screenshotsDir: opts.screenshotsDir, jobId: ctx.jobId }),
+    'browser.extract':     async (p) => browser.extract(p as any),
+    'browser.evaluate':    async (p) => browser.evaluate(p as any),
+    'browser.click':       async (p) => browser.click(p as any),
+    'browser.fill':        async (p) => browser.fill(p as any),
+    'browser.close':       async (p) => browser.close(p as any),
+  }
+
+  return {
+    list(): ToolDefinition[] {
+      return Object.keys(TOOL_META).map((id) => ({
+        id,
+        displayName: TOOL_META[id]!.displayName,
+        description: TOOL_META[id]!.description,
+        risk: TOOL_META[id]!.risk,
+        paramsSchema: null,
+      }))
+    },
+
+    async run(toolId: string, params: unknown, ctx: ToolHandlerContext): Promise<unknown> {
+      const handler = handlers[toolId]
+      if (!handler) throw new Error(`unknown tool: ${toolId}`)
+      const schema = schemas[toolId]
+      if (!schema) throw new Error(`schema missing for tool: ${toolId}`)
+      const parsed = schema.safeParse(params)
+      if (!parsed.success) {
+        throw new Error(`validation_failed: ${parsed.error.message}`)
+      }
+      return handler(parsed.data, ctx)
+    },
+
+    async shutdown(): Promise<void> {
+      await browser.shutdown()
+    },
+  }
+}
