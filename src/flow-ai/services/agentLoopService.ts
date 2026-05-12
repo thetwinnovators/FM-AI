@@ -111,7 +111,26 @@ export async function runAgentLoop(
 
     // ── Answer action → done ───────────────────────────────────────────────
     if (parsed.action === 'answer') {
-      finalAnswer = parsed.answer ?? ''
+      const answerText = (parsed.answer ?? '').trim()
+      if (!answerText) {
+        // Small models occasionally emit action=answer with an empty string —
+        // they "decided" to answer but didn't form one. Re-prompt them once
+        // before falling back. Push a tool-role message describing the issue,
+        // bump the step, and continue the loop so they get another swing.
+        messages.push({
+          role: 'tool',
+          content: 'You set action=answer with an empty answer string. Re-respond with a non-empty answer field that actually addresses the user\'s question. If you genuinely have nothing to say, set answer="I need more information — could you rephrase or share what you\'d like me to look at?"',
+        })
+        emit({
+          type: 'step_done',
+          toolName: '(empty answer)',
+          resultSummary: 'Model returned action=answer with empty answer; re-prompting.',
+          step,
+        })
+        step++
+        continue
+      }
+      finalAnswer = answerText
       emit({ type: 'done', answer: finalAnswer })
       break
     }
@@ -196,14 +215,20 @@ export async function runAgentLoop(
     step++
   }
 
-  // Max-steps fallback
+  // Max-steps fallback. Differentiates between "hit the step ceiling" and
+  // "model never produced a substantive step" so the user sees an honest
+  // diagnosis instead of a generic "step limit" claim that may be wrong.
   if (!finalAnswer) {
     const doneSteps = steps.filter((s) => s.type === 'step_done') as Array<{
       type: 'step_done'; toolName: string; resultSummary: string; step: number
     }>
-    finalAnswer = doneSteps.length
-      ? `I've reached the step limit. Here's what I found: ${doneSteps.map((s) => s.resultSummary).join('; ')}`
-      : "I've reached the step limit without finding an answer."
+    if (step >= MAX_STEPS && doneSteps.length) {
+      finalAnswer = `Hit the ${MAX_STEPS}-step limit before reaching a final answer. Steps taken: ${doneSteps.map((s) => s.resultSummary).join('; ')}`
+    } else if (step >= MAX_STEPS) {
+      finalAnswer = `Hit the ${MAX_STEPS}-step limit without making progress. The local model struggled to produce a usable response — try rephrasing or switch to a larger model in the model picker.`
+    } else {
+      finalAnswer = "The model returned an empty answer. This usually means the local model is too small to follow the prompt — try rephrasing or switching to a 7B+ model in the chat panel's model picker."
+    }
     emit({ type: 'done', answer: finalAnswer })
   }
 
