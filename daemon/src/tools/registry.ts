@@ -2,6 +2,7 @@ import { schemas } from './schemas.js'
 import { createFileAdapter } from '../adapters/fileAdapter.js'
 import { createShellAdapter } from '../adapters/shellAdapter.js'
 import { createBrowserAdapter, BrowserAdapter } from '../adapters/browserAdapter.js'
+import { createGitAdapter } from '../adapters/gitAdapter.js'
 import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel, CapabilityGroup } from '../types.js'
 
 const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel; group: CapabilityGroup }> = {
@@ -20,6 +21,11 @@ const TOOL_META: Record<string, { displayName: string; description: string; risk
   'browser.click':       { displayName: 'Click element',     description: 'Click an element by selector',   risk: 'write', group: 'browser' },
   'browser.fill':        { displayName: 'Fill input',        description: 'Fill an input field',           risk: 'write', group: 'browser' },
   'browser.close':       { displayName: 'Close browser',     description: 'Close a browser session',       risk: 'read', group: 'browser' },
+  'git.status':  { displayName: 'Git status',  description: 'Get working directory status',      risk: 'read',  group: 'git' },
+  'git.log':     { displayName: 'Git log',     description: 'Get recent commit history',         risk: 'read',  group: 'git' },
+  'git.diff':    { displayName: 'Git diff',    description: 'Show unstaged or staged changes',   risk: 'read',  group: 'git' },
+  'git.add':     { displayName: 'Git add',     description: 'Stage files for commit',            risk: 'write', group: 'git' },
+  'git.commit':  { displayName: 'Git commit',  description: 'Commit staged changes',             risk: 'write', group: 'git' },
 }
 
 export interface RegistryOptions {
@@ -38,6 +44,7 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
   const file = createFileAdapter({ allowedRoots: opts.allowedRoots })
   const shell = createShellAdapter({ allowlist: opts.commandAllowlist })
   const browser: BrowserAdapter = createBrowserAdapter()
+  const gitAdapt = createGitAdapter({ allowedRoots: opts.allowedRoots })
 
   const handlers: Record<string, ToolHandler> = {
     'file.read':           async (p) => file.read(p as any),
@@ -55,6 +62,11 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
     'browser.click':       async (p) => browser.click(p as any),
     'browser.fill':        async (p) => browser.fill(p as any),
     'browser.close':       async (p) => browser.close(p as any),
+    'git.status':  async (p) => gitAdapt.status(p as any),
+    'git.log':     async (p) => gitAdapt.log(p as any),
+    'git.diff':    async (p) => gitAdapt.diff(p as any),
+    'git.add':     async (p) => gitAdapt.add(p as any),
+    'git.commit':  async (p) => gitAdapt.commit(p as any),
   }
 
   return {
