@@ -27,6 +27,7 @@ export type AgentEvent =
       approve: () => void
       deny: () => void
     }
+  | { type: 'file_read'; path: string; content: string; step: number }
 
 export interface MemoryContextEntry {
   category: string
@@ -159,6 +160,24 @@ export async function runAgentLoop(
     const summary = summariseResult(runResult.output)
     messages.push({ role: 'tool', content: JSON.stringify(runResult.output) })
     emit({ type: 'step_done', toolName: tool.displayName, resultSummary: summary, step })
+
+    // file.read full-content viewer event. Fires AFTER step_done so the timeline
+    // updates first, then the inline viewer opens. Not added to steps[] history
+    // because the content can be large and only the latest read matters.
+    if (
+      tool.toolName === 'file.read' &&
+      (runResult.output as any)?.content &&
+      typeof (runResult.output as any).content === 'string'
+    ) {
+      const pathArg = typeof (toolInput as any).path === 'string' ? (toolInput as any).path : ''
+      onEvent({
+        type: 'file_read',
+        path: pathArg,
+        content: (runResult.output as any).content,
+        step,
+      })
+    }
+
     step++
   }
 

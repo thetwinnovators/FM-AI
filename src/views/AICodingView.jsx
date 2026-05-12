@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { Code2 } from 'lucide-react'
 import AgentChatPanel from '../components/operator/AgentChatPanel.jsx'
+import FileViewerPanel from '../components/operator/FileViewerPanel.jsx'
 
 export default function AICodingView() {
+  const [viewer, setViewer] = useState(null)
+
   return (
     <div className="p-6 max-w-3xl">
       <div className="flex items-center gap-3 mb-1">
@@ -16,9 +20,19 @@ export default function AICodingView() {
         before asking the agent to read files.
       </p>
 
-      <AgentChatPanel
-        placeholder='"What does daemon/src/server.ts do?" or "show me the git diff of master"'
-      />
+      <div className="flex flex-col gap-4">
+        <AgentChatPanel
+          placeholder='"What does daemon/src/server.ts do?" or "show me the git diff of master"'
+          onFileRead={(path, content) => setViewer({ path, content })}
+        />
+        {viewer && (
+          <FileViewerPanel
+            path={viewer.path}
+            content={viewer.content}
+            onClose={() => setViewer(null)}
+          />
+        )}
+      </div>
     </div>
   )
 }
