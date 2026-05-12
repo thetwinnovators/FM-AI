@@ -56,6 +56,8 @@ export function buildAgentSystemPrompt(memoryContext: MemoryContextEntry[] = [])
     '- Maximum 5 reasoning steps.',
     '- toolId MUST be one of the exact ids in TOOLS AVAILABLE above (verbatim, case-sensitive). NEVER invent a new tool id — there is no way to create tools at runtime. If no listed tool fits, use action=answer to explain what you would need.',
     '- If you get a "Tool ... does NOT exist" error, do NOT retry the same fake id. Either pick a real id from the list or switch to action=answer.',
+    '- If the user asks what you can do, what tools you have, what capabilities exist, or to list/enumerate tools, ALWAYS use action=answer and summarise the TOOLS AVAILABLE list yourself. There is NO separate "list tools" tool — the catalog is already in this prompt.',
+    '- NEVER emit action=tool with an empty toolId. If you don\'t have a specific tool to invoke, use action=answer instead.',
     '- Prefer action=answer when you already have enough information, or when the user is asking a general/conceptual question that no listed tool can answer.',
     '- toolInput must only use parameter names described in the tool description.',
     '- Never fabricate tool output. Only report what tools actually return.',
