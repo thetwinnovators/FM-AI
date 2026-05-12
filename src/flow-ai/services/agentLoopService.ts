@@ -3,7 +3,6 @@ import { localMCPStorage } from '../../mcp/storage/localMCPStorage.js'
 import { runTool } from '../../mcp/services/mcpExecutionService.js'
 import { writeAgentResult } from '../../mcp/services/mcpMemoryService.js'
 import { buildAgentSystemPrompt } from './agentSystemPrompt.js'
-import type { MCPToolDefinition } from '../../mcp/types.js'
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -62,32 +61,6 @@ function summariseResult(result: unknown): string {
   if (result === undefined || result === null) return 'No output'
   const str = typeof result === 'string' ? result : JSON.stringify(result)
   return str.slice(0, 200)
-}
-
-function buildInputSummary(toolInput: Record<string, unknown>): string {
-  return Object.entries(toolInput)
-    .map(([k, v]) => `${k}: ${String(v).slice(0, 60)}`)
-    .join(', ')
-    .slice(0, 120)
-}
-
-function awaitApproval(
-  tool: MCPToolDefinition,
-  toolInput: Record<string, unknown>,
-  onEvent: (event: AgentEvent) => void,
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    onEvent({
-      type: 'awaiting_approval',
-      pendingApproval: {
-        toolName: tool.displayName,
-        integrationId: tool.integrationId,
-        inputSummary: buildInputSummary(toolInput),
-      },
-      approve: () => resolve(true),
-      deny: () => resolve(false),
-    })
-  })
 }
 
 // ─── Main loop ────────────────────────────────────────────────────────────────
@@ -157,19 +130,20 @@ export async function runAgentLoop(
 
     emit({ type: 'tool_selected', toolName: tool.displayName, step })
 
-    // Approval gate for non-read tools
-    if (tool.riskLevel !== 'read') {
-      const approved = await awaitApproval(tool, toolInput, onEvent)
-      if (!approved) {
-        emit({ type: 'denied', toolName: tool.displayName, step })
-        finalAnswer = `I would have used ${tool.displayName} to complete that action. Let me know if you'd like to proceed.`
-        emit({ type: 'done', answer: finalAnswer })
-        break
-      }
+    // Execute. The approval gate now lives inside runTool() — any write/publish
+    // tool (or anything else flagged requiresApproval) is gated by the global
+    // ApprovalDialog. When the user denies, runTool returns
+    // { success: false, error: 'denied by user' } and we surface that as a
+    // `denied` event then end the run (we don't keep trying after a refusal).
+    let runResult = await runTool({ toolId: tool.id, input: toolInput, sourceSurface: 'chat' })
+    if (!runResult.success && runResult.error === 'denied by user') {
+      emit({ type: 'denied', toolName: tool.displayName, step })
+      finalAnswer = `I would have used ${tool.displayName} to complete that action. Let me know if you'd like to proceed.`
+      emit({ type: 'done', answer: finalAnswer })
+      break
     }
 
-    // Execute — retry once on failure
-    let runResult = await runTool({ toolId: tool.id, input: toolInput, sourceSurface: 'chat' })
+    // Retry once on non-denial failure
     if (!runResult.success) {
       runResult = await runTool({ toolId: tool.id, input: toolInput, sourceSurface: 'chat' })
     }
