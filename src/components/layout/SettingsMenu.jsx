@@ -11,6 +11,7 @@ import { stopVoice } from '../../lib/voice/player.js'
 import { getTheme, setTheme } from '../../lib/theme.js'
 import { syncState, subscribeSyncStatus, pullSyncedState } from '../../store/useStore.js'
 import { useConfirm } from '../ui/ConfirmProvider.jsx'
+import LocalOperatorPanel from '../settings/LocalOperatorPanel.jsx'
 
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(15,17,28,0.96) 0%, rgba(8,10,18,0.98) 100%)',
@@ -205,6 +206,8 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
             {ollamaEnabled ? 'on' : 'off'}
           </span>
         </button>
+
+        <LocalOperatorPanel />
 
         <button
           onClick={onToggleVoice}
