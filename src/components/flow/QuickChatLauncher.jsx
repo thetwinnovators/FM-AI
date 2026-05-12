@@ -223,7 +223,9 @@ export default function QuickChatLauncher() {
     // because it false-positively eats legitimate replies like "I've noted
     // that you asked..." Only obvious hallucinated confirmations are stripped.
     const cleaned = assistantText
-      .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
+      // Strip <fm-action>...</fm-action> AND malformed variants the small model
+      // emits: [fm-action]...</fm-action>, [fm-action]...[/fm-action], etc.
+      .replace(/[<\[(]\s*fm-action\s*[>\])][\s\S]*?[<\[(]\s*\/\s*fm-action\s*[>\])]/gi, '')
       .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
       .replace(/^\s*The new topic is now available[^\n]*/gim, '')
       .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact)\b[^\n]*/gim, '')

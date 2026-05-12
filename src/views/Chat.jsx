@@ -659,6 +659,7 @@ export default function Chat() {
   const [agentSteps, setAgentSteps] = useState([])
   const [pendingApproval, setPendingApproval] = useState(null)
   const approvalResolveRef = useRef(null)
+  const [actionQueue, setActionQueue] = useState([])
 
   // Probe Ollama on mount (and whenever enabled flips) so we can surface a
   // helpful banner early rather than waiting for a send to fail.
@@ -725,6 +726,7 @@ export default function Chat() {
   useEffect(() => {
     setStreamingText('')
     setRetrievedHint([])
+    setActionQueue([])
     // Only clear `busy` if the stream was tied to the previous conversation;
     // when we auto-navigate to a new convo mid-send, busy should stay true.
   }, [id])
@@ -758,35 +760,69 @@ export default function Chat() {
     }
   }
 
-  // ── FlowMap action runner ─────────────────────────────────────────────────
-  // Parses <fm-action>{...}</fm-action> blocks from the AI reply, runs each
-  // action against the store/router, and returns the cleaned display text.
-  function runAssistantActions(rawText) {
-    const re = /<fm-action>([\s\S]*?)<\/fm-action>/gi
+  // ── FlowMap action parser ─────────────────────────────────────────────────
+  // Parses <fm-action> blocks from the AI reply WITHOUT executing them.
+  // Returns { displayText, actions } — callers route actions through the
+  // permission gate before committing them to the store.
+  function parseAssistantActions(rawText) {
+    const re = /[<\[(]\s*fm-action\s*[>\])]([\s\S]*?)[<\[(]\s*\/\s*fm-action\s*[>\])]/gi
+    const actions = []
+    let foundAddTopic = false
     let m
     while ((m = re.exec(rawText)) !== null) {
       let action
       try { action = JSON.parse(m[1].trim()) } catch { continue }
-      try {
-        if (action.type === 'add_topic' && action.name) {
-          addUserTopic({
-            name:    String(action.name).trim(),
-            summary: action.summary ? String(action.summary).trim() : 'Added via FlowMap AI.',
-            source:  'chat-ai',
-            query:   String(action.name).trim(),
-          })
-        } else if (action.type === 'save_memory' && action.content) {
-          addMemory({
-            category: action.category || 'research_note',
-            content:  String(action.content).trim(),
-            source:   'chat-ai',
-          })
-        } else if (action.type === 'navigate' && action.path) {
-          setTimeout(() => navigate(String(action.path)), 800)
-        }
-      } catch { /* action failed silently */ }
+      if (action.type === 'add_topic' && action.name) {
+        foundAddTopic = true
+        actions.push({ type: 'add_topic', name: String(action.name).trim(), summary: action.summary ? String(action.summary).trim() : 'Added via FlowMap AI.' })
+      } else if (action.type === 'save_memory' && action.content) {
+        actions.push({ type: 'save_memory', content: String(action.content).trim(), category: action.category || 'research_note' })
+      } else if (action.type === 'navigate' && action.path) {
+        setTimeout(() => navigate(String(action.path)), 800)
+      }
     }
-    return rawText.replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '').replace(/\n{3,}/g, '\n\n').trim()
+    // Fallback: model verbally confirmed a topic without emitting the fm-action block
+    if (!foundAddTopic) {
+      const m1 = rawText.match(/[Ii]['']ve (?:created|added) (?:a new topic[:\s]+)["""'']([^"""'']+)["""'']/i)
+      const m2 = rawText.match(/[Ii]['']ve (?:created|added) (?:the )["""'']([^"""'']+)["""''] topic/i)
+      const topicName = (m1?.[1] || m2?.[1] || '').trim()
+      if (topicName) actions.push({ type: 'add_topic', name: topicName, summary: 'Added via FlowMap AI.' })
+    }
+    // Strip fm-action blocks AND false "Done — I've added/saved..." confirmation
+    // claims from the display. The small model hallucinates these confirmations
+    // even when no action block was emitted, so we always strip them — if a
+    // real action was queued, the permission gate UI surfaces it below.
+    let displayText = rawText
+      .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
+      .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
+      .replace(/^\s*The new topic is now available[^\n]*/gim, '')
+      .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact|that)[^\n]*/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
+    if (!displayText && actions.length > 0) {
+      displayText = '_Waiting for your approval — see below._'
+    } else if (!displayText) {
+      // Model produced only hallucinated confirmations with no real content
+      displayText = '_(no response — try rephrasing your question)_'
+    }
+
+    return { displayText, actions }
+  }
+
+  function handleActionAllow() {
+    const action = actionQueue[0]
+    if (!action) return
+    if (action.type === 'add_topic') {
+      addUserTopic({ name: action.name, summary: action.summary, source: 'chat-ai', query: action.name })
+    } else if (action.type === 'save_memory') {
+      addMemory({ category: action.category, content: action.content, source: 'chat-ai' })
+    }
+    setActionQueue((q) => q.slice(1))
+  }
+
+  function handleActionDeny() {
+    setActionQueue((q) => q.slice(1))
   }
 
   async function handleSend(text) {
@@ -955,8 +991,17 @@ export default function Chat() {
       } catch { /* devWarn already fired in adapter */ }
 
       if (assistantText.trim()) {
-        // Parse + run any <fm-action> blocks; get back clean prose for display.
-        const displayText = runAssistantActions(assistantText)
+        const { displayText, actions: parsedActions } = parseAssistantActions(assistantText)
+        // Keyword gate: only surface add_topic / save_memory actions when the
+        // user's message explicitly requested them. The small model fires these
+        // for almost every message, so we enforce the gate in code rather than
+        // relying on prompt instructions alone.
+        const ACTION_REQUESTED = /\b(create|add|track|follow)\b.{0,30}\btopic\b|\b(save|remember|note|keep)\b.{0,40}\b(that|this|fact|memory)\b/i
+        const userAskedForAction = ACTION_REQUESTED.test(text)
+        const actions = userAskedForAction
+          ? parsedActions
+          : parsedActions.filter((a) => a.type === 'navigate')
+        if (actions.length > 0) setActionQueue(actions)
         addChatMessage(convId, {
           role: 'assistant',
           content: displayText,
@@ -1226,6 +1271,36 @@ export default function Chat() {
                 </div>
               ) : null}
               {retrievedHint.length > 0 && (busy || streamingText) ? <CitedDocsHint retrieved={retrievedHint} /> : null}
+              {actionQueue.length > 0 && (() => {
+                const action = actionQueue[0]
+                const label = action.type === 'add_topic'
+                  ? `Add topic "${action.name}"`
+                  : `Save to memory: "${action.content.slice(0, 80)}${action.content.length > 80 ? '…' : ''}"`
+                return (
+                  <div className="flex justify-start mb-4">
+                    <div className="max-w-[75%] rounded-xl border border-indigo-400/20 bg-indigo-500/[0.06] px-4 py-3">
+                      <p className="text-[11px] text-indigo-300/70 mb-1.5 flex items-center gap-1.5">
+                        <Sparkles size={10} /> Flow AI wants to perform an action
+                      </p>
+                      <p className="text-sm text-white/80 mb-3">{label}</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleActionAllow}
+                          className="px-3 py-1.5 rounded-lg text-xs bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 hover:bg-indigo-500/30 transition-colors"
+                        >
+                          Allow
+                        </button>
+                        <button
+                          onClick={handleActionDeny}
+                          className="px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/60 transition-colors"
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
               </div>
             </div>
 
