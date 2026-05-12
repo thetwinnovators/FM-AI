@@ -4,6 +4,7 @@ import { createShellAdapter } from '../adapters/shellAdapter.js'
 import { createBrowserAdapter, BrowserAdapter } from '../adapters/browserAdapter.js'
 import { createGitAdapter } from '../adapters/gitAdapter.js'
 import { createNodeSandboxAdapter } from '../adapters/nodeSandboxAdapter.js'
+import { ServerManager } from '../mcp/serverManager.js'
 import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel, CapabilityGroup } from '../types.js'
 
 const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel; group: CapabilityGroup }> = {
@@ -34,6 +35,7 @@ export interface RegistryOptions {
   allowedRoots: string[]
   commandAllowlist: string[]
   screenshotsDir: string
+  mcpManager?: ServerManager
 }
 
 export interface ToolRegistry {
@@ -86,6 +88,14 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
     },
 
     async run(toolId: string, params: unknown, ctx: ToolHandlerContext): Promise<unknown> {
+      // Docker MCP tool — delegate to ServerManager
+      if (toolId.startsWith('docker_mcp::')) {
+        if (!opts.mcpManager) throw new Error('adapter_failure: docker-mcp not configured')
+        const parts = toolId.split('::')
+        if (parts.length !== 3) throw new Error(`validation_failed: malformed tool id: ${toolId}`)
+        const [, serverId, toolName] = parts as [string, string, string]
+        return opts.mcpManager.callTool(serverId, toolName, params as Record<string, unknown>)
+      }
       const handler = handlers[toolId]
       if (!handler) throw new Error(`unknown tool: ${toolId}`)
       const schema = schemas[toolId]

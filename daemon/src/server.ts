@@ -8,6 +8,7 @@ import { buildRegistry, ToolRegistry } from './tools/registry.js'
 import { JobQueue } from './queue/jobQueue.js'
 import { JobStore } from './queue/jobStore.js'
 import { EventLog } from './logging/eventLog.js'
+import { ServerManager } from './mcp/serverManager.js'
 import type { Job, JobEvent, ErrorCode } from './types.js'
 
 export interface ServerOptions {
@@ -16,14 +17,22 @@ export interface ServerOptions {
   commandAllowlist: string[]
   screenshotsDir: string
   dbPath: string
+  mcpRegistryPath?: string
 }
 
 export async function buildServer(opts: ServerOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
+  const mcpManager = new ServerManager(opts.mcpRegistryPath)
+  // Sync eagerly but don't block server startup — Docker may be slow
+  mcpManager.sync().catch((err) => {
+    console.warn('docker-mcp initial sync failed:', err?.message ?? err)
+  })
+
   const registry: ToolRegistry = buildRegistry({
     allowedRoots: opts.allowedRoots,
     commandAllowlist: opts.commandAllowlist,
     screenshotsDir: opts.screenshotsDir,
+    mcpManager,
   })
   const queue = new JobQueue({ concurrency: 4 })
   const store = new JobStore(opts.dbPath)
@@ -42,7 +51,34 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
 
   app.get('/tools', async (req, reply) => {
     if (!requireAuth(req, reply)) return
-    return { tools: registry.list() }
+    const native = registry.list()
+    const dockerTools = mcpManager.listServers()
+      .filter((s) => s.status === 'connected')
+      .flatMap((s) => s.tools.map((t) => ({
+        id: `docker_mcp::${s.config.id}::${t.name}`,
+        displayName: `${t.name} (${s.config.name})`,
+        description: t.description ?? '',
+        risk: 'write' as const,
+        group: 'docker_mcp' as const,
+        paramsSchema: t.inputSchema ?? null,
+      })))
+    return { tools: [...native, ...dockerTools] }
+  })
+
+  app.get('/docker-mcp/servers', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    return { servers: mcpManager.listServers() }
+  })
+
+  app.post('/docker-mcp/sync', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    try {
+      await mcpManager.sync()
+      return { servers: mcpManager.listServers() }
+    } catch (err: any) {
+      reply.code(500)
+      return { error: err?.message ?? String(err) }
+    }
   })
 
   app.post('/jobs', async (req, reply) => {
@@ -52,7 +88,8 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       reply.code(400)
       return { error: 'toolId required' }
     }
-    const known = registry.list().find((t) => t.id === body.toolId)
+    const isDockerMcpTool = body.toolId.startsWith('docker_mcp::')
+    const known = isDockerMcpTool || registry.list().find((t) => t.id === body.toolId)
     if (!known) {
       reply.code(400)
       return { error: `unknown tool: ${body.toolId}` }
@@ -133,6 +170,7 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
 
   app.addHook('onClose', async () => {
     await registry.shutdown()
+    await mcpManager.shutdown()
   })
 
   return app
@@ -151,6 +189,7 @@ export async function startServer(): Promise<void> {
     commandAllowlist: ['python', 'python3', 'node', 'npm', 'git', 'curl'],
     screenshotsDir,
     dbPath: join(CONFIG_DIR, 'jobs.db'),
+    mcpRegistryPath: join(CONFIG_DIR, 'docker-mcp-servers.json'),
   })
 
   const address = await app.listen({ port: cfg.port || 0, host: '127.0.0.1' })

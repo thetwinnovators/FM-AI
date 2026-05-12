@@ -67,4 +67,46 @@ describe('tools registry', () => {
     expect(defs.find((d) => d.id === 'system.exec')?.group).toBe('system')
     expect(defs.find((d) => d.id === 'browser.open')?.group).toBe('browser')
   })
+
+  it('routes docker_mcp:: ids through mcpManager.callTool', async () => {
+    let captured: any = null
+    const fakeManager = {
+      callTool: async (serverId: string, toolName: string, args: any) => {
+        captured = { serverId, toolName, args }
+        return { ok: true }
+      },
+    }
+    const reg2 = buildRegistry({
+      allowedRoots: [root],
+      commandAllowlist: ['node'],
+      screenshotsDir: join(root, 'screenshots'),
+      mcpManager: fakeManager as any,
+    })
+    const result = await reg2.run('docker_mcp::context7::resolve-library-id', { name: 'react' }, {
+      jobId: 't', emit: () => {}, signal: new AbortController().signal,
+    })
+    expect(captured).toEqual({ serverId: 'context7', toolName: 'resolve-library-id', args: { name: 'react' } })
+    expect(result).toEqual({ ok: true })
+    await reg2.shutdown()
+  })
+
+  it('rejects docker_mcp:: id when mcpManager is not configured', async () => {
+    await expect(registry.run('docker_mcp::context7::tool', {}, {
+      jobId: 't', emit: () => {}, signal: new AbortController().signal,
+    })).rejects.toThrow(/docker-mcp not configured/)
+  })
+
+  it('rejects malformed docker_mcp id', async () => {
+    const fakeManager = { callTool: async () => ({}) }
+    const reg2 = buildRegistry({
+      allowedRoots: [root],
+      commandAllowlist: ['node'],
+      screenshotsDir: join(root, 'screenshots'),
+      mcpManager: fakeManager as any,
+    })
+    await expect(reg2.run('docker_mcp::onlyone', {}, {
+      jobId: 't', emit: () => {}, signal: new AbortController().signal,
+    })).rejects.toThrow(/malformed/)
+    await reg2.shutdown()
+  })
 })
