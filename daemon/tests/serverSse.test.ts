@@ -14,7 +14,7 @@ describe('server SSE /jobs/:id', () => {
   beforeEach(async () => {
     root = mkdtempSync(join(tmpdir(), 'sse-'))
     app = await buildServer({
-      token: TOKEN, allowedRoots: [root], commandAllowlist: ['node'],
+      token: TOKEN, defaultRoots: [root], commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'), dbPath: ':memory:',
     })
     await app.listen({ port: 0, host: '127.0.0.1' })

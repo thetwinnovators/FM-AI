@@ -10,11 +10,13 @@ import { JobQueue } from './queue/jobQueue.js'
 import { JobStore } from './queue/jobStore.js'
 import { EventLog } from './logging/eventLog.js'
 import { ServerManager } from './mcp/serverManager.js'
+import { WorkspaceRoots } from './workspace/workspaceRoots.js'
 import type { Job, JobEvent, ErrorCode } from './types.js'
 
 export interface ServerOptions {
   token: string
-  allowedRoots: string[]
+  workspaceRootsPath?: string
+  defaultRoots: string[]
   commandAllowlist: string[]
   screenshotsDir: string
   dbPath: string
@@ -29,8 +31,13 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
   // /health behind a bearer token, so reflecting origin is safe.
   await app.register(cors, {
     origin: true,
-    methods: ['GET', 'POST', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['authorization', 'content-type'],
+  })
+
+  const workspaceRoots = new WorkspaceRoots({
+    filePath: opts.workspaceRootsPath ?? '',
+    defaults: opts.defaultRoots,
   })
 
   const mcpManager = new ServerManager(opts.mcpRegistryPath)
@@ -40,7 +47,7 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
   })
 
   const registry: ToolRegistry = buildRegistry({
-    allowedRoots: opts.allowedRoots,
+    getAllowedRoots: () => workspaceRoots.list(),
     commandAllowlist: opts.commandAllowlist,
     screenshotsDir: opts.screenshotsDir,
     mcpManager,
@@ -90,6 +97,33 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       reply.code(500)
       return { error: err?.message ?? String(err) }
     }
+  })
+
+  app.get('/workspace-roots', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    return { roots: workspaceRoots.list() }
+  })
+
+  app.post('/workspace-roots', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const body = req.body as { path?: string }
+    if (!body?.path || typeof body.path !== 'string') {
+      reply.code(400)
+      return { error: 'path required' }
+    }
+    await workspaceRoots.add(body.path)
+    return { roots: workspaceRoots.list() }
+  })
+
+  app.delete('/workspace-roots', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const body = req.body as { path?: string }
+    if (!body?.path || typeof body.path !== 'string') {
+      reply.code(400)
+      return { error: 'path required' }
+    }
+    await workspaceRoots.remove(body.path)
+    return { roots: workspaceRoots.list() }
   })
 
   app.post('/jobs', async (req, reply) => {
@@ -196,7 +230,8 @@ export async function startServer(): Promise<void> {
 
   const app = await buildServer({
     token: cfg.token,
-    allowedRoots: [workspace],
+    workspaceRootsPath: join(CONFIG_DIR, 'workspace-roots.json'),
+    defaultRoots: [workspace],
     commandAllowlist: ['python', 'python3', 'node', 'npm', 'git', 'curl'],
     screenshotsDir,
     dbPath: join(CONFIG_DIR, 'jobs.db'),

@@ -41,7 +41,7 @@ describe('end-to-end through HTTP', () => {
     root = mkdtempSync(join(tmpdir(), 'e2e-'))
     app = await buildServer({
       token: TOKEN,
-      allowedRoots: [root],
+      defaultRoots: [root],
       commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'),
       dbPath: ':memory:',

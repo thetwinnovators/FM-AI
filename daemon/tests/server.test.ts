@@ -14,7 +14,7 @@ describe('server', () => {
     root = mkdtempSync(join(tmpdir(), 'srv-'))
     app = await buildServer({
       token: TOKEN,
-      allowedRoots: [root],
+      defaultRoots: [root],
       commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'),
       dbPath: ':memory:',

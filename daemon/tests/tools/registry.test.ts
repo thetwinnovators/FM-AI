@@ -11,7 +11,7 @@ describe('tools registry', () => {
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'reg-'))
     registry = buildRegistry({
-      allowedRoots: [root],
+      getAllowedRoots: () => [root],
       commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'),
     })
@@ -77,7 +77,7 @@ describe('tools registry', () => {
       },
     }
     const reg2 = buildRegistry({
-      allowedRoots: [root],
+      getAllowedRoots: () => [root],
       commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'),
       mcpManager: fakeManager as any,
@@ -99,7 +99,7 @@ describe('tools registry', () => {
   it('rejects malformed docker_mcp id', async () => {
     const fakeManager = { callTool: async () => ({}) }
     const reg2 = buildRegistry({
-      allowedRoots: [root],
+      getAllowedRoots: () => [root],
       commandAllowlist: ['node'],
       screenshotsDir: join(root, 'screenshots'),
       mcpManager: fakeManager as any,

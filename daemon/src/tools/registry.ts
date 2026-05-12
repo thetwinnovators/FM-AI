@@ -32,7 +32,7 @@ const TOOL_META: Record<string, { displayName: string; description: string; risk
 }
 
 export interface RegistryOptions {
-  allowedRoots: string[]
+  getAllowedRoots: () => string[]
   commandAllowlist: string[]
   screenshotsDir: string
   mcpManager?: ServerManager
@@ -45,10 +45,10 @@ export interface ToolRegistry {
 }
 
 export function buildRegistry(opts: RegistryOptions): ToolRegistry {
-  const file = createFileAdapter({ allowedRoots: opts.allowedRoots })
+  const file = createFileAdapter({ getAllowedRoots: opts.getAllowedRoots })
   const shell = createShellAdapter({ allowlist: opts.commandAllowlist })
   const browser: BrowserAdapter = createBrowserAdapter()
-  const gitAdapt = createGitAdapter({ allowedRoots: opts.allowedRoots })
+  const gitAdapt = createGitAdapter({ getAllowedRoots: opts.getAllowedRoots })
   const nodeSandbox = createNodeSandboxAdapter()
 
   const handlers: Record<string, ToolHandler> = {
