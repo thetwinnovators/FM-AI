@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "daemon": "cd daemon && npm start",
+    "daemon:install": "cd daemon && npm install"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",

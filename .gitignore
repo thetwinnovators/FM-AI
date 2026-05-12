@@ -12,3 +12,6 @@ coverage
 docs/*.pdf
 docs/*.docx
 .worktrees/
+daemon/node_modules
+daemon/dist
+daemon/data
