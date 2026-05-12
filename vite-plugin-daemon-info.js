@@ -21,12 +21,20 @@ export default function daemonInfo() {
     const daemonDir = join(__dirname, 'daemon')
     if (!existsSync(join(daemonDir, 'package.json'))) return
 
-    // Use `npx tsx` for cross-platform compatibility (Windows + POSIX).
-    daemonProc = spawn('npx', ['tsx', 'src/server.ts'], {
+    // Spawn node directly with tsx's CLI entrypoint. Going through `npx tsx`
+    // with `shell: true` on Windows wraps the child in cmd.exe + npm + tsx and
+    // makes stdout buffering + signal forwarding unreliable — output never
+    // surfaces and SIGTERM doesn't reach the actual node process.
+    const tsxCli = join(daemonDir, 'node_modules', 'tsx', 'dist', 'cli.mjs')
+    const serverEntry = join(daemonDir, 'src', 'server.ts')
+    if (!existsSync(tsxCli)) {
+      console.warn('[daemon] tsx CLI not found at', tsxCli, '— run `npm install` in daemon/')
+      return
+    }
+    daemonProc = spawn(process.execPath, [tsxCli, serverEntry], {
       cwd: daemonDir,
       env: process.env,
       stdio: ['ignore', 'pipe', 'pipe'],
-      shell: process.platform === 'win32',
     })
 
     daemonProc.stdout?.on('data', (chunk) => {

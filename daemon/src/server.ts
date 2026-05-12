@@ -198,8 +198,24 @@ export async function startServer(): Promise<void> {
   console.log(`flowmap-operator daemon listening on ${address}`)
 }
 
-const isMain = import.meta.url === `file://${process.argv[1]}` || import.meta.url.endsWith(process.argv[1] ?? '')
-if (isMain) {
+// Normalize both sides to absolute OS-native paths. The previous string-equality
+// check failed on Windows (forward slashes in import.meta.url vs backslashes in
+// process.argv[1]) so the daemon would import cleanly and then exit with code 0
+// without ever calling startServer.
+async function isEntryPoint(): Promise<boolean> {
+  if (!process.argv[1]) return false
+  try {
+    const { fileURLToPath } = await import('node:url')
+    const { resolve } = await import('node:path')
+    const here = resolve(fileURLToPath(import.meta.url))
+    const argv1 = resolve(process.argv[1])
+    return here === argv1
+  } catch {
+    return false
+  }
+}
+
+if (await isEntryPoint()) {
   startServer().catch((err) => {
     console.error('daemon failed to start:', err)
     process.exit(1)
