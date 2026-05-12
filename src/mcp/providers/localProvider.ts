@@ -67,7 +67,13 @@ export const localProvider: MCPIntegrationProvider = {
     const r = await call('/tools')
     if (!r.ok) throw new Error(`/tools failed: ${r.status}`)
     const body = await r.json() as {
-      tools: Array<{ id: string; displayName: string; description: string; risk: MCPToolRiskLevel }>
+      tools: Array<{
+        id: string
+        displayName: string
+        description: string
+        risk: MCPToolRiskLevel
+        group?: string
+      }>
     }
     return body.tools.map((t): MCPToolDefinition => ({
       id: t.id,
@@ -78,6 +84,8 @@ export const localProvider: MCPIntegrationProvider = {
       riskLevel: t.risk,
       permissionMode: riskToPermissionMode(t.risk),
       tags: ['local', t.id.split('.')[0] ?? 'misc'],
+      capabilityGroup: (t.group as MCPToolDefinition['capabilityGroup']) ?? 'general',
+      toolSource: 'native',
     }))
   },
 

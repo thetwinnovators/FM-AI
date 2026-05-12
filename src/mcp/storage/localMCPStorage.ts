@@ -140,6 +140,15 @@ const SEED_INTEGRATIONS: MCPIntegration[] = [
     updatedAt: new Date().toISOString(),
     scopes: ['topics.read', 'topics.write', 'memory.read', 'memory.write', 'search.read', 'saves.read', 'saves.write'],
   },
+  {
+    id: 'integ_docker_mcp',
+    type: 'docker-mcp',
+    name: 'Docker MCP Servers',
+    description: 'AI coding and terminal control tools via Docker Desktop MCP Toolkit.',
+    status: 'disconnected',
+    updatedAt: new Date().toISOString(),
+    scopes: ['tools.list', 'tools.execute'],
+  },
 ]
 
 function makeSeedTelegramMessages(): TelegramCommandMessage[] {
