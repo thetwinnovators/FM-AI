@@ -38,6 +38,7 @@ const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
 const OperatorWorkspace      = lazy(() => import('./views/OperatorWorkspace.jsx'))
 const AICodingView           = lazy(() => import('./views/AICodingView.jsx'))
 const TerminalControlView    = lazy(() => import('./views/TerminalControlView.jsx'))
+const OperatorSettings       = lazy(() => import('./views/OperatorSettings.jsx'))
 
 // ─── Scroll restoration ───────────────────────────────────────────────────────
 // Scrolls the main content panel to the top on every route change so the user
@@ -79,6 +80,7 @@ function AnimatedRoutes() {
           <Route path="/operator"                      element={<OperatorWorkspace />} />
           <Route path="/operator/coding"               element={<AICodingView />} />
           <Route path="/operator/terminal"             element={<TerminalControlView />} />
+          <Route path="/operator/settings"             element={<OperatorSettings />} />
           <Route path="/memory"                        element={<Memory />} />
           <Route path="/connections"                   element={<MCPIntegrationsPage />} />
           <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />
