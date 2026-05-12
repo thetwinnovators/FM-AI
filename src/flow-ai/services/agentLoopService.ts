@@ -122,9 +122,17 @@ export async function runAgentLoop(
 
     const tool = localMCPStorage.listTools().find((t) => t.id === toolId) ?? null
     if (!tool) {
-      const msg = `Tool "${toolId}" not found in the registry.`
+      // Surface the valid tool IDs back to the model — small models otherwise
+      // re-hallucinate the same fake id on every retry. Capped at 30 to keep
+      // the feedback message under a sensible size.
+      const validIds = localMCPStorage.listTools().map((t) => t.id).slice(0, 30)
+      const msg =
+        `Tool "${toolId}" does NOT exist. You cannot create tools. ` +
+        `Choose ONE of these valid tool IDs (verbatim) or respond with action=answer to explain to the user: ` +
+        validIds.join(', ') +
+        (localMCPStorage.listTools().length > 30 ? ', …' : '')
       messages.push({ role: 'tool', content: msg })
-      emit({ type: 'step_done', toolName: toolId, resultSummary: msg, step })
+      emit({ type: 'step_done', toolName: toolId, resultSummary: `Unknown tool "${toolId}" — see system prompt for valid IDs.`, step })
       step++
       continue
     }

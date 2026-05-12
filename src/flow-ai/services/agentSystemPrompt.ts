@@ -54,8 +54,9 @@ export function buildAgentSystemPrompt(memoryContext: MemoryContextEntry[] = [])
     memoryBlock,
     'CONSTRAINTS:',
     '- Maximum 5 reasoning steps.',
-    '- Prefer action=answer when you already have enough information.',
-    '- When uncertain which tool to use, choose action=answer and explain naturally.',
+    '- toolId MUST be one of the exact ids in TOOLS AVAILABLE above (verbatim, case-sensitive). NEVER invent a new tool id — there is no way to create tools at runtime. If no listed tool fits, use action=answer to explain what you would need.',
+    '- If you get a "Tool ... does NOT exist" error, do NOT retry the same fake id. Either pick a real id from the list or switch to action=answer.',
+    '- Prefer action=answer when you already have enough information, or when the user is asking a general/conceptual question that no listed tool can answer.',
     '- toolInput must only use parameter names described in the tool description.',
     '- Never fabricate tool output. Only report what tools actually return.',
   ].join('\n')
