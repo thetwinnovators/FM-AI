@@ -1,6 +1,7 @@
-import { vi, beforeEach, describe, expect, it } from 'vitest'
+import { vi, beforeEach, afterEach, describe, expect, it } from 'vitest'
 import { runTool, getExecutionLog } from '../mcpExecutionService.js'
 import { localMCPStorage } from '../../storage/localMCPStorage.js'
+import { setApprovalHandler } from '../approvalBridge.js'
 
 // Mock getProvider so execution tests don't depend on real provider implementations.
 // The mock returns a controllable stub for figma that always reports success for
@@ -47,6 +48,12 @@ beforeEach(() => {
   ])
 })
 
+afterEach(() => {
+  // Clear any approval handler registered during a test so it doesn't leak
+  // into the next test and accidentally allow/deny unrelated executions.
+  setApprovalHandler(null)
+})
+
 describe('runTool', () => {
   it('succeeds for a read-risk tool', async () => {
     const result = await runTool({ toolId: 'figma_auto_tool', input: { brief: 'test' } })
@@ -74,7 +81,11 @@ describe('runTool', () => {
     expect(result.error).toMatch(/not found/i)
   })
 
-  it('queues awaiting_approval record for approval_required tool', async () => {
+  // Approval flow is now driven by approvalBridge.requestApproval(). The execution
+  // service asks the bridge and either proceeds (handler returns true) or marks
+  // the record cancelled with error 'denied by user' (handler returns false or no
+  // handler registered).
+  it('proceeds when approval handler approves an approval_required tool', async () => {
     localMCPStorage.saveTools('integ_figma', [
       {
         id: 'figma_approval',
@@ -84,14 +95,46 @@ describe('runTool', () => {
         permissionMode: 'approval_required',
       },
     ])
-    const result = await runTool({ toolId: 'figma_approval' })
-    expect(result.success).toBe(false)
-    expect(result.requiresApproval).toBe(true)
+    const handler = vi.fn(async () => true)
+    setApprovalHandler(handler)
+
+    const result = await runTool({ toolId: 'figma_approval', input: { foo: 'bar' } })
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: 'Approval Tool',
+      }),
+    )
+    expect(result.success).toBe(true)
     const log = getExecutionLog()
-    expect(log[0].status).toBe('awaiting_approval')
+    expect(log[0].status).toBe('success')
   })
 
-  it('awaits confirmation for a publish-risk tool', async () => {
+  it('denies an approval_required tool when handler returns false', async () => {
+    localMCPStorage.saveTools('integ_figma', [
+      {
+        id: 'figma_approval',
+        integrationId: 'integ_figma',
+        toolName: 'approval_tool',
+        displayName: 'Approval Tool',
+        permissionMode: 'approval_required',
+      },
+    ])
+    const handler = vi.fn(async () => false)
+    setApprovalHandler(handler)
+
+    const result = await runTool({ toolId: 'figma_approval' })
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('denied by user')
+    const log = getExecutionLog()
+    expect(log[0].status).toBe('cancelled')
+    expect(log[0].errorMessage).toBe('denied by user')
+  })
+
+  it('proceeds when approval handler approves a publish-risk tool', async () => {
     localMCPStorage.saveTools('integ_figma', [
       {
         id: 'figma_publish',
@@ -102,11 +145,44 @@ describe('runTool', () => {
         permissionMode: 'auto' as const,
       },
     ])
+    const handler = vi.fn(async () => true)
+    setApprovalHandler(handler)
+
     const result = await runTool({ toolId: 'figma_publish' })
-    expect(result.success).toBe(false)
-    expect(result.requiresApproval).toBe(true)
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolName: 'Publish Tool',
+        riskLevel: 'publish',
+      }),
+    )
+    expect(result.success).toBe(true)
     const log = getExecutionLog()
-    expect(log[0].status).toBe('awaiting_approval')
+    expect(log[0].status).toBe('success')
+  })
+
+  it('denies a publish-risk tool when handler returns false', async () => {
+    localMCPStorage.saveTools('integ_figma', [
+      {
+        id: 'figma_publish',
+        integrationId: 'integ_figma',
+        toolName: 'publish_tool',
+        displayName: 'Publish Tool',
+        riskLevel: 'publish' as const,
+        permissionMode: 'auto' as const,
+      },
+    ])
+    const handler = vi.fn(async () => false)
+    setApprovalHandler(handler)
+
+    const result = await runTool({ toolId: 'figma_publish' })
+
+    expect(handler).toHaveBeenCalledOnce()
+    expect(result.success).toBe(false)
+    expect(result.error).toBe('denied by user')
+    const log = getExecutionLog()
+    expect(log[0].status).toBe('cancelled')
   })
 
   it('returns error when tool integration is missing', async () => {

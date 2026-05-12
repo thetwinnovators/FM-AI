@@ -10,7 +10,7 @@ describe('fileAdapter', () => {
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), 'fa-'))
-    adapter = createFileAdapter({ allowedRoots: [root] })
+    adapter = createFileAdapter({ getAllowedRoots: () => [root] })
   })
   afterEach(() => { rmSync(root, { recursive: true, force: true }) })
 

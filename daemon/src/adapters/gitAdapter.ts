@@ -2,21 +2,21 @@ import simpleGit from 'simple-git'
 import { isPathAllowed } from '../sandbox/pathPolicy.js'
 
 export interface GitAdapterOptions {
-  allowedRoots: string[]
+  getAllowedRoots: () => string[]
 }
 
-function assertAllowed(path: string, roots: string[]): string {
-  const r = isPathAllowed(path, roots)
+function assertAllowed(path: string, getRoots: () => string[]): string {
+  const r = isPathAllowed(path, getRoots())
   if (!r.ok) throw new Error(`sandbox_violation: ${r.reason}`)
   return r.resolvedPath ?? path
 }
 
 export function createGitAdapter(opts: GitAdapterOptions) {
-  const { allowedRoots } = opts
+  const { getAllowedRoots } = opts
 
   return {
     async status(params: { repoPath: string }) {
-      const resolved = assertAllowed(params.repoPath, allowedRoots)
+      const resolved = assertAllowed(params.repoPath, getAllowedRoots)
       const git = simpleGit(resolved)
       const s = await git.status()
       return {
@@ -29,7 +29,7 @@ export function createGitAdapter(opts: GitAdapterOptions) {
     },
 
     async log(params: { repoPath: string; maxCount?: number }) {
-      const resolved = assertAllowed(params.repoPath, allowedRoots)
+      const resolved = assertAllowed(params.repoPath, getAllowedRoots)
       const git = simpleGit(resolved)
       const log = await git.log({ maxCount: params.maxCount ?? 10 })
       return {
@@ -43,7 +43,7 @@ export function createGitAdapter(opts: GitAdapterOptions) {
     },
 
     async diff(params: { repoPath: string; staged?: boolean }) {
-      const resolved = assertAllowed(params.repoPath, allowedRoots)
+      const resolved = assertAllowed(params.repoPath, getAllowedRoots)
       const git = simpleGit(resolved)
       const diff = params.staged
         ? await git.diff(['--staged'])
@@ -52,14 +52,14 @@ export function createGitAdapter(opts: GitAdapterOptions) {
     },
 
     async add(params: { repoPath: string; files: string[] }) {
-      const resolved = assertAllowed(params.repoPath, allowedRoots)
+      const resolved = assertAllowed(params.repoPath, getAllowedRoots)
       const git = simpleGit(resolved)
       await git.add(params.files)
       return { staged: params.files }
     },
 
     async commit(params: { repoPath: string; message: string }) {
-      const resolved = assertAllowed(params.repoPath, allowedRoots)
+      const resolved = assertAllowed(params.repoPath, getAllowedRoots)
       const git = simpleGit(resolved)
       const result = await git.commit(params.message)
       return {

@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar, GraduationCap, Code2, Terminal } from 'lucide-react'
+import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar, GraduationCap, Code2, Terminal, Settings as SettingsIcon } from 'lucide-react'
 
 // Nav is grouped into sections separated by hairline dividers in the rail.
 // Order: workspace shortcuts → broad exploration → personal collections → AI assistant.
@@ -75,8 +75,9 @@ export default function LeftRail() {
           <span className="text-[10px] font-semibold uppercase tracking-widest text-white/25">Operator</span>
         </div>
         {[
-          { to: '/operator/coding',   label: 'AI Coding',  icon: Code2     },
-          { to: '/operator/terminal', label: 'Terminal',   icon: Terminal  },
+          { to: '/operator/coding',   label: 'AI Coding',  icon: Code2        },
+          { to: '/operator/terminal', label: 'Terminal',   icon: Terminal     },
+          { to: '/operator/settings', label: 'Settings',   icon: SettingsIcon },
         ].map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

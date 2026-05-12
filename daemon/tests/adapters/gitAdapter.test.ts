@@ -23,7 +23,7 @@ describe('gitAdapter', () => {
   beforeAll(async () => {
     dir = await makeTestRepo()
     const { createGitAdapter } = await import('../../src/adapters/gitAdapter.js')
-    adapter = createGitAdapter({ allowedRoots: [dir] })
+    adapter = createGitAdapter({ getAllowedRoots: () => [dir] })
   })
 
   afterAll(async () => {
