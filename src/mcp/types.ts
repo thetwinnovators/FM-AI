@@ -11,6 +11,7 @@ export type IntegrationType =
   | 'facebook'
   | 'figma'
   | 'flowmap'
+  | 'local'
 
 export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pending'
 

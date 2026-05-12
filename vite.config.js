@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import flowmapSync from './vite-plugin-flowmap-sync.js'
 import elevenlabs from './vite-plugin-elevenlabs.js'
+import daemonInfo from './vite-plugin-daemon-info.js'
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), flowmapSync(), elevenlabs()],
+  plugins: [react(), tailwindcss(), flowmapSync(), elevenlabs(), daemonInfo()],
   server: {
     port: process.env.PORT ? Number(process.env.PORT) : 5173,
     strictPort: true,
