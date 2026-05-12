@@ -1,4 +1,5 @@
 import Fastify, { FastifyInstance } from 'fastify'
+import cors from '@fastify/cors'
 import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -22,6 +23,16 @@ export interface ServerOptions {
 
 export async function buildServer(opts: ServerOptions): Promise<FastifyInstance> {
   const app = Fastify({ logger: false })
+
+  // Allow cross-origin from the dev server (Vite, port varies) and any other
+  // local origin. The daemon is bound to 127.0.0.1 and gates everything except
+  // /health behind a bearer token, so reflecting origin is safe.
+  await app.register(cors, {
+    origin: true,
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['authorization', 'content-type'],
+  })
+
   const mcpManager = new ServerManager(opts.mcpRegistryPath)
   // Sync eagerly but don't block server startup — Docker may be slow
   mcpManager.sync().catch((err) => {
