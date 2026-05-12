@@ -88,4 +88,14 @@ describe('workspace-roots endpoints', () => {
     })
     expect(r.statusCode).toBe(401)
   })
+
+  it('requires auth on DELETE', async () => {
+    const r = await app.inject({
+      method: 'DELETE',
+      url: '/workspace-roots',
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify({ path: '/x' }),
+    })
+    expect(r.statusCode).toBe(401)
+  })
 })

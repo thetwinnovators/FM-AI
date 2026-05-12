@@ -144,7 +144,11 @@ describe('runAgentLoop — read tool path', () => {
 })
 
 describe('runAgentLoop — write tool approval path', () => {
-  it('emits awaiting_approval for write-risk tools', async () => {
+  // The agent loop no longer emits awaiting_approval directly — that gate now
+  // lives inside runTool() via the global ApprovalDialog. From the loop's POV,
+  // a denied tool surfaces as { success: false, error: 'denied by user' } and
+  // we emit a `denied` event then end the run without further steps.
+  it('emits denied and ends the run when runTool reports denial', async () => {
     mockChatJson.mockResolvedValueOnce({
       thought: 'Will send a message.',
       action: 'tool',
@@ -152,24 +156,36 @@ describe('runAgentLoop — write tool approval path', () => {
       toolInput: { message: 'hi', chatId: '@dev' },
     })
 
-    const events: AgentEvent[] = []
-    const loopPromise = runAgentLoop('send hi to telegram', {
-      ctrl: makeCtrl(),
-      onEvent: (event) => {
-        events.push(event)
-        // Auto-deny to unblock the loop
-        if (event.type === 'awaiting_approval') {
-          event.deny()
-        }
-      },
+    // Simulate the new approval bridge denial path
+    mockRunTool.mockResolvedValue({
+      success: false,
+      executionId: 'exec_1',
+      error: 'denied by user',
     })
 
-    const result = await loopPromise
-    expect(events.some((e) => e.type === 'awaiting_approval')).toBe(true)
+    const events: AgentEvent[] = []
+    const result = await runAgentLoop('send hi to telegram', {
+      ctrl: makeCtrl(),
+      onEvent: collectEvents(events),
+    })
+
+    // Should NOT emit awaiting_approval anymore (modal handles approval out-of-band)
+    expect(events.some((e) => e.type === 'awaiting_approval')).toBe(false)
+    // Should emit a `denied` event with the tool's displayName
+    const deniedEvent = events.find((e) => e.type === 'denied') as
+      | { type: 'denied'; toolName: string; step: number }
+      | undefined
+    expect(deniedEvent).toBeDefined()
+    expect(deniedEvent?.toolName).toBe('Send Telegram Message')
+    // Should NOT have reached step_done for the denied tool
+    expect(events.some((e) => e.type === 'step_done')).toBe(false)
+    // Run should end with a graceful refusal message that mentions the tool
     expect(result.finalAnswer).toContain('Send Telegram Message')
+    // runTool was called exactly once (no retry after denial)
+    expect(mockRunTool).toHaveBeenCalledOnce()
   })
 
-  it('executes tool and continues loop when approved', async () => {
+  it('executes tool and continues loop when runTool returns success', async () => {
     mockChatJson
       .mockResolvedValueOnce({
         thought: 'Sending.',
@@ -184,15 +200,12 @@ describe('runAgentLoop — write tool approval path', () => {
     const events: AgentEvent[] = []
     const result = await runAgentLoop('send hi via telegram', {
       ctrl: makeCtrl(),
-      onEvent: (event) => {
-        events.push(event)
-        if (event.type === 'awaiting_approval') {
-          event.approve()
-        }
-      },
+      onEvent: collectEvents(events),
     })
 
     expect(mockRunTool).toHaveBeenCalledOnce()
+    expect(events.some((e) => e.type === 'awaiting_approval')).toBe(false)
+    expect(events.some((e) => e.type === 'denied')).toBe(false)
     expect(result.finalAnswer).toBe('Message sent.')
   })
 })
