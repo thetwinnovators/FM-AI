@@ -48,4 +48,20 @@ describe('tools registry', () => {
       jobId: 't', emit: () => {}, signal: new AbortController().signal,
     })).rejects.toThrow(/validation/i)
   })
+
+  it('includes group on every tool with valid CapabilityGroup', () => {
+    const defs = registry.list()
+    const validGroups = ['file', 'system', 'browser', 'git', 'code', 'docker_mcp']
+    for (const d of defs) {
+      expect(d.group, `tool ${d.id} missing group`).toBeDefined()
+      expect(validGroups).toContain(d.group)
+    }
+  })
+
+  it('groups native tools correctly by id prefix', () => {
+    const defs = registry.list()
+    expect(defs.find((d) => d.id === 'file.read')?.group).toBe('file')
+    expect(defs.find((d) => d.id === 'system.exec')?.group).toBe('system')
+    expect(defs.find((d) => d.id === 'browser.open')?.group).toBe('browser')
+  })
 })

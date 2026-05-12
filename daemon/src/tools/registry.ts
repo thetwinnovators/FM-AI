@@ -2,24 +2,24 @@ import { schemas } from './schemas.js'
 import { createFileAdapter } from '../adapters/fileAdapter.js'
 import { createShellAdapter } from '../adapters/shellAdapter.js'
 import { createBrowserAdapter, BrowserAdapter } from '../adapters/browserAdapter.js'
-import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel } from '../types.js'
+import type { ToolDefinition, ToolHandler, ToolHandlerContext, RiskLevel, CapabilityGroup } from '../types.js'
 
-const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel }> = {
-  'file.read':           { displayName: 'Read file',         description: 'Read text contents of a file', risk: 'read' },
-  'file.list':           { displayName: 'List directory',    description: 'List entries in a directory',  risk: 'read' },
-  'file.exists':         { displayName: 'Check file exists', description: 'Check whether a path exists',  risk: 'read' },
-  'file.write':          { displayName: 'Write file',        description: 'Write or append text to a file', risk: 'write' },
-  'file.delete':         { displayName: 'Delete file',       description: 'Delete a file or directory',   risk: 'publish' },
-  'system.exec':         { displayName: 'Run allowlisted command', description: 'Run an allowlisted binary with args', risk: 'write' },
-  'system.exec_inline':  { displayName: 'Run inline script', description: 'Run an arbitrary shell script (approval required)', risk: 'publish' },
-  'browser.open':        { displayName: 'Open browser',      description: 'Start a new browser session',   risk: 'read' },
-  'browser.navigate':    { displayName: 'Navigate browser',  description: 'Navigate to a URL',             risk: 'read' },
-  'browser.screenshot':  { displayName: 'Take screenshot',   description: 'Capture page or element as PNG', risk: 'read' },
-  'browser.extract':     { displayName: 'Extract DOM data',  description: 'Read text/html/attrs from elements', risk: 'read' },
-  'browser.evaluate':    { displayName: 'Evaluate JS',       description: 'Run JS in the page context',    risk: 'write' },
-  'browser.click':       { displayName: 'Click element',     description: 'Click an element by selector',   risk: 'write' },
-  'browser.fill':        { displayName: 'Fill input',        description: 'Fill an input field',           risk: 'write' },
-  'browser.close':       { displayName: 'Close browser',     description: 'Close a browser session',       risk: 'read' },
+const TOOL_META: Record<string, { displayName: string; description: string; risk: RiskLevel; group: CapabilityGroup }> = {
+  'file.read':           { displayName: 'Read file',         description: 'Read text contents of a file', risk: 'read', group: 'file' },
+  'file.list':           { displayName: 'List directory',    description: 'List entries in a directory',  risk: 'read', group: 'file' },
+  'file.exists':         { displayName: 'Check file exists', description: 'Check whether a path exists',  risk: 'read', group: 'file' },
+  'file.write':          { displayName: 'Write file',        description: 'Write or append text to a file', risk: 'write', group: 'file' },
+  'file.delete':         { displayName: 'Delete file',       description: 'Delete a file or directory',   risk: 'publish', group: 'file' },
+  'system.exec':         { displayName: 'Run allowlisted command', description: 'Run an allowlisted binary with args', risk: 'write', group: 'system' },
+  'system.exec_inline':  { displayName: 'Run inline script', description: 'Run an arbitrary shell script (approval required)', risk: 'publish', group: 'system' },
+  'browser.open':        { displayName: 'Open browser',      description: 'Start a new browser session',   risk: 'read', group: 'browser' },
+  'browser.navigate':    { displayName: 'Navigate browser',  description: 'Navigate to a URL',             risk: 'read', group: 'browser' },
+  'browser.screenshot':  { displayName: 'Take screenshot',   description: 'Capture page or element as PNG', risk: 'read', group: 'browser' },
+  'browser.extract':     { displayName: 'Extract DOM data',  description: 'Read text/html/attrs from elements', risk: 'read', group: 'browser' },
+  'browser.evaluate':    { displayName: 'Evaluate JS',       description: 'Run JS in the page context',    risk: 'write', group: 'browser' },
+  'browser.click':       { displayName: 'Click element',     description: 'Click an element by selector',   risk: 'write', group: 'browser' },
+  'browser.fill':        { displayName: 'Fill input',        description: 'Fill an input field',           risk: 'write', group: 'browser' },
+  'browser.close':       { displayName: 'Close browser',     description: 'Close a browser session',       risk: 'read', group: 'browser' },
 }
 
 export interface RegistryOptions {
@@ -64,6 +64,7 @@ export function buildRegistry(opts: RegistryOptions): ToolRegistry {
         displayName: TOOL_META[id]!.displayName,
         description: TOOL_META[id]!.description,
         risk: TOOL_META[id]!.risk,
+        group: TOOL_META[id]!.group,
         paramsSchema: null,
       }))
     },
