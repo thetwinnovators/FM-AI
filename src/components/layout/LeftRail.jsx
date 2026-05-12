@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar, GraduationCap, Code2 } from 'lucide-react'
+import { BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass, Plug, Activity, Radar, GraduationCap, Code2, Terminal } from 'lucide-react'
 
 // Nav is grouped into sections separated by hairline dividers in the rail.
 // Order: workspace shortcuts → broad exploration → personal collections → AI assistant.
@@ -68,7 +68,39 @@ export default function LeftRail() {
         ))}
       </nav>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-1">
+        <div className="my-2 border-t border-[color:var(--color-border-subtle)]" />
+
+        <div className="px-3 pb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-white/25">Operator</span>
+        </div>
+        {[
+          { to: '/operator/coding',   label: 'AI Coding',  icon: Code2     },
+          { to: '/operator/terminal', label: 'Terminal',   icon: Terminal  },
+        ].map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              [
+                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                isActive
+                  ? 'text-[color:var(--color-text-primary)]'
+                  : 'text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-bg-glass)] hover:text-[color:var(--color-text-primary)]',
+              ].join(' ')
+            }
+            style={({ isActive }) => isActive ? {
+              background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(217,70,239,0.22) 100%)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            } : undefined}
+          >
+            <Icon size={17} />
+            <span>{label}</span>
+          </NavLink>
+        ))}
+
+        <div className="my-2 border-t border-[color:var(--color-border-subtle)]" />
+
         <NavLink
           to="/connections"
           className={({ isActive }) =>
@@ -87,7 +119,6 @@ export default function LeftRail() {
           <Plug size={17} />
           <span>Connections</span>
         </NavLink>
-
       </div>
     </aside>
   )
