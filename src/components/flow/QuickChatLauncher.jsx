@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { streamChat } from '../../lib/llm/ollama.js'
 import { OLLAMA_CONFIG, setOllamaModel } from '../../lib/llm/ollamaConfig.js'
-import { retrieveDocuments, buildSystemMessage } from '../../lib/chat/retrieve.js'
+import { retrieveDocuments, buildSystemMessage, classifyIntent } from '../../lib/chat/retrieve.js'
 import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
 import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voice/player.js'
 import { startRecording, transcribeBlob } from '../../lib/voice/stt.js'
@@ -190,7 +190,12 @@ export default function QuickChatLauncher() {
     }
     // QuickChat is ephemeral — no persistent conversation, no recentMessages.
     // Pass allDocs so the model sees the document library index.
-    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, 'retrieval_request', {}, null, allDocs)
+    // Classify the intent so casual chat ("Hi", "How are you") gets the lighter
+    // CASUAL_SYSTEM_MESSAGE instead of the full retrieval prompt with ACTIONS
+    // instructions — without this, the small model hallucinates "I've noted
+    // that..." style confirmations for every greeting.
+    const intent = classifyIntent(text)
+    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, {}, null, allDocs)
     const llmMessages = [
       { role: 'system', content: systemMessage },
       ...nextHistory.map((m) => ({ role: m.role, content: m.content })),
@@ -211,13 +216,24 @@ export default function QuickChatLauncher() {
 
     // Strip hallucinated confirmations the small model emits without an
     // accompanying <fm-action> block (Quick Chat doesn't queue actions —
-    // any "Done — I've created..." line here is a hallucination). Mirrors
-    // the post-processing already in views/Chat.jsx.
+    // any "Done — I've created..." line here is a hallucination). Also
+    // strip forbidden "I don't have a saved doc on the exact topic" phrasing
+    // that the model emits despite explicit prompt-level prohibition.
+    // Tightened from views/Chat.jsx: removed the "/I've ... that/" pattern
+    // because it false-positively eats legitimate replies like "I've noted
+    // that you asked..." Only obvious hallucinated confirmations are stripped.
     const cleaned = assistantText
       .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
       .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
       .replace(/^\s*The new topic is now available[^\n]*/gim, '')
-      .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact|that)[^\n]*/gim, '')
+      .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact)\b[^\n]*/gim, '')
+      // Forbidden "I don't have a saved doc on the exact topic of X" — model
+      // ignores the FORBIDDEN list in the system prompt. Rewrite to neutral
+      // language so the user doesn't see the explicitly banned phrase.
+      .replace(
+        /I don'?t have (?:a )?saved doc(?:ument)? on the exact topic of\s+["“']?([^"”'.\n!?]+)["”'.!?]?/gi,
+        "I don't have $1 saved yet — drop in a link or paste the content and I'll take it from there.",
+      )
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
@@ -227,8 +243,9 @@ export default function QuickChatLauncher() {
         playTtsForReply(cleaned).catch(() => {})
       }
     } else if (assistantText.trim()) {
-      // Model produced only hallucinated confirmations with no real content.
-      setMessages((m) => [...m, { role: 'assistant', content: '_(no response — try rephrasing your question)_' }])
+      // Strip removed everything → just show the raw text. Better than the
+      // confusing "(no response — try rephrasing)" placeholder.
+      setMessages((m) => [...m, { role: 'assistant', content: assistantText.trim() }])
     }
   }
 

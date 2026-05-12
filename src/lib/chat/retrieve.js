@@ -48,7 +48,10 @@ const CASUAL_PATTERNS = [
   /^(hi|hey|hello|yo|sup|hiya|howdy)\b\W*$/i,
   /^(thanks|thank you|ty|cheers|nice|cool|ok|okay|got it|great|perfect|sounds good|sweet|awesome)\W*$/i,
   /^how('?s| is) (it going|your day|things|life)\?*$/i,
-  /^(what'?s up|what'?s good|you good|you ok|how are you|how do you do)\?*$/i,
+  // "how are you" + common trailing words: "how are you doing", "how are you
+  // today", "how are you doing today", "how are u/ya/yo u" with typo tolerance.
+  /^how (are|r) (you|ya|u|yo\s*u)\b[^?]*\??$/i,
+  /^(what'?s up|what'?s good|you good|you ok|how do you do)\?*$/i,
   /^(test|testing(,?\s*testing)?|ping|are you there|you there|hello\?)\W*$/i,
   /^(bye|goodbye|cya|see you|later|ttyl)\b\W*$/i,
   /^(lol|lmao|haha|ha|heh|bruh|ngl|tbh|fr|omg|wow|nice one|fair enough|true|facts)\W*$/i,
