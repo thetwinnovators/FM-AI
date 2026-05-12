@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import LeftRail from './components/layout/LeftRail.jsx'
 import TopBar from './components/layout/TopBar.jsx'
 import ConfirmProvider from './components/ui/ConfirmProvider.jsx'
+import { ApprovalDialogProvider } from './components/ui/ApprovalDialog.jsx'
 import BackToTop from './components/ui/BackToTop.jsx'
 import RouteLoadingBar from './components/ui/RouteLoadingBar.jsx'
 import { useStore } from './store/useStore.js'
@@ -182,19 +183,21 @@ export default function App() {
   return (
     <BrowserRouter>
       <ConfirmProvider>
-        <DeferredWorkers />
-        <div className="flex h-full">
-          <LeftRail />
-          <div className="flex flex-col flex-1 min-w-0">
-            <TopBar />
-            <main ref={mainRef} className="flex-1 overflow-auto m-3 mt-3">
-              <div className="glass-panel min-h-full overflow-clip">
-                <AnimatedRoutes />
-              </div>
-            </main>
+        <ApprovalDialogProvider>
+          <DeferredWorkers />
+          <div className="flex h-full">
+            <LeftRail />
+            <div className="flex flex-col flex-1 min-w-0">
+              <TopBar />
+              <main ref={mainRef} className="flex-1 overflow-auto m-3 mt-3">
+                <div className="glass-panel min-h-full overflow-clip">
+                  <AnimatedRoutes />
+                </div>
+              </main>
+            </div>
           </div>
-        </div>
-        <BackToTop scrollRef={mainRef} />
+          <BackToTop scrollRef={mainRef} />
+        </ApprovalDialogProvider>
       </ConfirmProvider>
     </BrowserRouter>
   )

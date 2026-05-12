@@ -3,6 +3,7 @@ import { localMCPStorage } from '../storage/localMCPStorage.js'
 import { checkPermission } from './mcpPermissionService.js'
 import { getProvider } from './mcpToolRegistry.js'
 import { writeExecutionMemory } from './mcpMemoryService.js'
+import { requestApproval, shouldGate, buildInputSummary } from './approvalBridge.js'
 
 export interface RunToolParams {
   toolId: string
@@ -64,13 +65,25 @@ export async function runTool(params: RunToolParams): Promise<RunToolResult> {
     return { success: false, executionId: id, error: permission.reason }
   }
 
-  if (permission.requiresApproval) {
+  // Approval gate. Any write/publish-risk tool (or any tool whose permission
+  // mode flags requiresApproval) prompts the user via the ApprovalDialog
+  // before we actually call provider.executeTool. This replaces the old
+  // "return awaiting_approval and hope someone retries" path.
+  if (shouldGate(tool) || permission.requiresApproval) {
     localMCPStorage.updateExecutionRecord(id, { status: 'awaiting_approval' })
-    return {
-      success: false,
-      executionId: id,
-      requiresApproval: true,
-      error: permission.reason ?? 'Approval required',
+    const approved = await requestApproval({
+      toolName: tool.displayName,
+      integrationName: integration.name,
+      inputSummary: buildInputSummary(input),
+      riskLevel: tool.riskLevel ?? 'unknown',
+    })
+    if (!approved) {
+      localMCPStorage.updateExecutionRecord(id, {
+        status: 'cancelled',
+        completedAt: new Date().toISOString(),
+        errorMessage: 'denied by user',
+      })
+      return { success: false, executionId: id, error: 'denied by user' }
     }
   }
 
