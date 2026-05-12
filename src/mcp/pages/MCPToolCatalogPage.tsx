@@ -10,6 +10,7 @@ export default function MCPToolCatalogPage() {
   const { integrations } = useMCPIntegrations()
   const [query, setQuery] = useState('')
   const [filterIntegration, setFilterIntegration] = useState('')
+  const [filterGroup, setFilterGroup] = useState<string>('')
 
   function integrationName(id: string): string {
     return integrations.find((i) => i.id === id)?.name ?? id
@@ -22,7 +23,8 @@ export default function MCPToolCatalogPage() {
       t.description?.toLowerCase().includes(query.toLowerCase()) ||
       t.tags?.some((tag) => tag.toLowerCase().includes(query.toLowerCase()))
     const matchesIntegration = !filterIntegration || t.integrationId === filterIntegration
-    return matchesQuery && matchesIntegration
+    const matchesGroup = !filterGroup || t.capabilityGroup === filterGroup
+    return matchesQuery && matchesIntegration && matchesGroup
   })
 
   const connectedIntegrations = integrations.filter((i) => i.status === 'connected')
@@ -40,6 +42,32 @@ export default function MCPToolCatalogPage() {
       </div>
 
       <ConnectionsSubNav />
+
+      <div className="flex gap-1.5 mb-4 flex-wrap">
+        {[
+          { value: '', label: 'All' },
+          { value: 'file', label: 'File' },
+          { value: 'system', label: 'System' },
+          { value: 'browser', label: 'Browser' },
+          { value: 'git', label: 'Git' },
+          { value: 'code', label: 'Code' },
+          { value: 'docker_mcp', label: 'Docker MCP' },
+          { value: 'general', label: 'Other' },
+        ].map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => setFilterGroup(value)}
+            className={[
+              'px-3 py-1 rounded-full text-[12px] border transition-colors',
+              filterGroup === value
+                ? 'bg-white/12 border-white/20 text-white/90'
+                : 'bg-transparent border-white/10 text-white/45 hover:text-white/70 hover:border-white/20',
+            ].join(' ')}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
       <div className="mb-4">
         <p className="text-[13px] text-white/45">

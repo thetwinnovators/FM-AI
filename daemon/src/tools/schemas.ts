@@ -68,4 +68,33 @@ export const schemas: Record<string, ZodSchema> = {
     value: z.string(),
   }).strict(),
   'browser.close': z.object({ sessionId: NonEmptyString }).strict(),
+
+  'git.status': z.object({
+    repoPath: NonEmptyString,
+  }).strict(),
+
+  'git.log': z.object({
+    repoPath: NonEmptyString,
+    maxCount: z.number().int().positive().max(100).optional(),
+  }).strict(),
+
+  'git.diff': z.object({
+    repoPath: NonEmptyString,
+    staged: z.boolean().optional(),
+  }).strict(),
+
+  'git.add': z.object({
+    repoPath: NonEmptyString,
+    files: z.array(NonEmptyString).min(1),
+  }).strict(),
+
+  'git.commit': z.object({
+    repoPath: NonEmptyString,
+    message: NonEmptyString,
+  }).strict(),
+
+  'code.run_js': z.object({
+    code: NonEmptyString,
+    timeoutMs: z.number().int().positive().max(60_000).optional(),
+  }).strict(),
 }

@@ -1,7 +1,7 @@
 import type { MCPIntegrationProvider } from './types.js'
-import type { MCPToolDefinition, MCPToolRiskLevel, ToolPermissionMode } from '../types.js'
+import type { MCPToolDefinition, ToolPermissionMode } from '../types.js'
 
-// Reads daemon connection info (port + bearer token) via a Vite dev middleware
+// Reads daemon connection info (port + bearer token) via the Vite dev middleware
 // that exposes ~/.flowmap/daemon.json to the browser.
 async function daemonInfo(): Promise<{ port: number; token: string } | null> {
   try {
@@ -25,9 +25,10 @@ async function call(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(url, { ...init, headers })
 }
 
-function riskToPermissionMode(risk: MCPToolRiskLevel): ToolPermissionMode {
+function riskToPermission(risk?: string): ToolPermissionMode {
   if (risk === 'read') return 'auto'
-  return 'approval_required'  // both 'write' and 'publish' require approval at the permissionMode layer; riskLevel further distinguishes
+  if (risk === 'publish') return 'restricted'
+  return 'approval_required'
 }
 
 // Subscribe to the daemon's SSE stream until the job terminates.
@@ -61,38 +62,50 @@ async function awaitJobCompletion(jobId: string): Promise<unknown> {
   throw new Error('SSE stream closed without terminal event')
 }
 
-export const localProvider: MCPIntegrationProvider = {
+export const dockerMCPProvider: MCPIntegrationProvider = {
   async listTools(integration) {
-    const r = await call('/tools')
-    if (!r.ok) throw new Error(`/tools failed: ${r.status}`)
+    const r = await call('/docker-mcp/servers')
+    if (!r.ok) throw new Error(`/docker-mcp/servers failed: ${r.status}`)
     const body = await r.json() as {
-      tools: Array<{
-        id: string
-        displayName: string
-        description: string
-        risk: MCPToolRiskLevel
-        group?: string
+      servers: Array<{
+        config: { id: string; name: string; image: string; enabled: boolean }
+        status: 'connected' | 'disconnected' | 'error'
+        tools: Array<{ name: string; description?: string; inputSchema?: Record<string, unknown> }>
       }>
     }
-    return body.tools.map((t): MCPToolDefinition => ({
-      id: t.id,
-      integrationId: integration.id,
-      toolName: t.id,
-      displayName: t.displayName,
-      description: t.description,
-      riskLevel: t.risk,
-      permissionMode: riskToPermissionMode(t.risk),
-      tags: ['local', t.id.split('.')[0] ?? 'misc'],
-      capabilityGroup: (t.group as MCPToolDefinition['capabilityGroup']) ?? 'general',
-      toolSource: 'native',
-    }))
+
+    const tools: MCPToolDefinition[] = []
+    for (const server of body.servers) {
+      if (server.status !== 'connected') continue
+      for (const t of server.tools) {
+        tools.push({
+          id: `docker_mcp::${server.config.id}::${t.name}`,
+          integrationId: integration.id,
+          toolName: t.name,
+          displayName: `${t.name} (${server.config.name})`,
+          description: t.description,
+          riskLevel: 'write',
+          permissionMode: riskToPermission('write'),
+          inputSchema: t.inputSchema,
+          tags: ['docker-mcp', server.config.id],
+          capabilityGroup: 'docker_mcp',
+          toolSource: 'docker_mcp',
+        })
+      }
+    }
+    return tools
   },
 
   async executeTool({ tool, input }) {
+    // tool.id format: docker_mcp::<serverId>::<toolName>
+    const parts = tool.id.split('::')
+    if (parts.length !== 3) {
+      return { success: false, error: 'malformed docker-mcp tool id' }
+    }
     try {
       const submit = await call('/jobs', {
         method: 'POST',
-        body: JSON.stringify({ toolId: tool.toolName, params: input }),
+        body: JSON.stringify({ toolId: tool.id, params: input }),
       })
       if (!submit.ok) {
         const text = await submit.text()
@@ -108,13 +121,16 @@ export const localProvider: MCPIntegrationProvider = {
 
   async testConnection(_integration) {
     try {
-      const info = await daemonInfo()
-      if (!info) return { success: false, error: 'Daemon not running. Start with: npm run daemon' }
-      const r = await fetch(`http://127.0.0.1:${info.port}/health`)
-      if (!r.ok) return { success: false, error: `Health check returned ${r.status}` }
+      const r = await call('/docker-mcp/servers')
+      if (!r.ok) return { success: false, error: `Daemon returned ${r.status}` }
+      const body = await r.json() as { servers: Array<{ status: string }> }
+      const connected = body.servers.filter((s) => s.status === 'connected').length
+      if (connected === 0) {
+        return { success: false, error: 'No Docker MCP servers connected. Add servers to ~/.flowmap/docker-mcp-servers.json' }
+      }
       return { success: true }
     } catch (err: any) {
-      return { success: false, error: err?.message ?? String(err) }
+      return { success: false, error: err?.message ?? 'Daemon not running' }
     }
   },
 }

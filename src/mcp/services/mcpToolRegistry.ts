@@ -8,6 +8,8 @@ import { gmailProvider } from '../providers/gmailProvider.js'
 import { googleCalendarProvider } from '../providers/googleCalendarProvider.js'
 import { figmaProvider } from '../providers/figmaProvider.js'
 import { flowmapProvider } from '../providers/flowmapProvider.js'
+import { dockerMCPProvider } from '../providers/dockerMCPProvider.js'
+import { localProvider } from '../providers/localProvider.js'
 
 // Only integrations with a real or mock provider are registered here.
 // Adding a new integration to the seed does NOT require a provider entry —
@@ -20,6 +22,8 @@ const PROVIDERS: Partial<Record<IntegrationType, MCPIntegrationProvider>> = {
   'google-calendar': googleCalendarProvider,
   figma: figmaProvider,
   flowmap: flowmapProvider,
+  local: localProvider,
+  'docker-mcp': dockerMCPProvider,
 }
 
 export function getProvider(type: IntegrationType): MCPIntegrationProvider | undefined {

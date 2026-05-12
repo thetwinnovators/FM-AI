@@ -12,6 +12,7 @@ export type IntegrationType =
   | 'figma'
   | 'flowmap'
   | 'local'
+  | 'docker-mcp'
 
 export type IntegrationStatus = 'connected' | 'disconnected' | 'error' | 'pending'
 
@@ -41,6 +42,9 @@ export interface MCPIntegration {
 
 export type MCPToolRiskLevel = 'read' | 'write' | 'publish'
 
+export type ToolCapabilityGroup = 'file' | 'system' | 'browser' | 'git' | 'code' | 'docker_mcp' | 'general'
+export type ToolSource = 'native' | 'docker_mcp'
+
 export interface MCPToolDefinition {
   id: string
   integrationId: string
@@ -51,6 +55,8 @@ export interface MCPToolDefinition {
   permissionMode: ToolPermissionMode  // kept for backwards compat
   inputSchema?: Record<string, unknown>
   tags?: string[]
+  capabilityGroup?: ToolCapabilityGroup
+  toolSource?: ToolSource
 }
 
 export interface MCPExecutionRecord {

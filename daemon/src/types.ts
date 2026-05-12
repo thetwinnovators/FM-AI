@@ -1,5 +1,7 @@
 export type RiskLevel = 'read' | 'write' | 'publish'
 
+export type CapabilityGroup = 'file' | 'system' | 'browser' | 'git' | 'code' | 'docker_mcp'
+
 export type JobStatus =
   | 'queued'
   | 'running'
@@ -47,6 +49,7 @@ export interface ToolDefinition {
   displayName: string
   description: string
   risk: RiskLevel
+  group: CapabilityGroup
   paramsSchema: unknown
 }
 
