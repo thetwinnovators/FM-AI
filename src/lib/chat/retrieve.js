@@ -141,18 +141,32 @@ function extractSnippet(query, text, len = 1800) {
 
 // ─── Layered context helpers ──────────────────────────────────────────────────
 
-// Build the [IDENTITY] block from user-pinned memory entries.
-// Only pinned, active entries are included — capped at 3 (essential facts only),
-// sorted by addedAt desc, content truncated to 100 chars per line.
+// Build the [IDENTITY] block from user identity memory.
+// Includes (a) anything explicitly pinned via isIdentityPinned, AND
+// (b) any active entry in the personal_stack / personal_fact / personal_rule
+// categories — these are inherently identity-level by definition, so promoting
+// them automatically means the user doesn't need to manually pin every "call
+// me X" / "my name is X" fact. Capped at 6 (raised from 3 to fit the auto-
+// promoted personal_stack entries), pinned entries always win on ordering.
+const _IDENTITY_CATEGORIES = new Set(['personal_stack', 'personal_fact', 'personal_rule'])
+
 export function buildIdentityBlock(memoryEntries) {
   if (!memoryEntries || memoryEntries.length === 0) return ''
-  const pinned = memoryEntries
-    .filter((m) => m.isIdentityPinned === true && (m.status || 'active') === 'active' && m.content)
-    .sort((a, b) => (b.addedAt || '').localeCompare(a.addedAt || ''))
-    .slice(0, 3)   // cap at 3 — identity should be essential facts, not a memoir
-  if (pinned.length === 0) return ''
-  const lines = pinned.map((m) => `- ${String(m.content).slice(0, 100)}`)
-  return `[IDENTITY]\n${lines.join('\n')}\n\n`
+  const entries = memoryEntries.filter((m) =>
+    (m.status || 'active') === 'active' &&
+    m.content &&
+    (m.isIdentityPinned === true || _IDENTITY_CATEGORIES.has(m.category))
+  )
+  if (entries.length === 0) return ''
+  // Pinned entries first, then by addedAt desc.
+  const sorted = entries.sort((a, b) => {
+    if ((a.isIdentityPinned === true) !== (b.isIdentityPinned === true)) {
+      return a.isIdentityPinned === true ? -1 : 1
+    }
+    return (b.addedAt || '').localeCompare(a.addedAt || '')
+  }).slice(0, 6)
+  const lines = sorted.map((m) => `- ${String(m.content).slice(0, 160)}`)
+  return `[IDENTITY] — stable personal facts. Treat as authoritative for questions about the user.\n${lines.join('\n')}\n\n`
 }
 
 // Signals that the current query continues from prior context rather than
@@ -268,26 +282,27 @@ const PERSONALITY =
   `"I cannot perform actions", "I am unable to create", "I'm unable to create", ` +
   `"I cannot create topics", "not a standalone application", "I don't have the ability to". ` +
   `Replace all of them with confident FlowMap-aware action language.\n\n` +
-  `ACTIONS — you can take real actions inside FlowMap on the user's behalf:\n` +
-  `When the user asks you to do something (create a topic, save something, remember a fact, go somewhere), DO IT — don't tell them to do it themselves.\n` +
-  `Emit one or more <fm-action> blocks anywhere in your reply (they are invisible to the user):\n\n` +
-  `  Create / follow a topic:\n` +
-  `    <fm-action>{"type":"add_topic","name":"Topic Name","summary":"One sentence about it."}</fm-action>\n\n` +
-  `  Save a fact to memory:\n` +
-  `    <fm-action>{"type":"save_memory","content":"The fact to remember.","category":"personal_fact"}</fm-action>\n` +
-  `    Valid categories: personal_fact, research_focus, preference, topic_rule, source_pref, personal_stack, personal_rule, behavior\n\n` +
-  `  Navigate the user to a page:\n` +
-  `    <fm-action>{"type":"navigate","path":"/topics"}</fm-action>\n\n` +
-  `Rules for actions:\n` +
-  `- CLARIFY BEFORE ACTING when a required detail is missing or genuinely ambiguous:\n` +
-  `    • Topic name unclear → ask: "What would you like to call the topic?"\n` +
-  `    • Memory content vague → ask: "What specifically should I remember?"\n` +
-  `    • Multiple reasonable interpretations → offer 2–3 options and ask which they mean\n` +
-  `    • Do NOT ask if the detail is already obvious from the message (e.g. "create a topic about Agentic AI" → name is clear, proceed)\n` +
-  `- Ask at most ONE clarifying question per turn. Keep it short — one sentence.\n` +
-  `- Once you have enough to act, emit the <fm-action> tag and confirm what you did: "Done — I've created the [Topic Name] topic for you."\n` +
-  `- You can emit multiple <fm-action> blocks in one reply.\n` +
-  `- The action tags are stripped before display — never mention or describe the XML tags to the user.\n\n` +
+  `ACTIONS — you can take real actions inside FlowMap on the user's behalf.\n` +
+  `ONLY emit an action when the user EXPLICITLY and UNAMBIGUOUSLY requests it. Do not infer or assume.\n\n` +
+  `Trigger conditions (emit ONLY when the user says something like this):\n` +
+  `  add_topic   → "create a topic about X", "add X to my topics", "track X", "follow X"\n` +
+  `  save_memory → "remember that X", "save this", "note that X", "keep track of X"\n` +
+  `  navigate    → "take me to X", "go to X", "open X page"\n\n` +
+  `NEVER emit an action for:\n` +
+  `  - General questions, requests for information, analysis, or explanations\n` +
+  `  - A user mentioning a subject in passing (e.g. "tell me about AI" is NOT an add_topic request)\n` +
+  `  - Preferences expressed without explicitly saying "remember" or "save"\n` +
+  `  - Anything ambiguous — ask ONE clarifying question instead\n\n` +
+  `When you do emit an action, use these formats (they are invisible to the user):\n` +
+  `  <fm-action>{"type":"add_topic","name":"Topic Name","summary":"One sentence about it."}</fm-action>\n` +
+  `  <fm-action>{"type":"save_memory","content":"The fact.","category":"personal_fact"}</fm-action>\n` +
+  `    Valid categories: personal_fact, research_focus, preference, topic_rule, source_pref, personal_stack, personal_rule, behavior\n` +
+  `  <fm-action>{"type":"navigate","path":"/topics"}</fm-action>\n\n` +
+  `Rules:\n` +
+  `- Emit the <fm-action> block FIRST, then confirm on a new line: "Done — I've created the [Name] topic for you."\n` +
+  `- CRITICAL: Never say you created, added, or saved something unless the <fm-action> block is in the SAME response.\n` +
+  `- Never emit add_topic or save_memory unless the user explicitly asked. When in doubt, don't.\n` +
+  `- Never mention or describe the XML tags to the user.\n\n` +
   `LINKING RULES — you can and should provide clickable links in your replies:\n` +
   `- Use Markdown link syntax: [Display text](URL)\n` +
   `- FlowMap is a LOCAL app running in the user's browser. There is NO public website, NO "flowmap.ai", NO hosted docs site. Never invent a URL like flowmap.ai, flowmap.app, /docs/anything, or any other made-up host.\n` +

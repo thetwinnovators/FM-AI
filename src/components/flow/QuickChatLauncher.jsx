@@ -46,6 +46,7 @@ export default function QuickChatLauncher() {
   const recorderRef = useRef(null)            // MediaRecorder controller from stt.js
   const transcribingRef = useRef(false)
   const micBaseTextRef = useRef('')           // draft contents when mic was activated
+  const autoSendAfterTranscribeRef = useRef(false) // set by Enter-while-listening for hands-free send
   const conversationModeRef = useRef(false)   // mirror for use inside SR callbacks
   const pendingSendRef = useRef('')           // utterance to flush on `onend`
   conversationModeRef.current = conversationMode
@@ -207,20 +208,36 @@ export default function QuickChatLauncher() {
 
     setBusy(false)
     setStreaming('')
-    if (assistantText.trim()) {
-      setMessages((m) => [...m, { role: 'assistant', content: assistantText }])
+
+    // Strip hallucinated confirmations the small model emits without an
+    // accompanying <fm-action> block (Quick Chat doesn't queue actions —
+    // any "Done — I've created..." line here is a hallucination). Mirrors
+    // the post-processing already in views/Chat.jsx.
+    const cleaned = assistantText
+      .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
+      .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
+      .replace(/^\s*The new topic is now available[^\n]*/gim, '')
+      .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact|that)[^\n]*/gim, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+
+    if (cleaned) {
+      setMessages((m) => [...m, { role: 'assistant', content: cleaned }])
       if (VOICE_CONFIG.enabled) {
-        playTtsForReply(assistantText).catch(() => {})
+        playTtsForReply(cleaned).catch(() => {})
       }
+    } else if (assistantText.trim()) {
+      // Model produced only hallucinated confirmations with no real content.
+      setMessages((m) => [...m, { role: 'assistant', content: '_(no response — try rephrasing your question)_' }])
     }
   }
 
   function onKeyDown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      // While recording: Enter stops the mic. A second Enter sends once
-      // transcription is done and the draft is populated.
       if (listening) {
+        // Hands-free: set flag so stopMic() auto-sends once Whisper finishes.
+        autoSendAfterTranscribeRef.current = true
         stopMic()
       } else if (!transcribing) {
         send()
@@ -268,8 +285,16 @@ export default function QuickChatLauncher() {
         const next = base + sep + text
         setDraft(next)
         micBaseTextRef.current = next
+        // Hands-free: if Enter triggered the stop, send immediately after transcription.
+        if (autoSendAfterTranscribeRef.current) {
+          autoSendAfterTranscribeRef.current = false
+          send(next)
+        }
+      } else {
+        autoSendAfterTranscribeRef.current = false
       }
     } catch (err) {
+      autoSendAfterTranscribeRef.current = false
       const msg = err?.status === 502 || err?.status === 503
         ? 'Whisper container unreachable. Is the docker service running on :9000?'
         : `Transcription failed: ${err?.message || err}`
@@ -456,8 +481,35 @@ export default function QuickChatLauncher() {
         {micError ? (
           <p className="text-[11px] text-amber-300/80 px-1">{micError}</p>
         ) : null}
+
+        {/* ── Voice status bar ──────────────────────────────────────── */}
+        {(listening || transcribing) && (
+          <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2 flex-shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-70" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-400" />
+              </span>
+              <span className="text-[11px] font-medium text-rose-200">
+                {listening ? 'Listening…' : 'Transcribing…'}
+              </span>
+            </div>
+            {listening && (
+              <div className="flex items-center gap-3 text-[10px] text-rose-300/55 font-mono">
+                <span>Enter → stop & send</span>
+                <span className="text-rose-300/30">·</span>
+                <span>Ctrl+T → stop only</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Unified input box — textarea + buttons inside one container */}
-        <div className="flex flex-col rounded-lg bg-white/[0.05] focus-within:bg-white/[0.07] transition-colors border border-white/[0.07] focus-within:border-white/[0.12]">
+        <div className={`flex flex-col rounded-lg bg-white/[0.05] transition-all border ${
+          listening
+            ? 'border-rose-500/40 bg-rose-500/[0.04] shadow-[0_0_0_2px_rgba(244,63,94,0.08)]'
+            : 'border-white/[0.07] focus-within:bg-white/[0.07] focus-within:border-white/[0.12]'
+        }`}>
           <textarea
             ref={inputRef}
             value={draft}
@@ -465,9 +517,9 @@ export default function QuickChatLauncher() {
             onKeyDown={onKeyDown}
             rows={2}
             placeholder={
-              listening ? 'Listening… click mic again to transcribe'
+              listening    ? 'Listening… Enter to stop & send · Ctrl+T to stop only'
               : transcribing ? 'Transcribing with Whisper…'
-              : 'Ask FlowMap…'
+              : 'Ask FlowMap… · Ctrl+T to dictate'
             }
             className="w-full text-[13px] leading-relaxed text-white/90 bg-transparent px-3 pt-3 pb-1 outline-none placeholder:text-white/25 resize-none"
           />
@@ -521,8 +573,8 @@ export default function QuickChatLauncher() {
                     ? 'bg-rose-500/25 text-rose-200 hover:bg-rose-500/35'
                     : 'text-white/40 hover:text-white hover:bg-white/[0.08]'
                 }`}
-                aria-label={listening ? 'Stop dictation' : 'Start dictation'}
-                title={listening ? 'Stop dictation' : 'Speak to type'}
+                aria-label={listening ? 'Stop recording' : 'Start dictation (Ctrl+T)'}
+                title={listening ? 'Stop recording — Ctrl+T (review) · Enter (send)' : 'Dictate (Ctrl+T)'}
               >
                 {listening ? (
                   <span className="relative inline-flex">

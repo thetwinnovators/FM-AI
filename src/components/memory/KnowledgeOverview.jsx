@@ -27,7 +27,7 @@ const C = {
   memory:      '#a855f7',  // --color-memory
   signal:      '#f43f5e',  // --color-signal
   tool:        '#06b6d4',  // --color-tool
-  pdf:         '#f59e0b',  // amber — documents / PDFs
+  pdf:         '#14b8a6',  // teal — documents / PDFs
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -632,7 +632,8 @@ function ContentMix({ saves }) {
 
   return (
     <div className="space-y-3">
-      {/* Mini line chart */}
+      {/* Mini line chart — dark inset background */}
+      <div className="rounded-xl overflow-hidden p-3 pb-1" style={{ background: 'rgba(6,8,16,0.75)', border: '1px solid rgba(255,255,255,0.05)' }}>
       <svg key={mountKey} viewBox={`0 0 ${VB2_W} ${VB2_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}
         aria-label="Content type breakdown over 7 days">
         <defs>
@@ -650,9 +651,32 @@ function ContentMix({ saves }) {
             </rect>
           </clipPath>
         </defs>
-        {/* Baseline */}
+        {/* Y-axis grid lines + left-side metric labels (0, mid, peak) */}
+        {[0, 0.5, 1].map((frac, idx) => {
+          const y   = miniBase - frac * PLT2_H
+          const val = idx === 0 ? 0 : idx === 1 ? Math.round(peak / 2) : peak
+          return (
+            <g key={idx}>
+              {frac > 0 && (
+                <line
+                  x1={PAD2.l} y1={y} x2={PAD2.l + PLT2_W} y2={y}
+                  stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="2 3"
+                />
+              )}
+              <text
+                x={PAD2.l - 2} y={y + (idx === 0 ? -2 : 2.5)}
+                textAnchor="end" fontSize="6" fill="rgba(255,255,255,0.20)"
+              >
+                {val}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* Baseline — drawn on top of dashed grid so it stays solid */}
         <line x1={PAD2.l} y1={miniBase} x2={PAD2.l + PLT2_W} y2={miniBase}
-          stroke="rgba(255,255,255,0.07)" strokeWidth="1" />
+          stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
+
         {/* Fills — revealed by sliding clipPath */}
         <g clipPath="url(#cm-reveal)">
           {series.map((s) => {
@@ -686,12 +710,14 @@ function ContentMix({ saves }) {
             </g>
           )
         })}
-        {/* X-axis labels */}
+
+        {/* X-axis labels — reduced font size */}
         {dayLabels.map((label, i) => (
           <text key={i} x={PAD2.l + i * step} y={VB2_H - 4}
-            textAnchor="middle" fontSize="7.5" fill="rgba(255,255,255,0.22)">{label}</text>
+            textAnchor="middle" fontSize="6" fill="rgba(255,255,255,0.22)">{label}</text>
         ))}
       </svg>
+      </div>
 
       {/* Legend */}
       <div className="space-y-1.5">
