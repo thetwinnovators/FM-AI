@@ -14,7 +14,7 @@ const REASONS = [
   { icon: Wifi,      text: 'Network error or no internet connection' },
 ]
 
-function ChartFallback({ symbol, entryLow, entryHigh, stop, target }) {
+function ChartFallback({ symbol }) {
   const tvUrl = `https://www.tradingview.com/chart/?symbol=${tvSymbol(symbol)}&interval=5`
 
   return (
@@ -51,20 +51,26 @@ function ChartFallback({ symbol, entryLow, entryHigh, stop, target }) {
         Open {symbol} on TradingView
       </a>
 
-      {/* Price level strip */}
-      <div className="absolute bottom-0 inset-x-0 flex border-t border-white/[0.06]"
-        style={{ background: 'rgba(0,0,0,0.35)' }}>
-        {[
-          { label: 'Entry',  value: `$${entryLow?.toFixed(2)}–$${entryHigh?.toFixed(2)}`, color: 'text-white/60'       },
-          { label: 'Stop',   value: `$${stop?.toFixed(2)}`,                                color: 'text-red-400/80'     },
-          { label: 'Target', value: `$${target?.toFixed(2)}`,                              color: 'text-emerald-400/80' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="flex-1 flex flex-col items-center py-2 gap-0.5">
-            <span className="text-[9px] text-white/25 uppercase tracking-wider">{label}</span>
-            <span className={`text-[11px] font-mono font-semibold ${color}`}>{value}</span>
-          </div>
-        ))}
+    </div>
+  )
+}
+
+function ChartLoading() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3"
+      style={{ background: '#0c0e14' }}>
+      {/* Scanning line animation */}
+      <div className="relative w-24 h-px overflow-hidden rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+        <div
+          className="absolute inset-y-0 w-12 rounded-full"
+          style={{
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.20), transparent)',
+            animation: 'tv-scan 1.6s ease-in-out infinite',
+          }}
+        />
       </div>
+      <span className="text-[10px] text-white/20 tracking-wide">Loading chart…</span>
+      <style>{`@keyframes tv-scan { 0%{left:-3rem} 100%{left:6rem} }`}</style>
     </div>
   )
 }
@@ -109,12 +115,33 @@ export function StockChart({ symbol, entryLow, entryHigh, stop, target, height =
       support_host:        'https://www.tradingview.com',
     })
 
-    // Detect the iframe TradingView injects so we can track load/error
+    // ── Detection chain ──────────────────────────────────────────────────────
+    // Stage 1 — hard timeout: if no iframe appears in 8 s, the script was blocked
+    // Stage 2 — after iframe loads, wait for a postMessage from tradingview.com;
+    //           TradingView fires these only when the chart has actually rendered.
+    //           If nothing arrives within 12 s of iframe load → chart is blocked/blank.
+
+    let secondaryTimeout = null
+
+    const msgHandler = (e) => {
+      if (!String(e.origin).includes('tradingview.com')) return
+      setStatus('ok')
+      if (secondaryTimeout) clearTimeout(secondaryTimeout)
+      window.removeEventListener('message', msgHandler)
+    }
+
     const observer = new MutationObserver((mutations) => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeName === 'IFRAME') {
-            node.addEventListener('load',  () => setStatus('ok'))
+            node.addEventListener('load', () => {
+              // Iframe HTML loaded — now wait for TV to confirm chart rendered
+              window.addEventListener('message', msgHandler)
+              secondaryTimeout = setTimeout(() => {
+                window.removeEventListener('message', msgHandler)
+                setStatus((s) => s === 'loading' ? 'failed' : s)
+              }, 12_000)
+            })
             node.addEventListener('error', () => setStatus('failed'))
           }
         }
@@ -122,12 +149,11 @@ export function StockChart({ symbol, entryLow, entryHigh, stop, target, height =
     })
     observer.observe(el, { childList: true, subtree: true })
 
-    // If no iframe appears within 8 s the script was blocked or failed
-    const timeout = setTimeout(() => {
+    // Stage 1 hard timeout — no iframe at all
+    const hardTimeout = setTimeout(() => {
       setStatus((s) => s === 'loading' ? 'failed' : s)
     }, 8000)
 
-    // Script load error (e.g. network down, CSP blocking s3.tradingview.com)
     script.addEventListener('error', () => setStatus('failed'))
 
     wrapper.appendChild(script)
@@ -136,7 +162,9 @@ export function StockChart({ symbol, entryLow, entryHigh, stop, target, height =
     return () => {
       clearNode(el)
       observer.disconnect()
-      clearTimeout(timeout)
+      clearTimeout(hardTimeout)
+      if (secondaryTimeout) clearTimeout(secondaryTimeout)
+      window.removeEventListener('message', msgHandler)
     }
   }, [symbol])
 
@@ -161,16 +189,14 @@ export function StockChart({ symbol, entryLow, entryHigh, stop, target, height =
     >
       <div ref={containerRef} className="w-full h-full" />
 
+      {status === 'loading' && <ChartLoading />}
+
       {status === 'failed' && (
-        <ChartFallback
-          symbol={symbol}
-          entryLow={entryLow} entryHigh={entryHigh}
-          stop={stop} target={target}
-        />
+        <ChartFallback symbol={symbol} />
       )}
 
-      {/* Price lines — only shown when chart is working */}
-      {status !== 'failed' && (
+      {/* Price lines — only shown when chart is confirmed working */}
+      {status === 'ok' && (
         <div className="absolute inset-0 pointer-events-none">
           {levels.map((l, i) => (
             <div

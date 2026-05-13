@@ -56,8 +56,12 @@ export function SignalCard({ signal, inPosition = false }) {
       />
     )}
     <article
-      className={`rounded-xl border p-4 transition-opacity ${isActive ? 'border-white/[0.08]' : 'border-white/[0.04] opacity-50'}`}
-      style={{ background: isActive ? 'rgba(255,255,255,0.02)' : undefined }}
+      onClick={isActive ? () => setModalOpen(true) : undefined}
+      className={`rounded-xl border p-4 transition-all duration-150 ${
+        isActive
+          ? 'bg-white/[0.02] hover:bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15] hover:shadow-[0_4px_24px_rgba(0,0,0,0.45)] cursor-pointer'
+          : 'border-white/[0.04] opacity-50'
+      }`}
     >
       <div className="flex flex-col gap-2">
         <span className={`self-start text-[10px] font-semibold px-2 py-0.5 rounded-full border ${meta.color}`}>
