@@ -34,31 +34,36 @@ export function RiskDashboard() {
   const [dailyRisk,       setDailyRisk]       = useState(null)
   const [alpacaPositions, setAlpacaPositions] = useState(null)
   const [alpacaAccount,   setAlpacaAccount]   = useState(null)
+  const [pendingOrders,   setPendingOrders]   = useState([])
 
   const refresh = useCallback(async () => {
     try {
-      const [risk, apPositions, apAccount] = await Promise.allSettled([
+      const [risk, apPositions, apAccount, apOrders] = await Promise.allSettled([
         flowTradeApi.getDailyRisk(),
         flowTradeApi.getAlpacaPositions(),
         flowTradeApi.getAlpacaAccount(),
+        flowTradeApi.getAlpacaOrders(),
       ])
-      if (risk.status       === 'fulfilled') setDailyRisk(risk.value)
+      if (risk.status        === 'fulfilled') setDailyRisk(risk.value)
       if (apPositions.status === 'fulfilled') setAlpacaPositions(apPositions.value ?? [])
       if (apAccount.status   === 'fulfilled') setAlpacaAccount(apAccount.value)
+      if (apOrders.status    === 'fulfilled') setPendingOrders(apOrders.value ?? [])
     } catch { /* daemon offline */ }
   }, [])
 
   useEffect(() => { refresh() }, [refresh])
 
-  // Poll Alpaca every 30s for live position updates
+  // Poll Alpaca every 30s for live updates
   useEffect(() => {
     const id = setInterval(() => {
       Promise.allSettled([
         flowTradeApi.getAlpacaPositions(),
         flowTradeApi.getAlpacaAccount(),
-      ]).then(([apPositions, apAccount]) => {
+        flowTradeApi.getAlpacaOrders(),
+      ]).then(([apPositions, apAccount, apOrders]) => {
         if (apPositions.status === 'fulfilled') setAlpacaPositions(apPositions.value ?? [])
         if (apAccount.status   === 'fulfilled') setAlpacaAccount(apAccount.value)
+        if (apOrders.status    === 'fulfilled') setPendingOrders(apOrders.value ?? [])
       })
     }, 30_000)
     return () => clearInterval(id)
@@ -93,30 +98,6 @@ export function RiskDashboard() {
       <div className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
         Risk Dashboard
       </div>
-
-      {/* Daily P&L */}
-      <div className="space-y-2">
-        <div className="flex justify-between text-[11px]">
-          <span className="text-white/40">Daily P&L</span>
-          <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-            {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}{' '}
-            <span className="text-white/30">({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</span>
-          </span>
-        </div>
-        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${pnl >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}
-            style={{ width: `${barPct}%` }}
-          />
-        </div>
-        <div className="text-[10px] text-white/20">Limit: −${lossLimit.toFixed(0)} (−2%)</div>
-      </div>
-
-      {isBlocked && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
-          Daily loss limit hit — trading blocked
-        </div>
-      )}
 
       {/* Open positions */}
       <div>
@@ -156,6 +137,58 @@ export function RiskDashboard() {
           </div>
         )}
       </div>
+
+      {/* Pending orders */}
+      {pendingOrders.length > 0 && (
+        <div>
+          <div className="flex justify-between text-[11px] text-white/40 mb-2">
+            <span>Pending Orders</span>
+            <span>{pendingOrders.length}</span>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {pendingOrders.map((order) => (
+              <div key={order.id} className="rounded-lg border border-teal-500/15 px-2.5 py-2 flex flex-col gap-1"
+                style={{ background: 'rgba(20,184,166,0.04)' }}>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-white/80 font-semibold">{order.symbol}</span>
+                  <span className={`text-[10px] font-semibold ${order.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {order.side?.toUpperCase()}
+                  </span>
+                  <span className="text-white/30 text-[10px] ml-auto">{order.qty} sh</span>
+                </div>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-teal-400/60 capitalize">{order.order_class === 'bracket' ? 'bracket limit' : order.type}</span>
+                  <span className="font-mono text-white/40">${parseFloat(order.limit_price ?? 0).toFixed(2)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Daily P&L */}
+      <div className="space-y-2">
+        <div className="flex justify-between text-[11px]">
+          <span className="text-white/40">Daily P&L</span>
+          <span className={pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+            {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}{' '}
+            <span className="text-white/30">({pnl >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</span>
+          </span>
+        </div>
+        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${pnl >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}
+            style={{ width: `${barPct}%` }}
+          />
+        </div>
+        <div className="text-[10px] text-white/20">Limit: −${lossLimit.toFixed(0)} (−2%)</div>
+      </div>
+
+      {isBlocked && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] text-red-300">
+          Daily loss limit hit — trading blocked
+        </div>
+      )}
 
       {/* Timers */}
       <div className="flex flex-col gap-1.5 text-[11px]">

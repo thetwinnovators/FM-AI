@@ -6,13 +6,18 @@ import { SignalCard } from './SignalCard.jsx'
 export function SignalFeed({ isBlocked }) {
   const [signals,         setSignals]         = useState([])
   const [positionSymbols, setPositionSymbols] = useState(new Set())
+  const [pendingSymbols,  setPendingSymbols]  = useState(new Set())
 
   useEffect(() => { flowTradeApi.getSignals().then(setSignals).catch(() => {}) }, [])
 
   const refreshPositions = useCallback(() => {
-    flowTradeApi.getAlpacaPositions()
-      .then((pos) => setPositionSymbols(new Set((pos ?? []).map((p) => p.symbol))))
-      .catch(() => {})
+    Promise.allSettled([
+      flowTradeApi.getAlpacaPositions(),
+      flowTradeApi.getAlpacaOrders(),
+    ]).then(([pos, orders]) => {
+      if (pos.status    === 'fulfilled') setPositionSymbols(new Set((pos.value    ?? []).map((p) => p.symbol)))
+      if (orders.status === 'fulfilled') setPendingSymbols( new Set((orders.value ?? []).map((o) => o.symbol)))
+    })
   }, [])
 
   useEffect(() => {
@@ -57,7 +62,14 @@ export function SignalFeed({ isBlocked }) {
         </div>
       ) : (
         <div className="grid gap-3 content-start" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-          {visibleSignals.map((s) => <SignalCard key={s.id} signal={s} inPosition={positionSymbols.has(s.symbol)} />)}
+          {visibleSignals.map((s) => (
+            <SignalCard
+              key={s.id}
+              signal={s}
+              inPosition={positionSymbols.has(s.symbol)}
+              hasPendingOrder={!positionSymbols.has(s.symbol) && pendingSymbols.has(s.symbol)}
+            />
+          ))}
         </div>
       )}
     </div>

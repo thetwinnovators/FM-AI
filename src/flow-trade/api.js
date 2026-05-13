@@ -48,6 +48,7 @@ export const flowTradeApi = {
   getDailyRisk:        ()            => req('GET',    '/flow-trade/daily-risk'),
   getAlpacaPositions:  ()            => req('GET',    '/flow-trade/alpaca/positions'),
   getAlpacaAccount:    ()            => req('GET',    '/flow-trade/alpaca/account'),
+  getAlpacaOrders:     ()            => req('GET',    '/flow-trade/alpaca/orders'),
   getAlpacaBars:       (symbol)      => req('GET',    `/flow-trade/alpaca/bars/${symbol}`),
   placeOrder:          (signalId, qty) => req('POST', '/flow-trade/orders', { signalId, qty }),
 }

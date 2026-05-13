@@ -214,6 +214,13 @@ export class FlowTradeModule {
       catch (e: any) { return reply.code(502).send({ error: e.message }) }
     })
 
+    app.get('/flow-trade/alpaca/orders', async (req, reply) => {
+      if (!requireAuth(req, reply)) return
+      if (this.setupRequired) return reply.code(503).send({ error: 'Alpaca not configured' })
+      try { return await this.alpacaFetch('/v2/orders?status=open&limit=50') }
+      catch (e: any) { return reply.code(502).send({ error: e.message }) }
+    })
+
     app.get('/flow-trade/alpaca/bars/:symbol', async (req, reply) => {
       if (!requireAuth(req, reply)) return
       if (this.setupRequired) return reply.code(503).send({ error: 'Alpaca not configured' })

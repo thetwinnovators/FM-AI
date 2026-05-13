@@ -39,7 +39,7 @@ function useRecommendation(signal) {
   return rec
 }
 
-export function SignalCard({ signal, inPosition = false }) {
+export function SignalCard({ signal, inPosition = false, hasPendingOrder = false }) {
   const meta     = SETUP_META[signal.setup_type] ?? SETUP_META.momentum_breakout
   const isActive = signal.status === 'active'
   const isLong   = signal.direction === 'long'
@@ -81,6 +81,10 @@ export function SignalCard({ signal, inPosition = false }) {
             {inPosition ? (
               <span className="ml-auto text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/25 px-1.5 py-0.5 rounded-full">
                 IN POSITION
+              </span>
+            ) : hasPendingOrder ? (
+              <span className="ml-auto text-[10px] font-semibold text-teal-400 bg-teal-400/10 border border-teal-400/25 px-1.5 py-0.5 rounded-full">
+                ORDER PENDING
               </span>
             ) : (
               <span className={`ml-auto text-[10px] font-medium ${STATUS_COLOR[signal.status] ?? 'text-white/40'}`}>
