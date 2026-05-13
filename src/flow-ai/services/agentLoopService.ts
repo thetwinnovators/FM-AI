@@ -28,6 +28,7 @@ export type AgentEvent =
       deny: () => void
     }
   | { type: 'file_read'; path: string; content: string; step: number }
+  | { type: 'shell_exec'; command: string; stdout: string; stderr: string; step: number }
 
 export interface MemoryContextEntry {
   category: string
@@ -42,7 +43,7 @@ export interface RunAgentLoopOptions {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-const MAX_STEPS = 5
+const MAX_STEPS = 15
 
 interface ModelResponse {
   thought: string
@@ -208,6 +209,20 @@ export async function runAgentLoop(
         type: 'file_read',
         path: pathArg,
         content: (runResult.output as any).content,
+        step,
+      })
+    }
+
+    // system.exec terminal-mirror event — sends command + output to the terminal pane.
+    if (tool.toolName === 'system.exec') {
+      const out = runResult.output as any
+      const cmdInput = toolInput as any
+      const cmdStr = [cmdInput?.command, ...(cmdInput?.args ?? [])].filter(Boolean).join(' ')
+      onEvent({
+        type: 'shell_exec',
+        command: cmdStr,
+        stdout: typeof out?.stdout === 'string' ? out.stdout : '',
+        stderr: typeof out?.stderr === 'string' ? out.stderr : '',
         step,
       })
     }

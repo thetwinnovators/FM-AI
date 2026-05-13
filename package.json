@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start": "concurrently -n daemon,vite -c cyan,magenta \"cd daemon && npm run dev\" \"vite\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -16,6 +17,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "jszip": "^3.10.1",
+    "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.11.0",
     "mammoth": "^1.12.0",
     "pdfjs-dist": "^5.7.284",
@@ -34,6 +36,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",

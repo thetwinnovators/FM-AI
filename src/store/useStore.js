@@ -107,7 +107,14 @@ function persist(next) {
   memoryState = next
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  } catch {}
+  } catch {
+    // QuotaExceededError — retry without document content bodies so folders,
+    // memory entries, and all metadata still survive a full localStorage.
+    try {
+      const slim = { ...next, documentContents: {} }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(slim))
+    } catch { /* truly full — disk sync via schedulePush is the safety net */ }
+  }
   notifyWrite(STORAGE_KEY)
   listeners.forEach((fn) => fn())
   schedulePush()
@@ -597,10 +604,10 @@ export function useStore() {
     const cur = memoryState
     const meta = cur.documents?.[id]
     const content = cur.documentContents?.[id]
-    if (!meta || !content?.plainText) return
+    if (!meta || !content?.plainText) return Promise.resolve()
 
     // Import lazily so the normalizer is only loaded when actually used
-    import('../lib/document/normalizeMarkdown.js').then(({ normalizeMarkdown, PROCESSING_VERSION }) => {
+    return import('../lib/document/normalizeMarkdown.js').then(({ normalizeMarkdown, PROCESSING_VERSION }) => {
       const now = new Date().toISOString()
       let normalizedMarkdown = null
       let processingStatus = 'failed'

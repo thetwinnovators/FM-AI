@@ -53,7 +53,7 @@ export function buildAgentSystemPrompt(memoryContext: MemoryContextEntry[] = [])
     toolCatalog,
     memoryBlock,
     'CONSTRAINTS:',
-    '- Maximum 5 reasoning steps.',
+    '- Maximum 15 reasoning steps.',
     '- toolId MUST be one of the exact ids in TOOLS AVAILABLE above (verbatim, case-sensitive). NEVER invent a new tool id — there is no way to create tools at runtime. If no listed tool fits, use action=answer to explain what you would need.',
     '- If you get a "Tool ... does NOT exist" error, do NOT retry the same fake id. Either pick a real id from the list or switch to action=answer.',
     '- If the user asks what you can do, what tools you have, what capabilities exist, or to list/enumerate tools, ALWAYS use action=answer and summarise the TOOLS AVAILABLE list yourself. There is NO separate "list tools" tool — the catalog is already in this prompt.',
@@ -61,5 +61,8 @@ export function buildAgentSystemPrompt(memoryContext: MemoryContextEntry[] = [])
     '- Prefer action=answer when you already have enough information, or when the user is asking a general/conceptual question that no listed tool can answer.',
     '- toolInput must only use parameter names described in the tool description.',
     '- Never fabricate tool output. Only report what tools actually return.',
+    '- For file.edit: old_string must be an EXACT verbatim substring of the file (copy it from file.read output, preserve all whitespace/indentation). It must appear exactly once — include enough surrounding lines to make it unique. new_string is the full replacement.',
+    '- For system.exec: command is the binary name only (e.g. "git", "npm"). args is a string array (e.g. ["status"] or ["run", "test"]). Never embed the full command string in the command field.',
+    '- Coding workflow: (1) read the file, (2) plan the edit, (3) file.edit with exact copied text, (4) optionally run tests with system.exec.',
   ].join('\n')
 }

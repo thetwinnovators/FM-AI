@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check } from 'lucide-react'
+import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check, PanelRight, Minimize2 } from 'lucide-react'
 import { renderInlineText } from '../chat/ChatMessage.jsx'
+import { setChatPanelState } from '../../lib/chatPanelState.js'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { streamChat } from '../../lib/llm/ollama.js'
@@ -9,6 +10,7 @@ import { retrieveDocuments, buildSystemMessage, classifyIntent } from '../../lib
 import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
 import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voice/player.js'
 import { startRecording, transcribeBlob } from '../../lib/voice/stt.js'
+import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../../lib/chat/mcpTools.js'
 
 // "Talk to FlowMap" launcher — a fixed pill at the bottom-center of the
 // FlowMap page that expands into an inline chat panel. Ephemeral by design
@@ -33,7 +35,8 @@ export default function QuickChatLauncher() {
   // on by clicking the launcher pill (instead of just opening the chat).
   const [conversationMode, setConversationMode] = useState(false)
   const [voicePlaying, setVoicePlaying] = useState(false)
-  const [pos, setPos] = useState(null) // {left,top} when dragged; null = default bottom-right
+  const [panelMode, setPanelMode] = useState('floating') // 'floating' | 'side'
+  const [sideWidth, setSideWidth] = useState(480)
   const [model, setModel] = useState(OLLAMA_CONFIG.model)
   const [availableModels, setAvailableModels] = useState([])
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
@@ -42,7 +45,6 @@ export default function QuickChatLauncher() {
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
   const atBottomRef = useRef(true) // true while the scroll container is near the bottom
-  const dragRef = useRef(null)
   const recorderRef = useRef(null)            // MediaRecorder controller from stt.js
   const transcribingRef = useRef(false)
   const micBaseTextRef = useRef('')           // draft contents when mic was activated
@@ -195,7 +197,12 @@ export default function QuickChatLauncher() {
     // instructions — without this, the small model hallucinates "I've noted
     // that..." style confirmations for every greeting.
     const intent = classifyIntent(text)
-    const systemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, {}, null, allDocs)
+    const baseSystemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, {}, null, allDocs)
+    // Append MCP tool descriptions so the model knows what tools it can call.
+    const mcpTools = getActiveMCPTools()
+    const toolBlock = buildToolSystemBlock(mcpTools)
+    const systemMessage = toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage
+
     const llmMessages = [
       { role: 'system', content: systemMessage },
       ...nextHistory.map((m) => ({ role: m.role, content: m.content })),
@@ -210,6 +217,33 @@ export default function QuickChatLauncher() {
         setStreaming(assistantText)
       }
     } catch { /* logged inside streamChat */ }
+
+    // ── Tool call execution round ──────────────────────────────────────────
+    // If the model emitted any <tool_call> blocks, run them and do one
+    // follow-up stream so the final reply incorporates the results.
+    if (mcpTools.length > 0 && !ctrl.signal.aborted && assistantText.includes('<tool_call>')) {
+      setStreaming('') // clear while tools run
+      try {
+        const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText)
+        if (hasToolCalls) {
+          const ctrl2 = new AbortController()
+          abortRef.current = ctrl2
+          const followUp = [
+            ...llmMessages,
+            { role: 'assistant', content: processedText },
+            { role: 'user', content: `${toolResultBlock}\n\nPlease answer using the tool results above.` },
+          ]
+          let followUpText = ''
+          try {
+            for await (const chunk of streamChat(followUp, { signal: ctrl2.signal })) {
+              followUpText += chunk
+              setStreaming(followUpText)
+            }
+          } catch {}
+          assistantText = followUpText || processedText
+        }
+      } catch { /* tool execution errors are non-fatal */ }
+    }
 
     setBusy(false)
     setStreaming('')
@@ -355,29 +389,31 @@ export default function QuickChatLauncher() {
   function close() {
     reset()
     setOpen(false)
-    setPos(null)
   }
 
-  function onHeaderPointerDown(e) {
-    if (e.target.closest('button')) return
+  // Broadcast open/mode/width so BackToTop can shift out of the way
+  useEffect(() => {
+    setChatPanelState({ open, mode: panelMode, sideWidth })
+  }, [open, panelMode, sideWidth])
+
+  // Resize handle for side panel mode — drag left edge to adjust width
+  function onResizePointerDown(e) {
     e.preventDefault()
-    const panel = document.getElementById('quick-chat-panel')
-    if (!panel) return
-    const rect = panel.getBoundingClientRect()
     const startX = e.clientX
-    const startY = e.clientY
-    const origLeft = rect.left
-    const origTop = rect.top
+    const startW = sideWidth
     function onMove(ev) {
-      setPos({
-        left: Math.max(0, Math.min(window.innerWidth - rect.width, origLeft + ev.clientX - startX)),
-        top:  Math.max(0, Math.min(window.innerHeight - rect.height, origTop + ev.clientY - startY)),
-      })
+      // dragging left (negative delta) = wider; dragging right = narrower
+      const delta = startX - ev.clientX
+      setSideWidth(Math.max(400, Math.min(720, startW + delta)))
     }
     function onUp() {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
   }
@@ -388,8 +424,51 @@ export default function QuickChatLauncher() {
   // through; the button itself opts back in.
   if (!open) {
     return (
-      <div className="absolute bottom-4 right-4 z-[9999] pointer-events-none">
-        <button
+      <>
+        <style>{`
+          @keyframes qcl-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+          @keyframes qcl-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+          .qcl-in{animation:qcl-in 0.5s cubic-bezier(.22,1,.36,1) both}
+          .qcl-float{animation:qcl-float 4s ease-in-out infinite}
+        `}</style>
+        <div className="fixed bottom-4 right-4 z-[9999] pointer-events-none">
+          {/* Speech bubble — positioned above the launcher button */}
+          <div className="qcl-in absolute right-0" style={{ bottom: 'calc(100% + 14px)' }}>
+            <div
+              className="qcl-float relative rounded-2xl rounded-br-sm px-4 py-3 w-[280px]"
+              style={{
+                background:
+                  'linear-gradient(160deg, rgba(20,184,166,0.14) 0%, rgba(99,102,241,0.10) 50%, rgba(217,70,239,0.14) 100%),' +
+                  'rgba(8,10,22,0.92)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                boxShadow:
+                  '0 8px 32px rgba(0,0,0,0.50),' +
+                  'inset 0 1px 0 rgba(255,255,255,0.12)',
+              }}
+            >
+              <p className="text-[12.5px] leading-relaxed text-white/80">
+                Good day, Sir. I am here to assist you whenever you&apos;re ready.
+              </p>
+              {/* Arrow tail — downward, aligned to button centre (right: 24px) */}
+              <span aria-hidden style={{
+                position:'absolute', bottom:-9, right:15,
+                width:0, height:0,
+                borderLeft:'9px solid transparent',
+                borderRight:'9px solid transparent',
+                borderTop:'9px solid rgba(255,255,255,0.15)',
+              }} />
+              <span aria-hidden style={{
+                position:'absolute', bottom:-7, right:16,
+                width:0, height:0,
+                borderLeft:'8px solid transparent',
+                borderRight:'8px solid transparent',
+                borderTop:'8px solid rgba(8,10,22,0.92)',
+              }} />
+            </div>
+          </div>
+          <button
           onClick={() => setOpen(true)}
           className="pointer-events-auto group relative inline-flex items-center justify-center w-12 h-12 rounded-full text-white transition-transform hover:-translate-y-[2px] hover:scale-[1.04]"
           style={{
@@ -417,40 +496,61 @@ export default function QuickChatLauncher() {
           />
           <Mic size={18} className="relative drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" />
         </button>
-      </div>
+        </div>
+      </>
     )
   }
 
-  // Default: anchor inside the network canvas (parent has position:relative)
-  // so the panel pops up over the Network section. Once dragged, switch to
-  // viewport-fixed coords so the user can park it anywhere on screen.
-  const panelPos = pos
-    ? { position: 'fixed', left: pos.left, top: pos.top, zIndex: 9999 }
-    : { position: 'absolute', bottom: 16, right: 16, zIndex: 9999 }
+  const isSide = panelMode === 'side'
 
   return (
-    <div style={panelPos}>
+    <div
+      style={isSide
+        ? { position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 9999, display: 'flex', alignItems: 'stretch' }
+        : { position: 'fixed', bottom: 16, right: 16, zIndex: 9999 }
+      }
+    >
+      {isSide && (
+        <div
+          onPointerDown={onResizePointerDown}
+          className="w-1 flex-shrink-0 cursor-col-resize group relative"
+          style={{ background: 'rgba(255,255,255,0.05)' }}
+        >
+          <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-indigo-400/20 transition-colors" />
+        </div>
+      )}
     <div
       id="quick-chat-panel"
-      className="w-[min(420px,calc(100vw-2rem))] flex flex-col rounded-2xl overflow-hidden"
-      style={{
-        maxHeight: pos ? 'min(60vh, 600px)' : 'min(calc(100% - 32px), 600px)',
-        background:
-          'linear-gradient(160deg, rgba(20,184,166,0.10) 0%, rgba(99,102,241,0.07) 50%, rgba(217,70,239,0.10) 100%),' +
-          'rgba(8,10,22,0.78)',
-        backdropFilter: 'blur(8px) saturate(140%)',
-        WebkitBackdropFilter: 'blur(8px) saturate(140%)',
-        border: '1px solid rgba(255,255,255,0.13)',
-        boxShadow:
-          '0 24px 80px rgba(0,0,0,0.55),' +
-          '0 1px 0 rgba(255,255,255,0.14) inset,' +
-          '0 -1px 0 rgba(0,0,0,0.4) inset',
-      }}
+      className={`flex flex-col overflow-hidden${isSide ? '' : ' w-[min(420px,calc(100vw-2rem))] rounded-2xl'}`}
+      style={isSide
+        ? {
+            width: sideWidth,
+            background:
+              'linear-gradient(160deg, rgba(20,184,166,0.10) 0%, rgba(99,102,241,0.07) 50%, rgba(217,70,239,0.10) 100%),' +
+              'rgba(8,10,22,0.92)',
+            backdropFilter: 'blur(8px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+            borderLeft: '1px solid rgba(255,255,255,0.13)',
+            boxShadow: '-8px 0 32px rgba(0,0,0,0.45)',
+          }
+        : {
+            maxHeight: 'min(60vh, 600px)',
+            background:
+              'linear-gradient(160deg, rgba(20,184,166,0.10) 0%, rgba(99,102,241,0.07) 50%, rgba(217,70,239,0.10) 100%),' +
+              'rgba(8,10,22,0.78)',
+            backdropFilter: 'blur(8px) saturate(140%)',
+            WebkitBackdropFilter: 'blur(8px) saturate(140%)',
+            border: '1px solid rgba(255,255,255,0.13)',
+            boxShadow:
+              '0 24px 80px rgba(0,0,0,0.55),' +
+              '0 1px 0 rgba(255,255,255,0.14) inset,' +
+              '0 -1px 0 rgba(0,0,0,0.4) inset',
+          }
+      }
     >
       <header
-        className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08] flex-shrink-0 cursor-grab active:cursor-grabbing select-none"
+        className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.08] flex-shrink-0"
         style={{ background: 'rgba(255,255,255,0.03)' }}
-        onPointerDown={onHeaderPointerDown}
       >
         <Sparkles size={14} className="text-[color:var(--color-creator)]" />
         <span className="text-sm font-medium text-white">Ask Flow.AI</span>
@@ -464,6 +564,14 @@ export default function QuickChatLauncher() {
               Clear
             </button>
           ) : null}
+          <button
+            onClick={() => setPanelMode(isSide ? 'floating' : 'side')}
+            className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08]"
+            aria-label={isSide ? 'Float panel' : 'Dock to side'}
+            title={isSide ? 'Float panel' : 'Dock to side panel'}
+          >
+            {isSide ? <Minimize2 size={14} /> : <PanelRight size={14} />}
+          </button>
           <button
             onClick={close}
             className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08]"

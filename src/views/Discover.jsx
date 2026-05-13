@@ -296,6 +296,11 @@ export default function Discover() {
                 >
                   <X size={12} />
                 </button>
+                {viewCount(it.id) > 0 && (
+                  <div className="absolute top-3 left-3 z-10 px-1.5 py-0.5 rounded-md bg-black/50 border border-white/10 text-[10px] font-medium text-white/50 pointer-events-none select-none">
+                    Read
+                  </div>
+                )}
                 {it.type === 'video' ? <VideoCard item={it} onOpen={open} /> :
                  it.type === 'article' ? <ArticleCard item={it} onOpen={open} /> :
                  <SocialPostCard item={it} onOpen={open} />}

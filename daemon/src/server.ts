@@ -4,6 +4,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { loadOrCreateConfig, saveActualPort, CONFIG_DIR } from './config.js'
+import { FlowTradeModule } from './flow-trade/index.js'
 import { verifyAuthHeader } from './auth.js'
 import { buildRegistry, ToolRegistry } from './tools/registry.js'
 import { JobQueue } from './queue/jobQueue.js'
@@ -31,7 +32,7 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
   // /health behind a bearer token, so reflecting origin is safe.
   await app.register(cors, {
     origin: true,
-    methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['authorization', 'content-type'],
   })
 
@@ -57,6 +58,11 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
   const eventLog = new EventLog()
   const cancellers = new Map<string, AbortController>()
 
+  const flowTrade = new FlowTradeModule(join(CONFIG_DIR, 'flow-trade.db'))
+  flowTrade.start().catch((err) => {
+    console.warn('flow-trade init:', err?.message ?? err)
+  })
+
   function requireAuth(req: any, reply: any): boolean {
     if (!verifyAuthHeader(req.headers.authorization, opts.token)) {
       reply.code(401).send({ error: 'unauthorized' })
@@ -64,6 +70,8 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
     }
     return true
   }
+
+  flowTrade.registerRoutes(app, requireAuth)
 
   app.get('/health', async () => ({ ok: true, version: '0.0.1' }))
 
@@ -95,6 +103,51 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
       return { servers: mcpManager.listServers() }
     } catch (err: any) {
       reply.code(500)
+      return { error: err?.message ?? String(err) }
+    }
+  })
+
+  app.post('/docker-mcp/servers', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const body = req.body as any
+    if (!body?.id || !body?.name || !body?.image) {
+      reply.code(400)
+      return { error: 'id, name, and image are required' }
+    }
+    try {
+      await mcpManager.addServer({
+        id: body.id, name: body.name, image: body.image,
+        enabled: body.enabled ?? true,
+        args: body.args, env: body.env,
+      })
+      return { servers: mcpManager.listServers() }
+    } catch (err: any) {
+      reply.code(400)
+      return { error: err?.message ?? String(err) }
+    }
+  })
+
+  app.patch('/docker-mcp/servers/:id', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const id = (req.params as any).id
+    const body = req.body as any
+    try {
+      await mcpManager.patchServer(id, body)
+      return { servers: mcpManager.listServers() }
+    } catch (err: any) {
+      reply.code(400)
+      return { error: err?.message ?? String(err) }
+    }
+  })
+
+  app.delete('/docker-mcp/servers/:id', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const id = (req.params as any).id
+    try {
+      await mcpManager.removeServer(id)
+      return { servers: mcpManager.listServers() }
+    } catch (err: any) {
+      reply.code(400)
       return { error: err?.message ?? String(err) }
     }
   })

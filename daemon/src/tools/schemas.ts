@@ -15,6 +15,11 @@ export const schemas: Record<string, ZodSchema> = {
     content: z.string(),
     mode: z.enum(['overwrite', 'append']).optional(),
   }).strict(),
+  'file.edit': z.object({
+    path: NonEmptyString,
+    old_string: NonEmptyString,
+    new_string: z.string(),
+  }).strict(),
   'file.delete': z.object({
     path: NonEmptyString,
     recursive: z.boolean().optional(),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, FolderPlus, Plus, Inbox, Upload, CheckSquare, Square, X, Trash2, ChevronRight, FolderInput } from 'lucide-react'
+import { FileText, FolderPlus, Plus, Inbox, Upload, CheckSquare, Square, X, Trash2, ChevronRight, FolderInput, Wand2, Loader2 } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import PasteDocumentModal from '../components/document/PasteDocumentModal.jsx'
@@ -30,7 +30,7 @@ export default function Documents() {
     documents, folders,
     userTopics, removeDocument, addDocument,
     addFolder, renameFolder, removeFolder, updateDocument,
-    requestSummary,
+    reprocessDocument, requestSummary,
   } = useStore()
   const confirm = useConfirm()
 
@@ -165,6 +165,28 @@ export default function Documents() {
       danger: true,
     })
     if (ok) removeDocument(doc.id)
+  }
+
+  const [formatAllProgress, setFormatAllProgress] = useState(null) // null | { current, total, done }
+
+  async function formatAllDocuments() {
+    const toProcess = Object.values(documents || {}).filter(
+      (d) => d.processingStatus !== 'processed' || d.processingVersion !== PROCESSING_VERSION
+    )
+    if (toProcess.length === 0) {
+      setFormatAllProgress({ current: 0, total: 0, done: true })
+      setTimeout(() => setFormatAllProgress(null), 3000)
+      return
+    }
+    setFormatAllProgress({ current: 0, total: toProcess.length, done: false })
+    for (let i = 0; i < toProcess.length; i++) {
+      const doc = toProcess[i]
+      setFormatAllProgress({ current: i + 1, total: toProcess.length, done: false })
+      updateDocument(doc.id, { processingStatus: 'reprocessing' })
+      await reprocessDocument(doc.id)
+    }
+    setFormatAllProgress({ current: toProcess.length, total: toProcess.length, done: true })
+    setTimeout(() => setFormatAllProgress(null), 4000)
   }
 
   const allFolders = useMemo(() =>
@@ -330,6 +352,20 @@ export default function Documents() {
             </>
           ) : (
             <>
+              <button
+                onClick={formatAllDocuments}
+                disabled={!!formatAllProgress && !formatAllProgress.done}
+                className="btn text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Convert all unformatted documents to readable Markdown"
+              >
+                {formatAllProgress && !formatAllProgress.done ? (
+                  <><Loader2 size={13} className="animate-spin" /> {formatAllProgress.current}/{formatAllProgress.total}</>
+                ) : formatAllProgress?.done ? (
+                  <><Wand2 size={13} /> Done</>
+                ) : (
+                  <><Wand2 size={13} /> Format All</>
+                )}
+              </button>
               <button
                 onClick={() => {
                   const f = addFolder('New Folder')

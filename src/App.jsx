@@ -5,6 +5,7 @@ import TopBar from './components/layout/TopBar.jsx'
 import ConfirmProvider from './components/ui/ConfirmProvider.jsx'
 import { ApprovalDialogProvider } from './components/ui/ApprovalDialog.jsx'
 import BackToTop from './components/ui/BackToTop.jsx'
+import QuickChatLauncher from './components/flow/QuickChatLauncher.jsx'
 import RouteLoadingBar from './components/ui/RouteLoadingBar.jsx'
 import { useStore } from './store/useStore.js'
 import { useIngestionWorker } from './flow-ai/hooks/useIngestionWorker.js'
@@ -37,7 +38,7 @@ const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.
 const CodeAcademy            = lazy(() => import('./views/CodeAcademy.jsx'))
 const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
 const OperatorWorkspace      = lazy(() => import('./views/OperatorWorkspace.jsx'))
-const AICodingView           = lazy(() => import('./views/AICodingView.jsx'))
+const FlowTrade              = lazy(() => import('./views/FlowTrade.jsx'))
 const TerminalControlView    = lazy(() => import('./views/TerminalControlView.jsx'))
 const OperatorSettings       = lazy(() => import('./views/OperatorSettings.jsx'))
 
@@ -56,12 +57,14 @@ function ScrollToTop() {
 // Suspense wraps the route tree so the loading bar shows whenever a lazy chunk
 // is being fetched (first visit to any page). The shell (LeftRail, TopBar)
 // renders immediately — only the content area shows the fallback.
-function AnimatedRoutes() {
+const WORKSPACE_ROUTES = ['/flow-trade']
+
+function AnimatedRoutes({ isWorkspace }) {
   const location = useLocation()
   return (
     <Suspense fallback={<RouteLoadingBar />}>
       <ScrollToTop />
-      <div key={location.pathname} className="fm-page-enter">
+      <div key={location.pathname} className={isWorkspace ? 'fm-page-enter h-full' : 'fm-page-enter'}>
         <Routes>
           <Route path="/"                              element={<FlowMap />} />
           <Route path="/flow"                          element={<FlowMap />} />
@@ -79,9 +82,9 @@ function AnimatedRoutes() {
           <Route path="/code-academy"                  element={<CodeAcademy />} />
           <Route path="/briefs"                        element={<Briefs />} />
           <Route path="/operator"                      element={<OperatorWorkspace />} />
-          <Route path="/operator/coding"               element={<AICodingView />} />
           <Route path="/operator/terminal"             element={<TerminalControlView />} />
           <Route path="/operator/settings"             element={<OperatorSettings />} />
+          <Route path="/flow-trade"                    element={<FlowTrade />} />
           <Route path="/memory"                        element={<Memory />} />
           <Route path="/connections"                   element={<MCPIntegrationsPage />} />
           <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />
@@ -178,25 +181,40 @@ function DeferredWorkers() {
 
 // ─── App root ─────────────────────────────────────────────────────────────────
 
-export default function App() {
+function AppShell() {
+  const location = useLocation()
   const mainRef = useRef(null)
+  const isWorkspace = WORKSPACE_ROUTES.includes(location.pathname)
+
+  return (
+    <>
+      <div className="flex h-full">
+        <LeftRail />
+        <div className="flex flex-col flex-1 min-w-0">
+          <TopBar />
+          <main
+            ref={mainRef}
+            className={`flex-1 m-3 mt-3 ${isWorkspace ? 'overflow-hidden' : 'overflow-auto'}`}
+          >
+            <div className={`glass-panel overflow-clip ${isWorkspace ? 'h-full' : 'min-h-full'}`}>
+              <AnimatedRoutes isWorkspace={isWorkspace} />
+            </div>
+          </main>
+        </div>
+      </div>
+      <BackToTop scrollRef={mainRef} />
+      <QuickChatLauncher />
+    </>
+  )
+}
+
+export default function App() {
   return (
     <BrowserRouter>
       <ConfirmProvider>
         <ApprovalDialogProvider>
           <DeferredWorkers />
-          <div className="flex h-full">
-            <LeftRail />
-            <div className="flex flex-col flex-1 min-w-0">
-              <TopBar />
-              <main ref={mainRef} className="flex-1 overflow-auto m-3 mt-3">
-                <div className="glass-panel min-h-full overflow-clip">
-                  <AnimatedRoutes />
-                </div>
-              </main>
-            </div>
-          </div>
-          <BackToTop scrollRef={mainRef} />
+          <AppShell />
         </ApprovalDialogProvider>
       </ConfirmProvider>
     </BrowserRouter>

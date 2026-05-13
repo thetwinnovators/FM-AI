@@ -5,6 +5,7 @@ import { searchStackOverflow } from '../../lib/search/stackOverflow.js'
 import { searchGitHubIssues }  from '../../lib/search/github.js'
 import { searchSite }          from '../../lib/search/siteSearch.js'
 import { PAIN_QUERIES }     from '../constants/painQueries.js'
+import { DESIGN_QUERIES }   from '../constants/designQueries.js'
 import type { RawSearchResult } from './signalExtractor.js'
 
 export type ScanSource =
@@ -12,6 +13,7 @@ export type ScanSource =
   | 'stackoverflow' | 'github'
   | 'producthunt' | 'indiehackers' | 'g2' | 'capterra'
   | 'twitter' | 'linkedin' | 'discord'
+  | 'mobbin' | 'behance' | 'dribbble' | 'thefwa'
 
 export const SOURCE_LABELS: Record<ScanSource, string> = {
   reddit:       'Reddit',
@@ -26,10 +28,17 @@ export const SOURCE_LABELS: Record<ScanSource, string> = {
   twitter:      'Twitter/X',
   linkedin:     'LinkedIn',
   discord:      'Discord',
+  mobbin:       'Mobbin',
+  behance:      'Behance',
+  dribbble:     'Dribbble',
+  thefwa:       'FWA',
 }
 
 // Subset of pain queries used for site: SearXNG sources (fewer = less hammering)
 const SITE_PAIN_QUERIES = PAIN_QUERIES.slice(0, 6)
+
+// Design inspiration sources use topic-focused queries instead of pain queries
+const DESIGN_SOURCES = new Set<ScanSource>(['mobbin', 'behance', 'dribbble', 'thefwa'])
 
 export interface ScanProgress {
   source:      ScanSource
@@ -97,13 +106,13 @@ function mapGenericItem(item: any, source: string): RawSearchResult | null {
 }
 
 // SearXNG site: sources use a smaller query set to reduce request volume
-const SITE_SOURCES = new Set<ScanSource>(['producthunt', 'indiehackers', 'g2', 'capterra', 'twitter', 'linkedin', 'discord'])
+const SITE_SOURCES = new Set<ScanSource>(['producthunt', 'indiehackers', 'g2', 'capterra', 'twitter', 'linkedin', 'discord', 'mobbin', 'behance', 'dribbble', 'thefwa'])
 
 async function runSource(source: ScanSource, onProgress: ProgressCallback): Promise<RawSearchResult[]> {
   onProgress({ source, status: 'running' })
   const abortController = new AbortController()
   const results: RawSearchResult[] = []
-  const queries = SITE_SOURCES.has(source) ? SITE_PAIN_QUERIES : PAIN_QUERIES
+  const queries = DESIGN_SOURCES.has(source) ? DESIGN_QUERIES : SITE_SOURCES.has(source) ? SITE_PAIN_QUERIES : PAIN_QUERIES
 
   try {
     const factories = queries.map((query) => async (): Promise<RawSearchResult[]> => {
@@ -162,6 +171,7 @@ export const ALL_SOURCES: ScanSource[] = [
   'stackoverflow', 'github',
   'producthunt', 'indiehackers', 'g2', 'capterra',
   'twitter', 'linkedin', 'discord',
+  'mobbin', 'behance', 'dribbble', 'thefwa',
 ]
 
 export async function runPainSearch(

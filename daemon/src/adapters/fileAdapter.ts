@@ -70,6 +70,17 @@ export function createFileAdapter(opts: FileAdapterOptions) {
       return { bytesWritten: bytes }
     },
 
+    async edit(params: { path: string; old_string: string; new_string: string }) {
+      const resolved = assertAllowed(params.path, getAllowedRoots)
+      const content = (await readFile(resolved)).toString('utf8')
+      const count = content.split(params.old_string).length - 1
+      if (count === 0) throw new Error('adapter_failure: old_string not found in file — check for exact whitespace/indentation')
+      if (count > 1) throw new Error(`adapter_failure: old_string is not unique (${count} matches) — provide more surrounding context to make it unique`)
+      const updated = content.replace(params.old_string, params.new_string)
+      await writeFile(resolved, updated, 'utf8')
+      return { bytesWritten: Buffer.byteLength(updated, 'utf8'), replacements: 1 }
+    },
+
     async delete(params: { path: string; recursive?: boolean }) {
       const resolved = assertAllowed(params.path, getAllowedRoots)
       await rm(resolved, { recursive: params.recursive ?? false, force: false })

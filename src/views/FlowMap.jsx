@@ -5,50 +5,21 @@ import FlowGraph from '../components/flow/FlowGraph.jsx'
 import PipelineStrip from '../components/flow/PipelineStrip.jsx'
 import GlassSidebar from '../components/flow/GlassSidebar.jsx'
 import KpiRow from '../components/flow/KpiRow.jsx'
-import ConnectedSources from '../components/flow/ConnectedSources.jsx'
-import DerivedSignals from '../components/flow/DerivedSignals.jsx'
 import InterestMemoryPanel from '../components/flow/InterestMemoryPanel.jsx'
 import VideoPlayerModal from '../components/content/VideoPlayerModal.jsx'
 import ArticleReader from '../components/content/ArticleReader.jsx'
 import NodeVoicePanel from '../components/flow/NodeVoicePanel.jsx'
-import QuickChatLauncher from '../components/flow/QuickChatLauncher.jsx'
 import { useGraph } from '../store/useGraph.js'
-import { useLearning } from '../store/useLearning.js'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { subscribeVoicePlaying } from '../lib/voice/player.js'
 
-function computeRecentlyReinforced(seedContent, seedTopics, manualContent, views, saves) {
-  let latestId = null
-  let latestTime = ''
-
-  for (const [id, v] of Object.entries(views || {})) {
-    if ((v.lastAt || '') > latestTime) { latestTime = v.lastAt; latestId = id }
-  }
-  for (const [id, s] of Object.entries(saves || {})) {
-    if ((s.savedAt || '') > latestTime) { latestTime = s.savedAt; latestId = id }
-  }
-
-  if (!latestId) return '—'
-
-  const seedItem = seedContent.find((c) => c.id === latestId)
-  const manualEntry = seedItem
-    ? null
-    : Object.values(manualContent || {}).find((e) => e.item?.id === latestId)
-
-  const topicId = (seedItem?.topicIds || manualEntry?.topicIds || [])[0]
-  if (!topicId) return '—'
-
-  const topic = seedTopics.find((t) => t.id === topicId)
-  return (topic?.name || topicId).replace(/^topic_/, '').replace(/_/g, ' ')
-}
 
 export default function FlowMap() {
   const navigate = useNavigate()
   const { nodes, edges } = useGraph()
-  const patterns = useLearning()
   const { topics, content, contentById } = useSeed()
-  const { saves, follows, documents, userTopics, manualContent, memoryEntries, views } = useStore()
+  const { saves, follows, documents, userTopics, manualContent, memoryEntries } = useStore()
 
   const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -170,15 +141,6 @@ export default function FlowMap() {
     { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post'),  spark: posts    / Math.max(1, totalContent), color: '#8b5cf6' },
   ]
 
-  const manualVideos = Object.values(manualContent || {}).filter((e) => e.item?.type === 'video').length
-  const hnContentCount = Object.values(manualContent || {}).filter(
-    (e) => (e.item?.url || '').includes('news.ycombinator.com')
-  ).length
-  const documentCount = Object.keys(documents || {}).length
-  const totalVideoCount = videos + manualVideos
-
-  const recentlyReinforced = computeRecentlyReinforced(content, topics, manualContent, views, saves)
-
   const retainCount = savedCount + Object.keys(memoryEntries || {}).length
   const hasUserData =
     Object.keys(userTopics || {}).length > 0 ||
@@ -247,24 +209,11 @@ export default function FlowMap() {
               autoplay
               onClose={() => setSelectedNodeId(null)}
             />
-            {/* "Talk to FlowMap" launcher — anchored to the bottom-center of
-                the network canvas itself (not the page). Same retrieval
-                pipeline as /chat; auto-speaks when Voice responses is on. */}
-            <QuickChatLauncher />
           </div>
         </div>
       </div>
 
       <KpiRow items={kpis} />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ConnectedSources
-          videoCount={totalVideoCount}
-          documentCount={documentCount}
-          hnContentCount={hnContentCount}
-        />
-        <DerivedSignals patterns={patterns} recentlyReinforced={recentlyReinforced} />
-      </div>
 
       <InterestMemoryPanel />
 

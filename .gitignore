@@ -15,3 +15,5 @@ docs/*.docx
 daemon/node_modules
 daemon/dist
 daemon/data
+
+.superpowers/

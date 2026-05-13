@@ -14,6 +14,7 @@ import { useTelegramCommands } from '../hooks/useTelegramCommands.js'
 import { IntegrationStatusBadge } from '../components/IntegrationStatusBadge.js'
 import { ToolCatalogList } from '../components/ToolCatalogList.js'
 import { ExecutionRecordList } from '../components/ExecutionRecordList.js'
+import DockerMCPPanel from '../components/DockerMCPPanel.jsx'
 
 const COMMAND_EXAMPLES = ['/summary', '/topics', '/scan', '/help']
 
@@ -113,6 +114,7 @@ export default function MCPIntegrationDetailPage() {
 
   const integrationId = integration.id
   const isTelegram = integration.type === 'telegram'
+  const isDockerMCP = integration.type === 'docker-mcp'
   const isConnected = integration.status === 'connected'
   const hasProvider = !!getProvider(integration.type)
 
@@ -311,6 +313,13 @@ export default function MCPIntegrationDetailPage() {
 
       {/* Telegram command center — only rendered when telegram + connected */}
       {isTelegram && isConnected ? <TelegramCommandCenter /> : null}
+
+      {/* Docker MCP server management */}
+      {isDockerMCP ? (
+        <div className="mb-8">
+          <DockerMCPPanel />
+        </div>
+      ) : null}
 
       {/* What Flow AI can do */}
       <section className="mb-8">

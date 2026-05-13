@@ -9,7 +9,7 @@
  * When ambiguous, join lines into a paragraph rather than mis-classifying.
  */
 
-export const PROCESSING_VERSION = '1'
+export const PROCESSING_VERSION = '2'
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -39,9 +39,9 @@ export function normalizeMarkdown(rawText, mimeType = '') {
 // "Chapter 1", "Section 2", "Appendix A", etc.
 const CHAPTER_WORD_RE = /^(chapter|section|part|unit|module|lesson|topic|appendix|introduction|conclusion|summary|overview|background|references?|bibliography)\b/i
 
-// Numbered section: "1. Title", "1.2 Title", "1.2.3 Title"
-// Short (<= 100 chars), no sentence-ending punctuation at end
-const NUMBERED_SECTION_RE = /^(\d+\.)+\d*\s+\S/
+// Numbered section: "1.2 Title", "1.2.3 Title" — requires at least N.M format.
+// Plain "1. Item" is a list item (caught by NUMBERED_ITEM_RE), not a heading.
+const NUMBERED_SECTION_RE = /^\d+\.\d[\d.]*\s+\S/
 
 function isHeadingCandidate(line) {
   const t = line.trim()
@@ -81,13 +81,15 @@ function toTitleCase(str) {
     'at', 'to', 'by', 'in', 'of', 'up', 'as', 'is', 'it'])
   return str.toLowerCase().split(/\s+/).map((word, i) => {
     const w = word.replace(/[^a-z0-9]/gi, '')
-    return (i === 0 || !MINOR.has(w)) ? word.replace(/^\w/, (c) => c.toUpperCase()) : word
+    if (!w) return word
+    // Capitalize first *letter* in word, skipping leading punctuation like '['
+    return (i === 0 || !MINOR.has(w)) ? word.replace(/[a-zA-Z]/, (c) => c.toUpperCase()) : word
   }).join(' ')
 }
 
 // ── Code block detection ──────────────────────────────────────────────────────
 
-const CODE_START_RE = /^(import |from |def |class |function |const |let |var |if |else|elif|for |while |return |print\(|console\.|#include|public |private |void |int |float |double |>>> |> \w|% |\$ )/
+const CODE_START_RE = /^(import |from |def |class |function |const |let |var |if |else\b|elif|for |while |return |print\(|console\.|#include|public |private |void |int |float |double |>>> |> \w|% |\$ )/
 const INDENT_RE = /^( {4}|\t)\S/
 
 function looksLikeCode(line) {
@@ -97,9 +99,9 @@ function looksLikeCode(line) {
   if (INDENT_RE.test(line)) return true
   // Has assignment-like structure: word = something, no spaces around content
   if (/^\w+\s*=\s*\S/.test(t) && t.length < 120) return true
-  // Multiple code-like symbols
+  // Multiple code-like symbols — threshold 5 to avoid false-positives in prose with (parens) and [brackets]
   const symbols = (t.match(/[=;{}[\]()]/g) || []).length
-  if (symbols >= 3) return true
+  if (symbols >= 5) return true
   return false
 }
 

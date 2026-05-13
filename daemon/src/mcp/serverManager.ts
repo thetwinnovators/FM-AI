@@ -1,5 +1,5 @@
 import { connectMCPServer, MCPClientHandle, MCPServerTool } from './mcpClient.js'
-import { loadServerRegistry, DockerMCPServerConfig } from './serverRegistry.js'
+import { loadServerRegistry, saveServerRegistry, DockerMCPServerConfig } from './serverRegistry.js'
 
 export interface ManagedServer {
   config: DockerMCPServerConfig
@@ -80,6 +80,31 @@ export class ServerManager {
     const handle = this.handles.get(serverId)
     if (!handle) throw new Error(`adapter_failure: MCP server ${serverId} not connected`)
     return handle.callTool(toolName, args)
+  }
+
+  async addServer(cfg: DockerMCPServerConfig): Promise<void> {
+    const configs = await loadServerRegistry(this.registryPath)
+    if (configs.find((c) => c.id === cfg.id)) throw new Error(`Server "${cfg.id}" already exists`)
+    configs.push(cfg)
+    await saveServerRegistry(configs, this.registryPath)
+    await this.sync()
+  }
+
+  async patchServer(id: string, patch: Partial<DockerMCPServerConfig>): Promise<void> {
+    const configs = await loadServerRegistry(this.registryPath)
+    const idx = configs.findIndex((c) => c.id === id)
+    if (idx === -1) throw new Error(`Server "${id}" not found`)
+    configs[idx] = { ...configs[idx], ...patch, id }
+    await saveServerRegistry(configs, this.registryPath)
+    await this.sync()
+  }
+
+  async removeServer(id: string): Promise<void> {
+    const configs = await loadServerRegistry(this.registryPath)
+    const next = configs.filter((c) => c.id !== id)
+    if (next.length === configs.length) throw new Error(`Server "${id}" not found`)
+    await saveServerRegistry(next, this.registryPath)
+    await this.sync()
   }
 
   async shutdown(): Promise<void> {

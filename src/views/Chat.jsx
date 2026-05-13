@@ -17,6 +17,7 @@ import StarterPromptGrid from '../components/chat/StarterPromptGrid.jsx'
 import ChatMessage from '../components/chat/ChatMessage.jsx'
 import AgentRunTimeline from '../components/chat/AgentRunTimeline.jsx'
 import { runAgentLoop } from '../flow-ai/services/agentLoopService.js'
+import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../lib/chat/mcpTools.js'
 
 function relativeDate(iso) {
   if (!iso) return ''
@@ -974,8 +975,10 @@ export default function Chat() {
     // excerpts), so we only have room for the last few turns of dialogue.
     const MAX_HISTORY = 12 // 6 user+assistant pairs
     const recent = allRecent.length > MAX_HISTORY ? allRecent.slice(-MAX_HISTORY) : allRecent
+    const mcpTools = getActiveMCPTools()
+    const toolBlock = buildToolSystemBlock(mcpTools)
     const llmMessages = [
-      { role: 'system', content: systemMessage },
+      { role: 'system', content: toolBlock ? `${systemMessage}\n\n${toolBlock}` : systemMessage },
       ...recent.map((m) => ({ role: m.role, content: m.content })),
     ]
 
@@ -989,6 +992,34 @@ export default function Chat() {
           setStreamingText(assistantText)
         }
       } catch { /* devWarn already fired in adapter */ }
+
+      // ── MCP tool-call round ────────────────────────────────────────────────
+      // If the model emitted <tool_call> blocks, run them and do one follow-up
+      // stream so the final reply can incorporate the results. Mirrors the same
+      // approach used in QuickChatLauncher. Tool errors are non-fatal.
+      if (mcpTools.length > 0 && assistantText.includes('<tool_call>') && !ctrl.signal.aborted) {
+        setStreamingText('')
+        try {
+          const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText)
+          if (hasToolCalls) {
+            const ctrl2 = new AbortController()
+            abortRef.current = ctrl2
+            const followUp = [
+              ...llmMessages,
+              { role: 'assistant', content: processedText },
+              { role: 'user', content: `${toolResultBlock}\n\nPlease answer using the tool results above.` },
+            ]
+            let followUpText = ''
+            try {
+              for await (const chunk of streamChat(followUp, { signal: ctrl2.signal })) {
+                followUpText += chunk
+                setStreamingText(followUpText)
+              }
+            } catch {}
+            if (followUpText) assistantText = followUpText
+          }
+        } catch { /* tool errors are non-fatal */ }
+      }
 
       if (assistantText.trim()) {
         const { displayText, actions: parsedActions } = parseAssistantActions(assistantText)

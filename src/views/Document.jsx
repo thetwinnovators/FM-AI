@@ -8,6 +8,7 @@ import { OLLAMA_CONFIG } from '../lib/llm/ollamaConfig.js'
 import { generateResponse } from '../lib/llm/ollama.js'
 import FileTypeChip from '../components/document/FileTypeChip.jsx'
 import MarkdownViewer from '../components/document/MarkdownViewer.jsx'
+import { PROCESSING_VERSION } from '../lib/document/normalizeMarkdown.js'
 
 function formatDate(iso) {
   if (!iso) return ''
@@ -159,6 +160,8 @@ export default function Document() {
   }
 
   const linkedTopicIds = new Set(meta.topics || [])
+  const versionOutdated = meta.processingStatus === 'processed' &&
+    meta.processingVersion && meta.processingVersion !== PROCESSING_VERSION
 
   return (
     <div className="p-6">
@@ -351,6 +354,12 @@ export default function Document() {
             {meta.processingStatus === 'processed' && (
               <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded border border-teal-400/30 text-teal-600 bg-teal-50">
                 <FileCode2 size={9} /> Markdown
+              </span>
+            )}
+            {versionOutdated && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide font-medium px-1.5 py-0.5 rounded border border-amber-400/40 text-amber-600 bg-amber-50"
+                title={`Processed with normalizer v${meta.processingVersion}; current is v${PROCESSING_VERSION}. Click Reprocess to update.`}>
+                update available
               </span>
             )}
             {meta.processingStatus === 'reprocessing' && (

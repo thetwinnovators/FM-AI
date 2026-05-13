@@ -8,6 +8,10 @@ const SITE_MAP = {
   twitter:      { domain: 'x.com OR site:twitter.com', label: 'Twitter/X'    },
   linkedin:     { domain: 'linkedin.com',        label: 'LinkedIn'      },
   discord:      { domain: 'discord.com',         label: 'Discord'       },
+  mobbin:       { domain: 'mobbin.com',          label: 'Mobbin'        },
+  behance:      { domain: 'behance.net',         label: 'Behance'       },
+  dribbble:     { domain: 'dribbble.com',        label: 'Dribbble'      },
+  thefwa:       { domain: 'thefwa.com',          label: 'FWA'           },
 }
 
 export async function searchSite(sourceKey, query, limit = 8, signal) {

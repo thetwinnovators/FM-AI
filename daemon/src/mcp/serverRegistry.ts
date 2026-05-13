@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
@@ -34,4 +34,11 @@ export async function loadServerRegistry(
   } catch {
     return []
   }
+}
+
+export async function saveServerRegistry(
+  configs: DockerMCPServerConfig[],
+  filePath: string = DEFAULT_PATH
+): Promise<void> {
+  await writeFile(filePath, JSON.stringify(configs, null, 2), 'utf8')
 }
