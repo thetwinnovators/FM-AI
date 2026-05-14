@@ -1,14 +1,33 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useMemo } from 'react'
 import Globe from 'react-globe.gl'
+import * as THREE from 'three'
 
-const NASA_TEXTURE = 'https://unpkg.com/three-globe/example/img/earth-dark.jpg'
-const GRATICULE_COLOR = 'rgba(32,224,160,0.12)'
+// Night Earth — city lights on dark oceans; more dramatic + futuristic than the day texture
+const EARTH_NIGHT = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
+// Graticule wireframe — brand emerald at low opacity
+const GRATICULE_COLOR = 'rgba(32,224,160,0.22)'
 const AUTO_ROTATE_SPEED = 0.3
 const IDLE_RESUME_MS = 10_000
 
 export default function FlowGlobe({ pins = [], arcs = [], labels = [], viewpoint, onGlobeClick }) {
   const globeRef = useRef(null)
   const idleTimerRef = useRef(null)
+
+  // Custom globe surface material: deep navy-teal base + barely-visible magenta shadow cast.
+  // The night Earth texture loads async and patches in once ready — until then the
+  // material's base color shows (deep blue), which still looks intentional.
+  const globeMaterial = useMemo(() => {
+    const mat = new THREE.MeshPhongMaterial({
+      color: new THREE.Color(0x0e2244),    // deep ocean blue — tints the whole surface
+      emissive: new THREE.Color(0x0e0418), // faint magenta-purple in shadows
+      shininess: 10,
+    })
+    new THREE.TextureLoader().load(EARTH_NIGHT, (tex) => {
+      mat.map = tex
+      mat.needsUpdate = true
+    })
+    return mat
+  }, [])
 
   // Fly camera whenever viewpoint changes
   useEffect(() => {
@@ -54,10 +73,11 @@ export default function FlowGlobe({ pins = [], arcs = [], labels = [], viewpoint
         width={undefined}
         height={undefined}
         backgroundColor="#05070f"
-        globeImageUrl={NASA_TEXTURE}
+        globeMaterial={globeMaterial}
         showGraticules={true}
         showAtmosphere={true}
-        atmosphereColor="rgba(32,224,160,0.15)"
+        atmosphereColor="rgba(32,224,160,0.65)"
+        atmosphereAltitude={0.22}
         graticulesColor={GRATICULE_COLOR}
         onGlobeClick={handleGlobeClick}
         // Points (pins)
