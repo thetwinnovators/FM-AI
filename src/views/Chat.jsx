@@ -18,6 +18,7 @@ import ChatMessage from '../components/chat/ChatMessage.jsx'
 import AgentRunTimeline from '../components/chat/AgentRunTimeline.jsx'
 import { runAgentLoop } from '../flow-ai/services/agentLoopService.js'
 import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../lib/chat/mcpTools.js'
+import { fetchDaemonTools, buildDaemonToolMap, daemonToolToMCPShape } from '../lib/chat/daemonTools.js'
 
 function relativeDate(iso) {
   if (!iso) return ''
@@ -662,6 +663,16 @@ export default function Chat() {
   const approvalResolveRef = useRef(null)
   const [actionQueue, setActionQueue] = useState([])
 
+  // Daemon (Docker MCP) tools — loaded once on mount, refreshed lazily
+  const [daemonMCPTools, setDaemonMCPTools] = useState([])
+  const daemonToolMapRef = useRef(new Map())
+  useEffect(() => {
+    fetchDaemonTools().then((tools) => {
+      setDaemonMCPTools(tools)
+      daemonToolMapRef.current = buildDaemonToolMap(tools)
+    }).catch(() => {})
+  }, [])
+
   // Probe Ollama on mount (and whenever enabled flips) so we can surface a
   // helpful banner early rather than waiting for a send to fail.
   // 'ok' | 'no-instance' | 'no-model' | 'disabled' | null (probing)
@@ -975,7 +986,10 @@ export default function Chat() {
     // excerpts), so we only have room for the last few turns of dialogue.
     const MAX_HISTORY = 12 // 6 user+assistant pairs
     const recent = allRecent.length > MAX_HISTORY ? allRecent.slice(-MAX_HISTORY) : allRecent
-    const mcpTools = getActiveMCPTools()
+    const mcpTools = [
+      ...getActiveMCPTools(),
+      ...daemonMCPTools.map(daemonToolToMCPShape),
+    ]
     const toolBlock = buildToolSystemBlock(mcpTools)
     const llmMessages = [
       { role: 'system', content: toolBlock ? `${systemMessage}\n\n${toolBlock}` : systemMessage },
@@ -1000,7 +1014,7 @@ export default function Chat() {
       if (mcpTools.length > 0 && assistantText.includes('<tool_call>') && !ctrl.signal.aborted) {
         setStreamingText('')
         try {
-          const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText)
+          const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText, daemonToolMapRef.current)
           if (hasToolCalls) {
             const ctrl2 = new AbortController()
             abortRef.current = ctrl2

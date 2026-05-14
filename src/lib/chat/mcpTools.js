@@ -1,6 +1,7 @@
 // MCP tool access for Flow.AI chat panels.
 import { localMCPStorage } from '../../mcp/storage/localMCPStorage.js'
 import { getProvider } from '../../mcp/services/mcpToolRegistry.js'
+import { executeDaemonTool } from './daemonTools.js'
 
 export function getActiveMCPTools() {
   try { return localMCPStorage.listTools() } catch { return [] }
@@ -59,7 +60,13 @@ export async function runMCPTool(toolName, args) {
   }
 }
 
-export async function processToolCalls(responseText) {
+/**
+ * @param {string} responseText  Raw LLM output potentially containing <tool_call> blocks
+ * @param {Map<string,object>} [daemonToolMap]  Optional map of short toolName → full daemon tool
+ *        built by buildDaemonToolMap() in daemonTools.js. When provided, calls whose name
+ *        matches a key in this map are routed to the daemon instead of local MCP storage.
+ */
+export async function processToolCalls(responseText, daemonToolMap = null) {
   const calls = parseToolCalls(responseText)
   if (calls.length === 0) return { hasToolCalls: false, processedText: responseText, toolResultBlock: '' }
 
@@ -67,7 +74,16 @@ export async function processToolCalls(responseText) {
   const resultLines = ['[Tool results]']
 
   for (const call of calls) {
-    const result = await runMCPTool(call.name, call.args)
+    let result
+
+    // Route: daemon docker_mcp tools take priority when a map is supplied
+    if (daemonToolMap && daemonToolMap.has(call.name)) {
+      const dt = daemonToolMap.get(call.name)
+      result = await executeDaemonTool(dt.id, call.args)
+    } else {
+      result = await runMCPTool(call.name, call.args)
+    }
+
     const output = result.success
       ? (typeof result.output === 'string' ? result.output : JSON.stringify(result.output, null, 2))
       : `Error: ${result.error}`
