@@ -388,13 +388,32 @@ export default function FlowGlobe({
       : (d.properties.name_en ?? d.properties.name ?? ''),
   [viewMode])
 
+  // ── Container size — drives Globe width/height so it centres in its box ────
+  const containerRef = useRef(null)
+  const [dims, setDims] = useState({ w: 0, h: 0 })
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    // Snapshot immediately so the first paint is already correct
+    const { width, height } = el.getBoundingClientRect()
+    if (width && height) setDims({ w: Math.round(width), h: Math.round(height) })
+    // Keep in sync when the container resizes (panel drag, window resize, etc.)
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width && height) setDims({ w: Math.round(width), h: Math.round(height) })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full h-full" style={{ background: 'transparent' }}>
+    <div ref={containerRef} className="w-full h-full" style={{ background: 'transparent' }}>
       <Globe
         ref={globeRef}
-        width={undefined}
-        height={undefined}
+        width={dims.w  || undefined}
+        height={dims.h || undefined}
         backgroundColor="rgba(0,0,0,0)"
         globeMaterial={globeMaterial}
         showGraticules={true}

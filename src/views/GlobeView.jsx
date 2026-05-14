@@ -46,6 +46,12 @@ export default function GlobeView() {
   const [mapOverlay, setMapOverlay] = useState(null)
   const [mapView,    setMapView   ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
 
+  // ── Panel width — persisted so the user's resize survives navigation ─────────
+  const [panelWidth, setPanelWidth] = useState(() => {
+    const saved = parseInt(localStorage.getItem('flowmap_panel_width') ?? '', 10)
+    return isNaN(saved) ? 320 : Math.max(240, Math.min(700, saved))
+  })
+
   // ── Floating state ──────────────────────────────────────────────────────────
   const [floating, setFloating] = useState(false)
   const [floatPos, setFloatPos] = useState({ x: DEFAULT_FLOAT.x, y: DEFAULT_FLOAT.y })
@@ -89,6 +95,15 @@ export default function GlobeView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [floatPos, floatW, floatH])
 
+  // ── Docked panel resize (left edge) ─────────────────────────────────────────
+  const onPanelResizeMouseDown = useCallback((e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    interactRef.current = { kind: 'resize-panel', startX: e.clientX, ow: panelWidth }
+    bindInteract()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelWidth])
+
   function bindInteract() {
     const onMove = (e) => {
       const r = interactRef.current
@@ -104,6 +119,11 @@ export default function GlobeView() {
       } else if (r.kind === 'resize-corner') {
         setFloatW(Math.max(280, r.ow + dx))
         setFloatH(Math.max(220, r.oh + dy))
+      } else if (r.kind === 'resize-panel') {
+        // Panel is anchored to the right — dragging LEFT widens it (dx < 0 → width grows)
+        const next = Math.max(240, Math.min(700, r.ow - dx))
+        setPanelWidth(next)
+        localStorage.setItem('flowmap_panel_width', String(next))
       }
     }
     const onUp = () => {
@@ -286,8 +306,8 @@ export default function GlobeView() {
           />
         </div>
       ) : (
-        /* Docked — globe fills the entire view behind the side panel */
-        <div className="absolute inset-0 flex flex-col">
+        /* Docked — globe fills only the visible area left of the side panel */
+        <div className="absolute inset-0 flex flex-col" style={{ right: panelWidth }}>
           {globeContent}
         </div>
       )}
@@ -296,7 +316,7 @@ export default function GlobeView() {
       <div
         className="absolute top-0 right-0 bottom-0 flex flex-col"
         style={{
-          width: floating ? '100%' : '320px',
+          width: floating ? '100%' : panelWidth,
           background: 'rgba(2,7,18,0.72)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
@@ -304,6 +324,17 @@ export default function GlobeView() {
           zIndex: 10,
         }}
       >
+        {/* Resize handle — left edge, only in docked mode */}
+        {!floating && (
+          <div
+            className="absolute top-0 bottom-0 z-20 flex items-center justify-center group"
+            style={{ left: -5, width: 10, cursor: 'ew-resize' }}
+            onMouseDown={onPanelResizeMouseDown}
+          >
+            {/* Pill indicator — grows and lights up on hover */}
+            <div className="h-8 w-0.5 rounded-full bg-white/10 transition-all duration-150 group-hover:h-14 group-hover:w-[3px] group-hover:bg-teal-400/50" />
+          </div>
+        )}
         {/* Tab switcher */}
         <div className="flex border-b border-white/[0.07] flex-shrink-0">
           {TABS.map(({ id, label, icon: Icon }) => (
