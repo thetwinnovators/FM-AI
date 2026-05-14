@@ -17,6 +17,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.2.4",
     "jszip": "^3.10.1",
+    "leaflet": "^1.9.4",
     "lightweight-charts": "^5.2.0",
     "lucide-react": "^1.11.0",
     "mammoth": "^1.12.0",

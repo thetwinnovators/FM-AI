@@ -127,8 +127,6 @@ export default function FlowGlobe({
   const [hoveredPolygon, setHoveredPolygon] = useState(null)
   const [loadingPoly,    setLoadingPoly   ] = useState(null)   // tinted while states load
   const [cityLabels,     setCityLabels    ] = useState([])
-  // Current camera altitude — used to keep city label pixel-size constant across zoom levels
-  const [currentAlt,     setCurrentAlt   ] = useState(2.5)
 
   const activePolygons = viewMode === 'globe' ? countries : statePolygons
 
@@ -195,12 +193,7 @@ export default function FlowGlobe({
           lat:       p.geometry.coordinates[1],
           lng:       p.geometry.coordinates[0],
           text:      p.properties.name ?? '',
-          isCity:    true,   // flag for altitude-based size scaling
-          size:      isCapital ? 0.60 : 0.38,
-          color:     isCapital
-                       ? 'rgba(255,220,100,0.92)'
-                       : 'rgba(255,255,255,0.62)',
-          dotRadius: isCapital ? 0.30 : 0.15,
+          isCapital,
         }
       }))
 
@@ -211,8 +204,60 @@ export default function FlowGlobe({
     }
   }, [viewMode, onFeatureClick])
 
-  // Static geo labels merged with any AI-placed dynamic labels
-  const allLabels = useMemo(() => [...GEO_LABELS, ...labels, ...cityLabels], [labels, cityLabels])
+  // Static geo labels merged with any AI-placed dynamic labels.
+  // cityLabels are rendered via htmlElementsData (pin icons) — not in labelsData.
+  const allLabels = useMemo(() => [...GEO_LABELS, ...labels], [labels])
+
+  // ── HTML pin element factory for city markers ─────────────────────────────
+  // CSS2DRenderer sizes are in screen pixels — constant regardless of zoom level.
+  const cityHtmlElement = useCallback((d) => {
+    const pinColor  = d.isCapital ? '#ffc85a' : 'rgba(180,210,255,0.80)'
+    const textColor = d.isCapital ? '#ffc85a' : 'rgba(220,235,255,0.72)'
+
+    const wrap = document.createElement('div')
+    wrap.style.display       = 'flex'
+    wrap.style.flexDirection = 'column'
+    wrap.style.alignItems    = 'center'
+    wrap.style.pointerEvents = 'none'
+    wrap.style.userSelect    = 'none'
+    wrap.style.transform     = 'translateX(-50%) translateY(-100%)'
+
+    // SVG pin built via createElementNS (no innerHTML)
+    const ns  = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(ns, 'svg')
+    svg.setAttribute('width', '7')
+    svg.setAttribute('height', '10')
+    svg.setAttribute('viewBox', '0 0 7 10')
+    svg.style.flexShrink = '0'
+    svg.style.filter     = 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
+
+    const body = document.createElementNS(ns, 'path')
+    body.setAttribute('d', 'M3.5 0C1.57 0 0 1.57 0 3.5c0 2.63 3.5 6.5 3.5 6.5S7 6.13 7 3.5C7 1.57 5.43 0 3.5 0z')
+    body.setAttribute('fill', pinColor)
+    svg.appendChild(body)
+
+    const hole = document.createElementNS(ns, 'circle')
+    hole.setAttribute('cx', '3.5')
+    hole.setAttribute('cy', '3.5')
+    hole.setAttribute('r', '1.3')
+    hole.setAttribute('fill', 'rgba(0,0,0,0.35)')
+    svg.appendChild(hole)
+
+    const span = document.createElement('span')
+    span.textContent        = d.text
+    span.style.color        = textColor
+    span.style.fontSize     = '10px'
+    span.style.fontWeight   = d.isCapital ? '600' : '400'
+    span.style.fontFamily   = 'system-ui,-apple-system,sans-serif'
+    span.style.textShadow   = '0 1px 4px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.7)'
+    span.style.marginTop    = '2px'
+    span.style.whiteSpace   = 'nowrap'
+    span.style.letterSpacing = '0.01em'
+
+    wrap.appendChild(svg)
+    wrap.appendChild(span)
+    return wrap
+  }, [])
 
   // ── Globe surface material ────────────────────────────────────────────────
   const globeMaterial = useMemo(() => {
@@ -354,13 +399,12 @@ export default function FlowGlobe({
     }
   }, [])
 
-  // ── Camera position polling — drives Map-tab sync + city label sizing ────
+  // ── Camera position polling — lets parent sync its Map tab ───────────────
   useEffect(() => {
+    if (!onCameraChange) return
     const id = setInterval(() => {
       if (!globeRef.current) return
-      const pov = globeRef.current.pointOfView()
-      setCurrentAlt(pov.altitude)
-      onCameraChange?.(pov)
+      onCameraChange(globeRef.current.pointOfView())
     }, 600)
     return () => clearInterval(id)
   }, [onCameraChange])
@@ -469,24 +513,22 @@ export default function FlowGlobe({
         arcDashLength={0.4}
         arcDashGap={0.2}
         arcDashAnimateTime={2000}
-        // ── Labels ───────────────────────────────────────────────────────────
+        // ── Labels (geo labels + AI labels only; city pins via htmlElementsData) ──
         labelsData={allLabels}
         labelLat="lat"
         labelLng="lng"
         labelText="text"
-        labelSize={(d) => {
-          const base = d.size ?? 1.2
-          if (!d.isCity) return base
-          // Keep city labels at a fixed screen pixel size regardless of zoom.
-          // labelSize ∝ altitude means the globe-unit size shrinks as you zoom in,
-          // exactly compensating for the perspective enlargement.
-          const altScale = Math.max(0.08, currentAlt) / 1.6
-          return Math.max(0.04, base * altScale)
-        }}
+        labelSize={(d) => d.size ?? 1.2}
         labelColor={(d) => d.color ?? 'rgba(255,255,255,0.85)'}
         labelDotRadius={(d) => d.dotRadius ?? 0.3}
         labelAltitude={0.01}
         onLabelClick={(label) => onLabelClick?.(label)}
+        // ── City pin markers (fixed screen-pixel size via CSS2DRenderer) ─────
+        htmlElementsData={cityLabels}
+        htmlLat="lat"
+        htmlLng="lng"
+        htmlAltitude={0.01}
+        htmlElement={cityHtmlElement}
         // ── Country / state polygons ──────────────────────────────────────────
         polygonsData={activePolygons}
         polygonGeoJsonGeometry={(d) => d.geometry}

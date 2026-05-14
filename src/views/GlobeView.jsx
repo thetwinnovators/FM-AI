@@ -6,6 +6,7 @@ import {
   Search, Plane, Navigation, Map, ExternalLink,
   GripVertical, PictureInPicture2, LayoutPanelLeft,
 } from 'lucide-react'
+import LiveMap, { latSpanToZoom } from '../flow-globe/LiveMap.jsx'
 
 const LocationSearch = lazy(() => import('../flow-globe/LocationSearch.jsx'))
 const FlightSearch   = lazy(() => import('../flow-globe/FlightSearch.jsx'))
@@ -18,20 +19,6 @@ const TABS = [
   { id: 'map',        label: 'Map',     icon: Map        },
 ]
 
-/** Build an OpenStreetMap embed URL from a {lat, lng, latSpan, lngSpan} view. */
-function buildOsmUrl({ lat, lng, latSpan, lngSpan }) {
-  const buf   = 0.08
-  const west  = Math.max(-180, lng  - lngSpan / 2 - buf)
-  const east  = Math.min( 180, lng  + lngSpan / 2 + buf)
-  const south = Math.max( -85, lat  - latSpan / 2 - buf)
-  const north = Math.min(  85, lat  + latSpan / 2 + buf)
-  const marker = `${lat.toFixed(4)},${lng.toFixed(4)}`
-  return (
-    `https://www.openstreetmap.org/export/embed.html` +
-    `?bbox=${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}` +
-    `&layer=mapnik&marker=${marker}`
-  )
-}
 
 function PanelLoader() {
   return <div className="p-4 text-[12px] text-white/25">Loading…</div>
@@ -378,7 +365,7 @@ export default function GlobeView() {
                     <Map size={10} className="text-teal-400/60 flex-shrink-0" />
                     <span className="flex-1 text-[11px] text-white/55 truncate">{mapView.name || 'Current view'}</span>
                     <a
-                      href={`https://www.openstreetmap.org/#map=6/${mapView.lat.toFixed(3)}/${mapView.lng.toFixed(3)}`}
+                      href={`https://www.openstreetmap.org/#map=${latSpanToZoom(mapView.latSpan ?? 20)}/${mapView.lat.toFixed(3)}/${mapView.lng.toFixed(3)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="flex items-center gap-1 text-[9px] text-teal-400/45 hover:text-teal-400/85 transition-colors flex-shrink-0"
@@ -387,17 +374,12 @@ export default function GlobeView() {
                       Full map
                     </a>
                   </div>
-                  {/* OSM embed */}
+                  {/* Live Leaflet map — no iframe reload, smooth flyTo transitions */}
                   <div className="flex-1 relative min-h-0">
-                    <iframe
-                      key={`${mapView.lat}|${mapView.lng}`}
-                      title="Street map"
-                      width="100%"
-                      height="100%"
-                      style={{ border: 0, display: 'block' }}
-                      src={buildOsmUrl(mapView)}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
+                    <LiveMap
+                      lat={mapView.lat}
+                      lng={mapView.lng}
+                      zoom={latSpanToZoom(mapView.latSpan ?? 20)}
                     />
                   </div>
                 </>
