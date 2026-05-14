@@ -39,6 +39,7 @@ const CodeAcademy            = lazy(() => import('./views/CodeAcademy.jsx'))
 const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
 const OperatorWorkspace      = lazy(() => import('./views/OperatorWorkspace.jsx'))
 const FlowTrade              = lazy(() => import('./views/FlowTrade.jsx'))
+const GlobeView              = lazy(() => import('./views/GlobeView.jsx'))
 const TerminalControlView    = lazy(() => import('./views/TerminalControlView.jsx'))
 const OperatorSettings       = lazy(() => import('./views/OperatorSettings.jsx'))
 
@@ -57,7 +58,7 @@ function ScrollToTop() {
 // Suspense wraps the route tree so the loading bar shows whenever a lazy chunk
 // is being fetched (first visit to any page). The shell (LeftRail, TopBar)
 // renders immediately — only the content area shows the fallback.
-const WORKSPACE_ROUTES = ['/flow-trade']
+const WORKSPACE_ROUTES = ['/flow-trade', '/globe']
 
 function AnimatedRoutes({ isWorkspace }) {
   const location = useLocation()
@@ -85,6 +86,7 @@ function AnimatedRoutes({ isWorkspace }) {
           <Route path="/operator/terminal"             element={<TerminalControlView />} />
           <Route path="/operator/settings"             element={<OperatorSettings />} />
           <Route path="/flow-trade"                    element={<FlowTrade />} />
+          <Route path="/globe"                         element={<GlobeView />} />
           <Route path="/memory"                        element={<Memory />} />
           <Route path="/connections"                   element={<MCPIntegrationsPage />} />
           <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />

@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass,
   Plug, Activity, Radar, GraduationCap, Code2,
-  TrendingUp, ChevronLeft, ChevronRight,
+  TrendingUp, Globe, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -27,6 +27,7 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/flow-trade', label: 'Flow Trade', icon: TrendingUp },
+    { to: '/globe',      label: 'Globe',      icon: Globe      },
   ],
 ]
 
