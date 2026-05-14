@@ -3,7 +3,8 @@ import Globe from 'react-globe.gl'
 import * as THREE from 'three'
 import { GEO_LABELS } from './geoLabels.js'
 
-// Night Earth — city lights on dark oceans
+// Textures — day: NASA Blue Marble; night: city lights on dark oceans
+const EARTH_DAY       = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
 const EARTH_NIGHT     = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
 const GRATICULE_COLOR = 'rgba(14,210,238,0.22)'
 const AUTO_ROTATE_SPEED = 0.3
@@ -238,38 +239,31 @@ export default function FlowGlobe({
   )
 
   // ── Globe surface material ────────────────────────────────────────────────
+  // Day side  : NASA Blue Marble texture lit by the DirectionalLight sun.
+  // Night side: city-lights texture as emissive — glows without any light source.
+  // The Phong N·L dot product creates the real-time day/night terminator
+  // at whichever longitude the sun currently occupies.
   const globeMaterial = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({
-      color:             new THREE.Color(0x2a4a6e),
-      emissive:          new THREE.Color(0xffffff),   // white so emissiveMap shows at natural colour
-      emissiveIntensity: 0.38,                        // city-lights glow on the night side
-      shininess:         6,
-      transparent:       true,
+      color:             new THREE.Color(0xffffff),   // show true day-texture colours
+      emissive:          new THREE.Color(0xffffff),   // emissiveMap drives city lights
+      emissiveIntensity: 0.28,                        // city lights visible but not blown out
+      shininess:         12,
       side:              THREE.FrontSide,
     })
 
-    mat.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        '#include <alphamap_fragment>',
-        `#include <alphamap_fragment>
-         #ifdef USE_MAP
-           vec4  _raw  = texture2D( map, vMapUv );
-           float _luma = dot(_raw.rgb, vec3(0.2126, 0.7152, 0.0722));
-           float _land = smoothstep(0.004, 0.12, _luma);
-           vec3 _boosted = diffuseColor.rgb * (1.8 + _land * 2.2);
-           vec3 _ocean_col = vec3(0.012, 0.030, 0.090);
-           diffuseColor.rgb = mix(_ocean_col, _boosted, _land);
-           diffuseColor.a = mix(0.28, 0.95, _land);
-         #endif`,
-      )
-    }
-    mat.customProgramCacheKey = () => 'flowmap-globe-navy-ocean-v4'
-
-    new THREE.TextureLoader().load(EARTH_NIGHT, (tex) => {
-      mat.map         = tex
-      mat.emissiveMap = tex   // same texture drives the city-lights glow on the dark side
+    const loader = new THREE.TextureLoader()
+    // Day texture — shown on the sun-lit hemisphere
+    loader.load(EARTH_DAY, (tex) => {
+      mat.map = tex
       mat.needsUpdate = true
     })
+    // Night texture — city lights glow on the dark hemisphere via emissive
+    loader.load(EARTH_NIGHT, (tex) => {
+      mat.emissiveMap = tex
+      mat.needsUpdate = true
+    })
+
     return mat
   }, [])
 
