@@ -239,44 +239,6 @@ export default function FlowGlobe({
     [labels, cityLabels],
   )
 
-  // ── HTML label factory ────────────────────────────────────────────────────
-  // Returns a DOM element for each label. HTML rendering keeps labels sharp
-  // and legible at all times — text-shadow provides contrast on any background.
-  const makeLabelEl = useCallback((d) => {
-    const color = d.color ?? 'rgba(14,210,238,0.90)'
-    const isCap = d.isCapital
-    const fs    = isCap ? 12 : d.isCity ? 10 : 11
-
-    const wrap = document.createElement('div')
-    wrap.style.cssText =
-      'display:flex;align-items:center;gap:4px;' +
-      'pointer-events:auto;cursor:pointer;user-select:none;white-space:nowrap;'
-
-    // Coloured dot
-    const dot = document.createElement('div')
-    dot.style.cssText =
-      `width:${isCap ? 5 : 3}px;height:${isCap ? 5 : 3}px;` +
-      `border-radius:50%;background:${color};flex-shrink:0;`
-    wrap.appendChild(dot)
-
-    // Label text — hard dark shadow guarantees legibility on any surface
-    const span = document.createElement('span')
-    span.textContent = d.text ?? ''
-    span.style.cssText =
-      `font-size:${fs}px;font-weight:${isCap ? 600 : 400};` +
-      'font-family:system-ui,sans-serif;' +
-      'color:rgba(255,255,255,0.95);letter-spacing:0.04em;' +
-      'text-shadow:' +
-        '0 0 6px rgba(0,0,0,1),' +
-        '0 0 14px rgba(0,0,0,0.95),' +
-        '0 1px 3px rgba(0,0,0,1),' +
-        '-1px 0 3px rgba(0,0,0,0.9),' +
-        '1px 0 3px rgba(0,0,0,0.9);'
-    wrap.appendChild(span)
-
-    wrap.addEventListener('click', () => onLabelClickRef.current?.(d))
-    return wrap
-  }, [])
 
   // ── Globe surface material ────────────────────────────────────────────────
   // Navy sphere with translucent ocean — the night texture drives the
@@ -537,12 +499,28 @@ export default function FlowGlobe({
         arcDashLength={0.4}
         arcDashGap={0.2}
         arcDashAnimateTime={2000}
-        // ── Labels (HTML — always legible via text-shadow) ───────────────────
-        htmlElementsData={allLabels}
-        htmlLat="lat"
-        htmlLng="lng"
-        htmlAltitude={0.01}
-        htmlElement={makeLabelEl}
+        // ── Labels ───────────────────────────────────────────────────────────
+        labelsData={allLabels}
+        labelLat="lat"
+        labelLng="lng"
+        labelText="text"
+        labelResolution={3}
+        labelSize={(d) => {
+          const base = d.size ?? 1.2
+          if (!d.isCity) return base
+          const scale = Math.max(0.08, currentAlt) / 1.6
+          return Math.max(0.03, base * scale)
+        }}
+        labelColor={() => 'rgba(255,255,255,0.95)'}
+        labelDotRadius={(d) => {
+          const base = d.dotRadius ?? 0.3
+          if (!d.isCity) return base
+          const scale = Math.max(0.08, currentAlt) / 1.6
+          return Math.max(0.01, base * scale)
+        }}
+        labelDotColor={(d) => d.color ?? 'rgba(14,210,238,0.9)'}
+        labelAltitude={0.01}
+        onLabelClick={(label) => onLabelClickRef.current?.(label)}
         // ── Country / state polygons ──────────────────────────────────────────
         polygonsData={activePolygons}
         polygonGeoJsonGeometry={(d) => d.geometry}
