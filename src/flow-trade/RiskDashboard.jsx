@@ -121,7 +121,7 @@ export function RiskDashboard({ refreshTick = 0 }) {
                     <span className={`text-[11px] font-semibold ${pos.side === 'long' ? 'text-emerald-400' : 'text-red-400'}`}>
                       {(pos.side ?? 'long').toUpperCase()}
                     </span>
-                    <span className="text-white/30 text-[11px] ml-auto">{qty} share{qty !== 1 ? 's' : ''}</span>
+                    <span className="text-white/30 text-[11px] ml-auto">{+qty.toFixed(4)} share{qty !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
                     <span className="text-white/30">
@@ -154,7 +154,7 @@ export function RiskDashboard({ refreshTick = 0 }) {
                   <span className={`text-[11px] font-semibold ${order.side === 'buy' ? 'text-emerald-400' : 'text-red-400'}`}>
                     {order.side?.toUpperCase()}
                   </span>
-                  <span className="text-white/30 text-[11px] ml-auto">{order.qty} sh</span>
+                  <span className="text-white/30 text-[11px] ml-auto">{+parseFloat(order.qty ?? 0).toFixed(4)} sh</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
                   <span className="text-teal-400/60 capitalize">{order.order_class === 'bracket' ? 'bracket limit' : order.type}</span>
