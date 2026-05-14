@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2, Bell, BellOff, RefreshCw } from 'lucide-react'
+import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2, Bell, RefreshCw, Bookmark, BookmarkCheck, X } from 'lucide-react'
 import { searchAirports } from './airportData.js'
 import { getWatches, addWatch, removeWatch, patchWatch } from './priceWatches.js'
+import { getSavedRoutes, addRoute as saveRoute, removeRoute as deleteSavedRoute } from './savedRoutes.js'
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
@@ -296,6 +297,37 @@ export default function FlightSearch() {
   const [price,        setPrice       ] = useState(null)
   const [priceLoading, setPriceLoading] = useState(false)
 
+  // ── Saved routes ───────────────────────────────────────────────────────────
+  const [savedRoutes, setSavedRoutes] = useState(() => getSavedRoutes())
+
+  const isSaved = links
+    ? savedRoutes.find(
+        (r) => r.origin === origin.trim().toUpperCase() && r.dest === dest.trim().toUpperCase(),
+      )
+    : null
+
+  function handleSaveRoute() {
+    if (!origin.trim() || !dest.trim()) return
+    const route = {
+      id:       Math.random().toString(36).slice(2),
+      origin:   origin.trim().toUpperCase(),
+      dest:     dest.trim().toUpperCase(),
+      tripType,
+    }
+    setSavedRoutes(saveRoute(route))
+  }
+
+  function handleUnsaveRoute() {
+    if (!isSaved) return
+    setSavedRoutes(deleteSavedRoute(isSaved.id))
+  }
+
+  function applyRoute(r) {
+    setOrigin(r.origin)
+    setDest(r.dest)
+    setTripType(r.tripType ?? 'roundtrip')
+  }
+
   // ── Price watches ──────────────────────────────────────────────────────────
   const [watches,     setWatches    ] = useState(() => getWatches())
   const [checkingIds, setCheckingIds] = useState(new Set())
@@ -471,7 +503,20 @@ export default function FlightSearch() {
         {/* Search results */}
         {links && (
           <div className="space-y-2">
-            <p className="text-[10px] text-white/25 font-mono px-0.5">{summary}</p>
+            {/* Summary + save button */}
+            <div className="flex items-center justify-between px-0.5">
+              <p className="text-[10px] text-white/25 font-mono">{summary}</p>
+              <button
+                onClick={isSaved ? handleUnsaveRoute : handleSaveRoute}
+                title={isSaved ? 'Remove saved route' : 'Save this route'}
+                className="flex items-center gap-1 text-[10px] transition-colors"
+                style={{ color: isSaved ? 'rgba(52,211,153,0.75)' : 'rgba(255,255,255,0.25)' }}
+              >
+                {isSaved
+                  ? <><BookmarkCheck size={11} /> Saved</>
+                  : <><Bookmark size={11} /> Save route</>}
+              </button>
+            </div>
 
             {links.map((link) => (
               <a
@@ -565,11 +610,48 @@ export default function FlightSearch() {
           </div>
         )}
 
-        {/* Empty state */}
-        {!links && watches.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
-            <Plane size={20} className="text-white/15" />
-            <p className="text-[11px] text-white/25">Enter airports and a date to find flights.</p>
+        {/* Empty state / saved routes */}
+        {!links && (
+          <div className="space-y-3">
+            {savedRoutes.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[9px] text-white/25 uppercase tracking-wide font-medium px-0.5">
+                  Saved routes
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {savedRoutes.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-1 rounded-lg overflow-hidden"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                      }}
+                    >
+                      <button
+                        onClick={() => applyRoute(r)}
+                        className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 text-[11px] text-white/55 hover:text-white/85 transition-colors"
+                      >
+                        <Plane size={9} className="text-teal-400/50" />
+                        {r.origin} → {r.dest}
+                      </button>
+                      <button
+                        onClick={() => setSavedRoutes(deleteSavedRoute(r.id))}
+                        className="px-1.5 py-1.5 text-white/20 hover:text-rose-400/70 transition-colors"
+                        title="Remove"
+                      >
+                        <X size={9} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : watches.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
+                <Plane size={20} className="text-white/15" />
+                <p className="text-[11px] text-white/25">Enter airports and a date to find flights.</p>
+              </div>
+            )}
           </div>
         )}
 

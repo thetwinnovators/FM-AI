@@ -154,10 +154,10 @@ export default function MapSearch({ addPins, addArcs, flyTo, onResult }) {
                 type="button"
                 title={label}
                 onClick={() => setMode(id)}
-                className={`flex items-center justify-center gap-1 px-2.5 py-1 rounded border transition-colors text-[10px] ${
+                className={`flex items-center justify-center gap-1 px-2.5 py-1 rounded transition-colors text-[10px] ${
                   mode === id
-                    ? 'border-teal-500/30 text-teal-400/70 bg-teal-500/10'
-                    : 'border-white/[0.08] text-white/30 hover:text-white/50'
+                    ? 'text-teal-400/80 bg-teal-500/12'
+                    : 'text-white/30 hover:text-white/55'
                 }`}
               >
                 <Icon size={11} />

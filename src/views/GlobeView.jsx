@@ -313,10 +313,10 @@ export default function GlobeView() {
         className="absolute top-0 right-0 bottom-0 flex flex-col"
         style={{
           width: floating ? '100%' : panelWidth,
-          background: 'rgba(2,7,18,0.72)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderLeft: '1px solid rgba(255,255,255,0.07)',
+          background: 'rgba(3,8,20,0.48)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderLeft: '1px solid rgba(255,255,255,0.08)',
           zIndex: 10,
         }}
       >

@@ -127,6 +127,8 @@ export default function FlowGlobe({
   const [hoveredPolygon, setHoveredPolygon] = useState(null)
   const [loadingPoly,    setLoadingPoly   ] = useState(null)   // tinted while states load
   const [cityLabels,     setCityLabels    ] = useState([])
+  // Current camera altitude — used to keep city label pixel-size constant across zoom levels
+  const [currentAlt,     setCurrentAlt   ] = useState(2.5)
 
   const activePolygons = viewMode === 'globe' ? countries : statePolygons
 
@@ -186,17 +188,21 @@ export default function FlowGlobe({
           ? p.properties.adm0_a3 === isoA3
           : p.properties.adm0_name === admin)
         .sort((a, b) => (b.properties.pop_max ?? 0) - (a.properties.pop_max ?? 0))
-        .slice(0, 40)
-      setCityLabels(cityFeats.map((p) => ({
-        lat:       p.geometry.coordinates[1],
-        lng:       p.geometry.coordinates[0],
-        text:      p.properties.name ?? '',
-        size:      p.properties.featurecla?.includes('capital') ? 0.95 : 0.55,
-        color:     p.properties.featurecla?.includes('capital')
-                     ? 'rgba(255,220,100,0.92)'
-                     : 'rgba(255,255,255,0.62)',
-        dotRadius: p.properties.featurecla?.includes('capital') ? 0.36 : 0.18,
-      })))
+        .slice(0, 100)
+      setCityLabels(cityFeats.map((p) => {
+        const isCapital = p.properties.featurecla?.includes('capital')
+        return {
+          lat:       p.geometry.coordinates[1],
+          lng:       p.geometry.coordinates[0],
+          text:      p.properties.name ?? '',
+          isCity:    true,   // flag for altitude-based size scaling
+          size:      isCapital ? 0.60 : 0.38,
+          color:     isCapital
+                       ? 'rgba(255,220,100,0.92)'
+                       : 'rgba(255,255,255,0.62)',
+          dotRadius: isCapital ? 0.30 : 0.15,
+        }
+      }))
 
     } else {
       // ── State / province clicked → zoom in further ────────────────────
@@ -348,13 +354,14 @@ export default function FlowGlobe({
     }
   }, [])
 
-  // ── Camera position polling — lets parent sync its Map tab ───────────────
+  // ── Camera position polling — drives Map-tab sync + city label sizing ────
   useEffect(() => {
-    if (!onCameraChange) return
     const id = setInterval(() => {
       if (!globeRef.current) return
-      onCameraChange(globeRef.current.pointOfView())
-    }, 900)
+      const pov = globeRef.current.pointOfView()
+      setCurrentAlt(pov.altitude)
+      onCameraChange?.(pov)
+    }, 600)
     return () => clearInterval(id)
   }, [onCameraChange])
 
@@ -467,7 +474,15 @@ export default function FlowGlobe({
         labelLat="lat"
         labelLng="lng"
         labelText="text"
-        labelSize={(d) => d.size ?? 1.2}
+        labelSize={(d) => {
+          const base = d.size ?? 1.2
+          if (!d.isCity) return base
+          // Keep city labels at a fixed screen pixel size regardless of zoom.
+          // labelSize ∝ altitude means the globe-unit size shrinks as you zoom in,
+          // exactly compensating for the perspective enlargement.
+          const altScale = Math.max(0.08, currentAlt) / 1.6
+          return Math.max(0.04, base * altScale)
+        }}
         labelColor={(d) => d.color ?? 'rgba(255,255,255,0.85)'}
         labelDotRadius={(d) => d.dotRadius ?? 0.3}
         labelAltitude={0.01}
