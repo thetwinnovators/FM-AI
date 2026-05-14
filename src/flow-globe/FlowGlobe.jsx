@@ -252,6 +252,17 @@ export default function FlowGlobe({
       side:              THREE.FrontSide,
     })
 
+    // Tone down the vivid blue-marble colours: desaturate 40% + dim to 68%
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#include <map_fragment>
+         float _lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(_lum), 0.40) * 0.68;`,
+      )
+    }
+    mat.customProgramCacheKey = () => 'flowmap-globe-daynight-muted-v1'
+
     const loader = new THREE.TextureLoader()
     // Day texture — shown on the sun-lit hemisphere
     loader.load(EARTH_DAY, (tex) => {
