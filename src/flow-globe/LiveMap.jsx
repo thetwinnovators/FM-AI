@@ -11,9 +11,16 @@ import L from 'leaflet'
 const TILE_URL  = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
 
-/** Convert globe latSpan (degrees visible) → Leaflet integer zoom level. */
+/**
+ * Convert globe latSpan (degrees visible) → Leaflet integer zoom level.
+ * Calibration (+3 offset) so zooms match what you'd expect visually:
+ *   latSpan ~30 (whole country) → zoom 6
+ *   latSpan ~5  (US state)      → zoom 8
+ *   latSpan ~0.3 (city area)    → zoom 12  ← streets visible
+ *   latSpan ~0.08 (street)      → zoom 15
+ */
 export function latSpanToZoom(latSpan) {
-  const z = Math.round(Math.log2(180 / Math.max(latSpan, 0.05)))
+  const z = Math.round(Math.log2(180 / Math.max(latSpan, 0.05))) + 3
   return Math.max(3, Math.min(17, z))
 }
 

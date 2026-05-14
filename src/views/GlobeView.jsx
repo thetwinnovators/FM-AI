@@ -144,6 +144,9 @@ export default function GlobeView() {
     if (label.lat != null && label.lng != null) {
       flyTo({ lat: label.lat, lng: label.lng, altitude: 1.8, label: label.text })
       setMapOverlay({ type: 'location', lat: label.lat, lng: label.lng, address: label.text })
+      // Zoom the Leaflet map to street level for this city
+      setMapView({ lat: label.lat, lng: label.lng, latSpan: 0.25, lngSpan: 0.25, name: label.text })
+      setActiveTab('map')
     }
   }
 
