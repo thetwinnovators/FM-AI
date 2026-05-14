@@ -500,7 +500,43 @@ export default function FlightSearch() {
       {/* ── Scrollable content ───────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-3 pb-3 min-h-0 space-y-4">
 
-        {/* Search results */}
+        {/* ── Saved routes — always visible ───────────────────────────── */}
+        {savedRoutes.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-[9px] text-white/25 uppercase tracking-wide font-medium px-0.5">
+              Saved routes
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {savedRoutes.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-center gap-0 rounded-lg overflow-hidden"
+                  style={{
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                  }}
+                >
+                  <button
+                    onClick={() => applyRoute(r)}
+                    className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 text-[11px] text-white/55 hover:text-white/85 transition-colors"
+                  >
+                    <Plane size={9} className="text-teal-400/50" />
+                    {r.origin} → {r.dest}
+                  </button>
+                  <button
+                    onClick={() => setSavedRoutes(deleteSavedRoute(r.id))}
+                    className="px-1.5 py-1.5 text-white/20 hover:text-rose-400/70 transition-colors"
+                    title="Remove"
+                  >
+                    <X size={9} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Search results ───────────────────────────────────────────── */}
         {links && (
           <div className="space-y-2">
             {/* Summary + save button */}
@@ -610,48 +646,11 @@ export default function FlightSearch() {
           </div>
         )}
 
-        {/* Empty state / saved routes */}
-        {!links && (
-          <div className="space-y-3">
-            {savedRoutes.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-[9px] text-white/25 uppercase tracking-wide font-medium px-0.5">
-                  Saved routes
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {savedRoutes.map((r) => (
-                    <div
-                      key={r.id}
-                      className="flex items-center gap-1 rounded-lg overflow-hidden"
-                      style={{
-                        background: 'rgba(255,255,255,0.04)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                      }}
-                    >
-                      <button
-                        onClick={() => applyRoute(r)}
-                        className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 text-[11px] text-white/55 hover:text-white/85 transition-colors"
-                      >
-                        <Plane size={9} className="text-teal-400/50" />
-                        {r.origin} → {r.dest}
-                      </button>
-                      <button
-                        onClick={() => setSavedRoutes(deleteSavedRoute(r.id))}
-                        className="px-1.5 py-1.5 text-white/20 hover:text-rose-400/70 transition-colors"
-                        title="Remove"
-                      >
-                        <X size={9} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : watches.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
-                <Plane size={20} className="text-white/15" />
-                <p className="text-[11px] text-white/25">Enter airports and a date to find flights.</p>
-              </div>
-            )}
+        {/* Empty state — only when nothing at all to show */}
+        {!links && savedRoutes.length === 0 && watches.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
+            <Plane size={20} className="text-white/15" />
+            <p className="text-[11px] text-white/25">Enter airports and a date to find flights.</p>
           </div>
         )}
 
