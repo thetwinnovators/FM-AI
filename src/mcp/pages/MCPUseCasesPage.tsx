@@ -29,7 +29,7 @@ const WORKING_SECTIONS = [
     id: 'reasoning',
     icon: Sparkles,
     color: 'text-purple-400',
-    bg: 'bg-purple-500/10',
+    bg: 'bg-purple-500/5',
     border: 'border-purple-500/20',
     label: 'Reasoning & Research',
     sublabel: 'No integrations required — just chat',
@@ -48,7 +48,7 @@ const WORKING_SECTIONS = [
     id: 'telegram',
     icon: MessageCircle,
     color: 'text-sky-400',
-    bg: 'bg-sky-500/10',
+    bg: 'bg-sky-500/5',
     border: 'border-sky-500/20',
     label: 'Telegram',
     sublabel: 'Send messages and reports to your Telegram',
@@ -64,7 +64,7 @@ const WORKING_SECTIONS = [
     id: 'daemon',
     icon: Monitor,
     color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    bg: 'bg-emerald-500/5',
     border: 'border-emerald-500/20',
     label: 'Local Daemon',
     sublabel: 'Live trading data from your FlowMap daemon',
@@ -82,7 +82,7 @@ const WORKING_SECTIONS = [
     id: 'docker',
     icon: Container,
     color: 'text-orange-400',
-    bg: 'bg-orange-500/10',
+    bg: 'bg-orange-500/5',
     border: 'border-orange-500/20',
     label: 'Docker MCP Servers',
     sublabel: 'Dynamic — discovers tools at runtime',
@@ -137,7 +137,7 @@ const APPROVAL_TIERS = [
   {
     Icon: Eye,
     color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10',
+    bg: 'bg-emerald-500/5',
     border: 'border-emerald-500/20',
     level: 'Read',
     examples: 'Checking positions, searching content, reading docs',
@@ -146,7 +146,7 @@ const APPROVAL_TIERS = [
   {
     Icon: Pencil,
     color: 'text-amber-400',
-    bg: 'bg-amber-500/10',
+    bg: 'bg-amber-500/5',
     border: 'border-amber-500/20',
     level: 'Write',
     examples: 'Creating events, saving articles, editing docs',
@@ -155,7 +155,7 @@ const APPROVAL_TIERS = [
   {
     Icon: Send,
     color: 'text-red-400',
-    bg: 'bg-red-500/10',
+    bg: 'bg-red-500/5',
     border: 'border-red-500/20',
     level: 'Publish',
     examples: 'Sending messages, cancelling orders, triggering research',
@@ -200,22 +200,22 @@ function SectionCard({
   icon: Icon, color, bg, border, label, sublabel, badge, items, note,
 }: typeof WORKING_SECTIONS[0]) {
   return (
-    <div className={`rounded-xl border ${border} ${bg} overflow-hidden`}>
+    <div className={`rounded-xl ${bg} overflow-hidden`}>
       {/* header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-        <div className={`p-1.5 rounded-lg ${bg} border ${border}`}>
-          <Icon size={15} className={color} />
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+        <div className={`p-2 rounded-lg ${bg}`}>
+          <Icon size={18} className={color} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[13px] font-semibold text-white">{label}</span>
+            <span className="text-[16px] font-semibold text-white">{label}</span>
             {badge && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                 {badge}
               </span>
             )}
           </div>
-          <div className="text-[11px] text-white/40 mt-0.5">{sublabel}</div>
+          <div className="text-[12px] text-white/40 mt-0.5">{sublabel}</div>
         </div>
       </div>
 
@@ -275,14 +275,14 @@ export default function MCPUseCasesPage() {
           <h2 className="text-[13px] font-semibold text-white uppercase tracking-wider">Memory</h2>
           <span className="text-[11px] text-white/35">— persists across every conversation</span>
         </div>
-        <div className="rounded-xl border border-violet-500/20 bg-violet-500/10 overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-white/[0.06]">
-            <div className="p-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20">
-              <Brain size={15} className="text-violet-400" />
+        <div className="rounded-xl bg-violet-500/5 overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
+            <div className="p-2 rounded-lg bg-violet-500/5">
+              <Brain size={18} className="text-violet-400" />
             </div>
             <div>
-              <span className="text-[13px] font-semibold text-white">Persistent Context</span>
-              <p className="text-[11px] text-white/40 mt-0.5">Tell Flow AI something once — it remembers forever</p>
+              <span className="text-[16px] font-semibold text-white">Persistent Context</span>
+              <p className="text-[12px] text-white/40 mt-0.5">Tell Flow AI something once — it remembers forever</p>
             </div>
           </div>
           <div className="px-4 py-1">
@@ -309,7 +309,7 @@ export default function MCPUseCasesPage() {
           {COMING_SOON.map((cs) => (
             <div
               key={cs.label}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-4"
+              className="rounded-xl bg-white/[0.02] p-4"
             >
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[18px]">{cs.icon}</span>
@@ -342,7 +342,7 @@ export default function MCPUseCasesPage() {
         </div>
         <div className="grid grid-cols-3 gap-3">
           {APPROVAL_TIERS.map(({ Icon, color, bg, border, level, examples, behaviour }) => (
-            <div key={level} className={`rounded-xl border ${border} ${bg} p-4`}>
+            <div key={level} className={`rounded-xl ${bg} p-4`}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={14} className={color} />
                 <span className={`text-[13px] font-semibold ${color}`}>{level}</span>
