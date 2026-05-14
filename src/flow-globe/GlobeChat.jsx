@@ -103,7 +103,7 @@ export function GlobeChat({ addPins, addArcs, flyTo, autoQuery, onAutoQueryConsu
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
-  const [daemonToolMap, setDaemonToolMap] = useState(null)
+  const daemonToolMapRef = useRef(null)
   const [systemPrompt, setSystemPrompt] = useState(GLOBE_BASE_SYSTEM)
   const bottomRef = useRef(null)
   const abortRef  = useRef(null)
@@ -123,7 +123,7 @@ export function GlobeChat({ addPins, addArcs, flyTo, autoQuery, onAutoQueryConsu
       if (cancelled) return
 
       const dMap = buildDaemonToolMap(daemonTools)
-      setDaemonToolMap(dMap)
+      daemonToolMapRef.current = dMap
 
       const daemonShaped = daemonTools.map(daemonToolToMCPShape)
       const mcpTools = getActiveMCPTools()
@@ -192,7 +192,7 @@ export function GlobeChat({ addPins, addArcs, flyTo, autoQuery, onAutoQueryConsu
       // ── Tool call processing ──────────────────────────────────────────────
       const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(
         firstReplyText,
-        daemonToolMap,
+        daemonToolMapRef.current,
       )
 
       if (hasToolCalls) {
@@ -266,6 +266,11 @@ export function GlobeChat({ addPins, addArcs, flyTo, autoQuery, onAutoQueryConsu
     sendMessageRef.current?.(autoQuery, true)
     onAutoQueryConsumed?.()
   }, [autoQuery, onAutoQueryConsumed])
+
+  // ── Abort on unmount ────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => { abortRef.current?.abort() }
+  }, [])
 
   // ── Clear ───────────────────────────────────────────────────────────────────
   function clearMessages() {
