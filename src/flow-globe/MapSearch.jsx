@@ -1,22 +1,16 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Navigation, Loader2, AlertCircle, Car, PersonStanding, TrainFront, ExternalLink } from 'lucide-react'
 
 // ── Free routing stack (no API keys required) ─────────────────────────────────
-//
-//   Geocoding:  Nominatim (OpenStreetMap)       — nominatim.openstreetmap.org
-//   Routing:    OSRM public demo server         — router.project-osrm.org
-//
-//   Both support CORS from the browser and require no authentication.
+//   Geocoding:  Nominatim (OpenStreetMap)  — nominatim.openstreetmap.org
+//   Routing:    OSRM public demo server    — router.project-osrm.org
 
 async function geocode(place) {
   const url =
     `https://nominatim.openstreetmap.org/search` +
     `?q=${encodeURIComponent(place)}&format=json&limit=1`
   const r = await fetch(url, {
-    headers: {
-      'Accept-Language': 'en',
-      'User-Agent': 'FlowMap/1.0 (personal research tool)',
-    },
+    headers: { 'Accept-Language': 'en', 'User-Agent': 'FlowMap/1.0' },
   })
   if (!r.ok) throw new Error(`Geocoding failed (HTTP ${r.status})`)
   const d = await r.json()
@@ -24,7 +18,6 @@ async function geocode(place) {
   return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon), name: d[0].display_name }
 }
 
-// OSRM public demo supports driving and foot profiles
 const OSRM_PROFILE = { driving: 'driving', walking: 'foot', transit: 'driving' }
 
 async function route(startLng, startLat, endLng, endLat, mode) {
@@ -32,37 +25,221 @@ async function route(startLng, startLat, endLng, endLat, mode) {
   const url =
     `https://router.project-osrm.org/route/v1/${profile}` +
     `/${startLng},${startLat};${endLng},${endLat}?overview=false`
-  const r = await fetch(url, {
-    headers: { 'User-Agent': 'FlowMap/1.0' },
-  })
+  const r = await fetch(url, { headers: { 'User-Agent': 'FlowMap/1.0' } })
   if (!r.ok) throw new Error(`Routing failed (HTTP ${r.status})`)
   const d = await r.json()
   if (d.code !== 'Ok' || !d.routes?.length) throw new Error('No route found between those locations.')
-  return d.routes[0]   // { duration (s), distance (m), legs[] }
+  return d.routes[0]
 }
 
-function humanDuration(seconds) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.round((seconds % 3600) / 60)
+function humanDuration(s) {
+  const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60)
   if (h > 0 && m > 0) return `${h}h ${m}m`
   if (h > 0) return `${h}h`
   return `${m} min`
 }
 
-function humanDistance(meters) {
-  if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`
-  return `${Math.round(meters)} m`
+function humanDistance(m) {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Nominatim autocomplete helpers ────────────────────────────────────────────
+
+async function fetchSuggestions(q) {
+  try {
+    const url =
+      `https://nominatim.openstreetmap.org/search` +
+      `?q=${encodeURIComponent(q)}&format=json&limit=5&addressdetails=1`
+    const r = await fetch(url, {
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'FlowMap/1.0' },
+    })
+    return r.ok ? r.json() : []
+  } catch { return [] }
+}
+
+function primary(s) {
+  const a = s.address ?? {}
+  if (a.house_number && a.road) return `${a.house_number} ${a.road}`
+  return (
+    a.road || a.amenity || a.tourism || a.leisure ||
+    a.city || a.town || a.village ||
+    a.county || a.state ||
+    s.display_name.split(',')[0]
+  )
+}
+
+function secondary(s) {
+  const a = s.address ?? {}
+  const p = primary(s)
+  const parts = []
+  const city = a.city || a.town || a.village
+  if (city && city !== p)   parts.push(city)
+  if (a.state)              parts.push(a.state)
+  if (a.country)            parts.push(a.country)
+  return parts.join(', ')
+}
+
+function fullLabel(s) {
+  const p = primary(s), sec = secondary(s)
+  return sec ? `${p}, ${sec}` : p
+}
+
+// ── PlaceInput ─────────────────────────────────────────────────────────────────
+// Text input with live Nominatim autocomplete dropdown.
+// Uses position:fixed + getBoundingClientRect so the dropdown escapes every
+// overflow:hidden ancestor without needing a portal.
+
+function PlaceInput({ value, onChange, onSelect, placeholder }) {
+  const [suggestions, setSuggestions] = useState([])
+  const [open,        setOpen        ] = useState(false)
+  const [hi,          setHi          ] = useState(-1)    // keyboard-highlighted index
+  const [dropStyle,   setDropStyle   ] = useState({})
+  const inputRef = useRef(null)
+  const timerRef = useRef(null)
+
+  // When parent resets value to '' (e.g. after clearing the form), close dropdown
+  useEffect(() => {
+    if (!value) { setSuggestions([]); setOpen(false) }
+  }, [value])
+
+  // Position the dropdown directly below the input in viewport coordinates
+  function positionDrop() {
+    if (!inputRef.current) return
+    const r = inputRef.current.getBoundingClientRect()
+    setDropStyle({
+      position: 'fixed',
+      top:   Math.round(r.bottom + 3),
+      left:  Math.round(r.left),
+      width: Math.round(r.width),
+      zIndex: 99999,
+    })
+  }
+
+  function showDrop(list) {
+    if (!list.length) { setOpen(false); return }
+    positionDrop()
+    setSuggestions(list)
+    setOpen(true)
+  }
+
+  function handleChange(e) {
+    const v = e.target.value
+    onChange(v)
+    setHi(-1)
+    clearTimeout(timerRef.current)
+    if (v.trim().length < 2) { setSuggestions([]); setOpen(false); return }
+    timerRef.current = setTimeout(async () => {
+      const list = await fetchSuggestions(v.trim())
+      showDrop(list)
+    }, 300)
+  }
+
+  function pick(s) {
+    const label = fullLabel(s)
+    onChange(label)
+    onSelect?.({ lat: parseFloat(s.lat), lng: parseFloat(s.lon), name: label })
+    setSuggestions([])
+    setOpen(false)
+  }
+
+  function handleKeyDown(e) {
+    if (!open) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); setHi(h => Math.min(h + 1, suggestions.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setHi(h => Math.max(h - 1, 0))
+    } else if (e.key === 'Enter' && hi >= 0) {
+      e.preventDefault(); pick(suggestions[hi])
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        onFocus={() => suggestions.length > 0 && showDrop(suggestions)}
+        // Delay close by 180 ms so onMouseDown on a suggestion fires first
+        onBlur={() => { clearTimeout(timerRef.current); setTimeout(() => setOpen(false), 180) }}
+        placeholder={placeholder}
+        className="glass-input w-full text-[12px]"
+        autoComplete="off"
+        spellCheck="false"
+      />
+
+      {open && (
+        <div
+          style={{
+            ...dropStyle,
+            background: 'rgba(5,12,26,0.97)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.10)',
+            borderRadius: 10,
+            overflow: 'hidden',
+            boxShadow: '0 16px 48px rgba(0,0,0,0.75), 0 0 0 1px rgba(14,210,238,0.04)',
+          }}
+        >
+          {suggestions.map((s, i) => (
+            <button
+              key={s.place_id}
+              type="button"
+              onMouseDown={() => pick(s)}
+              onMouseEnter={() => setHi(i)}
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '7px 11px',
+                background: i === hi ? 'rgba(45,212,191,0.09)' : 'transparent',
+                borderBottom: i < suggestions.length - 1
+                  ? '1px solid rgba(255,255,255,0.045)'
+                  : 'none',
+                transition: 'background 100ms',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: i === hi ? 'rgba(255,255,255,0.90)' : 'rgba(255,255,255,0.68)',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {primary(s)}
+              </div>
+              {secondary(s) && (
+                <div style={{
+                  fontSize: 10,
+                  color: 'rgba(255,255,255,0.32)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  marginTop: 1,
+                }}>
+                  {secondary(s)}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── MapSearch component ───────────────────────────────────────────────────────
 
 export default function MapSearch({ addPins, addArcs, flyTo, onResult }) {
-  const [origin,     setOrigin    ] = useState('')
-  const [dest,       setDest      ] = useState('')
-  const [mode,       setMode      ] = useState('driving')
-  const [dirLoading, setDirLoading] = useState(false)
-  const [dirResult,  setDirResult ] = useState(null)
-  const [dirError,   setDirError  ] = useState(null)
+  const [origin,       setOrigin      ] = useState('')
+  const [originCoords, setOriginCoords] = useState(null) // pre-geocoded from autocomplete
+  const [dest,         setDest        ] = useState('')
+  const [destCoords,   setDestCoords  ] = useState(null)
+  const [mode,         setMode        ] = useState('driving')
+  const [dirLoading,   setDirLoading  ] = useState(false)
+  const [dirResult,    setDirResult   ] = useState(null)
+  const [dirError,     setDirError    ] = useState(null)
 
   async function handleDirections(e) {
     e.preventDefault()
@@ -72,25 +249,19 @@ export default function MapSearch({ addPins, addArcs, flyTo, onResult }) {
     setDirResult(null)
 
     try {
-      // Geocode both places in parallel
+      // Use pre-geocoded coords when available (autocomplete selection),
+      // otherwise fall back to a fresh Nominatim lookup.
       const [startCoords, endCoords] = await Promise.all([
-        geocode(origin.trim()),
-        geocode(dest.trim()),
+        originCoords ?? geocode(origin.trim()),
+        destCoords   ?? geocode(dest.trim()),
       ])
 
-      // Fetch route
-      const leg = await route(
-        startCoords.lng, startCoords.lat,
-        endCoords.lng,   endCoords.lat,
-        mode,
-      )
-
+      const leg      = await route(startCoords.lng, startCoords.lat, endCoords.lng, endCoords.lat, mode)
       const duration = humanDuration(leg.duration)
       const distance = humanDistance(leg.distance)
 
       setDirResult({ distance, duration, origin: origin.trim(), dest: dest.trim() })
 
-      // Draw arc + pins on the globe
       addArcs?.([{
         startLat: startCoords.lat, startLng: startCoords.lng,
         endLat:   endCoords.lat,   endLng:   endCoords.lng,
@@ -127,27 +298,27 @@ export default function MapSearch({ addPins, addArcs, flyTo, onResult }) {
         }}
       >
         <form onSubmit={handleDirections} className="p-3 space-y-2">
-          <input
+
+          <PlaceInput
             value={origin}
-            onChange={(e) => setOrigin(e.target.value)}
+            onChange={(v) => { setOrigin(v); setOriginCoords(null) }}
+            onSelect={(coords) => setOriginCoords(coords)}
             placeholder="Origin (address or city)"
-            className="glass-input w-full text-[12px]"
-            required
           />
-          <input
+
+          <PlaceInput
             value={dest}
-            onChange={(e) => setDest(e.target.value)}
+            onChange={(v) => { setDest(v); setDestCoords(null) }}
+            onSelect={(coords) => setDestCoords(coords)}
             placeholder="Destination (address or city)"
-            className="glass-input w-full text-[12px]"
-            required
           />
 
           {/* Travel mode */}
           <div className="flex gap-1">
             {[
-              { id: 'driving', icon: Car,             label: 'Driving' },
-              { id: 'walking', icon: PersonStanding,  label: 'Walking' },
-              { id: 'transit', icon: TrainFront,      label: 'Transit' },
+              { id: 'driving', icon: Car,            label: 'Driving' },
+              { id: 'walking', icon: PersonStanding, label: 'Walking' },
+              { id: 'transit', icon: TrainFront,     label: 'Transit' },
             ].map(({ id, icon: Icon, label }) => (
               <button
                 key={id}
@@ -190,7 +361,6 @@ export default function MapSearch({ addPins, addArcs, flyTo, onResult }) {
 
         {dirResult && !dirError && (
           <div className="space-y-2">
-
             {/* Stats strip */}
             <div
               className="rounded-xl border border-white/[0.07] px-3 py-2.5 flex items-center justify-between"
