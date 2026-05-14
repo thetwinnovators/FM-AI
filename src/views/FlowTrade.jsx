@@ -116,18 +116,13 @@ function OfflineShell({ message, icon: Icon, children }) {
 
 export default function FlowTrade() {
   const { status, refresh } = useStatus()
-  const [isBlocked,    setIsBlocked]    = useState(false)
-  const [rightTab,     setRightTab]     = useState('risk')
-  const [refreshTick,  setRefreshTick]  = useState(0)
-  const [refreshing,   setRefreshing]   = useState(false)
+  const [isBlocked,   setIsBlocked]   = useState(false)
+  const [rightTab,    setRightTab]    = useState('risk')
+  const [refreshTick, setRefreshTick] = useState(0)
 
-  const handleRefresh = useCallback(async () => {
-    if (refreshing) return
-    setRefreshing(true)
-    await refresh()
-    setRefreshTick((t) => t + 1)
-    setTimeout(() => setRefreshing(false), 600)
-  }, [refresh, refreshing])
+  const handleRefresh = useCallback(() => {
+    window.location.reload()
+  }, [])
 
   useEffect(() => {
     if (!status?.online) return
@@ -164,11 +159,10 @@ export default function FlowTrade() {
           )}
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
-            title="Refresh"
-            className="p-1.5 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+            title="Refresh page"
+            className="p-1.5 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-colors"
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+            <RefreshCw size={13} />
           </button>
         </div>
       </div>

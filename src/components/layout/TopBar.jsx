@@ -1,4 +1,4 @@
-import { Search, Settings, BookOpen, FileText, Wrench, User, Lightbulb, Clock, Globe, ChevronDown, Check, Radio } from 'lucide-react'
+import { Search, Settings, BookOpen, FileText, Wrench, User, Lightbulb, Clock, Globe, ChevronDown, Check, Radio, Pencil } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -26,6 +26,77 @@ const SEARCH_MODES = [
 ]
 
 const MAX_SUGGESTIONS = 10
+
+function initials(name) {
+  return name.trim().split(/\s+/).map((w) => w[0]?.toUpperCase() ?? '').slice(0, 2).join('')
+}
+
+function UserBlock() {
+  const [name,    setName]    = useState(() => localStorage.getItem('fm_user_name') ?? 'JenoU')
+  const [role,    setRole]    = useState(() => localStorage.getItem('fm_user_role') ?? 'researcher')
+  const [editing, setEditing] = useState(false)
+  const nameRef = useRef(null)
+
+  function save() {
+    const n = name.trim() || 'JenoU'
+    const r = role.trim() || 'researcher'
+    setName(n); setRole(r)
+    localStorage.setItem('fm_user_name', n)
+    localStorage.setItem('fm_user_role', r)
+    setEditing(false)
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Enter') { e.preventDefault(); save() }
+    if (e.key === 'Escape') { setEditing(false) }
+  }
+
+  useEffect(() => { if (editing) nameRef.current?.focus() }, [editing])
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-2.5" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) save() }}>
+        <div className="w-7 h-7 rounded-full bg-[color:var(--color-topic)]/25 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+          {initials(name)}
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <input
+            ref={nameRef}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={onKeyDown}
+            className="text-[13px] font-medium bg-white/[0.06] border border-white/[0.14] rounded px-1.5 py-0.5 outline-none focus:border-white/30 w-[120px] leading-none"
+          />
+          <input
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            onKeyDown={onKeyDown}
+            className="text-[10px] bg-white/[0.06] border border-white/[0.10] rounded px-1.5 py-0.5 outline-none focus:border-white/25 w-[120px] text-[color:var(--color-text-tertiary)] leading-none"
+          />
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setEditing(true)}
+      className="flex items-center gap-2.5 group rounded-lg px-1 py-0.5 hover:bg-white/[0.04] transition-colors"
+      title="Click to edit"
+    >
+      <div className="w-7 h-7 rounded-full bg-[color:var(--color-topic)]/25 flex items-center justify-center text-[11px] font-semibold flex-shrink-0">
+        {initials(name)}
+      </div>
+      <div className="leading-tight text-left">
+        <div className="flex items-center gap-1">
+          <span className="text-[13px] font-medium">{name}</span>
+          <Pencil size={9} className="text-white/20 group-hover:text-white/50 transition-colors" />
+        </div>
+        <div className="text-[10px] text-[color:var(--color-text-tertiary)]">{role}</div>
+      </div>
+    </button>
+  )
+}
 
 export default function TopBar() {
   const navigate = useNavigate()
@@ -367,15 +438,7 @@ export default function TopBar() {
       </form>
 
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-[color:var(--color-topic)]/25 flex items-center justify-center text-[11px] font-semibold">
-            JU
-          </div>
-          <div className="leading-tight">
-            <div className="text-[13px] font-medium">JenoU</div>
-            <div className="text-[10px] text-[color:var(--color-text-tertiary)]">researcher</div>
-          </div>
-        </div>
+        <UserBlock />
           {/* Briefs button */}
           <div className="relative">
             <button

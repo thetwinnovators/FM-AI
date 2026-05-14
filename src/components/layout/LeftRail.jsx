@@ -3,8 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass,
   Plug, Activity, Radar, GraduationCap, Code2,
-  Settings as SettingsIcon, TrendingUp,
-  ChevronLeft, ChevronRight,
+  TrendingUp, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -117,9 +116,7 @@ export default function LeftRail() {
       {/* Bottom links */}
       <div className="mt-auto flex flex-col gap-1">
         <div className="my-2 border-t border-[color:var(--color-border-subtle)]" />
-        <NavItem to="/operator/settings" label="Settings"    icon={SettingsIcon} collapsed={collapsed} />
-        <div className="my-2 border-t border-[color:var(--color-border-subtle)]" />
-        <NavItem to="/connections"       label="Connections" icon={Plug}         collapsed={collapsed} />
+        <NavItem to="/connections" label="Connections" icon={Plug} collapsed={collapsed} />
       </div>
     </aside>
   )
