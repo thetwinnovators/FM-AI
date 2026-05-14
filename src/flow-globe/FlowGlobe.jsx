@@ -237,18 +237,40 @@ export default function FlowGlobe({
   )
 
   // ── Globe surface material ────────────────────────────────────────────────
-  // Solid dark-navy sphere — the graticule lines and country wires are the
-  // visual focus. The DirectionalLight sun still shades the sphere so the
-  // day/night terminator is visible as a subtle light-to-dark gradient.
+  // Navy sphere with translucent ocean — the night texture drives the
+  // land/ocean alpha mask so oceans are transparent and land is solid.
+  // The blurred background haze shows through the ocean via CSS backdrop-filter.
   const globeMaterial = useMemo(() => {
-    return new THREE.MeshPhongMaterial({
-      color:       new THREE.Color(0x0a1628),   // deep navy
-      emissive:    new THREE.Color(0x000000),   // pure black — night side is truly dark
+    const mat = new THREE.MeshPhongMaterial({
+      color:       new THREE.Color(0x0a1628),
+      emissive:    new THREE.Color(0x000000),
       shininess:   4,
       transparent: true,
-      opacity:     0.92,
       side:        THREE.FrontSide,
     })
+
+    // Use night-texture luma as land mask — oceans are dark (transparent),
+    // city-lit land areas are bright (opaque). We override map_fragment so
+    // the texture only controls alpha, never the surface colour.
+    mat.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <map_fragment>',
+        `#ifdef USE_MAP
+           vec4  _tex  = texture2D(map, vMapUv);
+           float _luma = dot(_tex.rgb, vec3(0.2126, 0.7152, 0.0722));
+           float _land = smoothstep(0.004, 0.14, _luma);
+           diffuseColor.a = mix(0.10, 0.92, _land);
+         #endif`,
+      )
+    }
+    mat.customProgramCacheKey = () => 'flowmap-globe-ocean-alpha-v1'
+
+    new THREE.TextureLoader().load(EARTH_NIGHT, (tex) => {
+      mat.map = tex
+      mat.needsUpdate = true
+    })
+
+    return mat
   }, [])
 
   // ── Controls + auto-rotate ────────────────────────────────────────────────

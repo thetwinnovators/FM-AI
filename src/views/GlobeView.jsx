@@ -241,16 +241,23 @@ export default function GlobeView() {
             transform: 'scale(1.18)',
           }}
         />
-        <FlowGlobe
-          pins={pins}
-          arcs={arcs}
-          labels={labels}
-          viewpoint={viewpoint}
-          onGlobeClick={handleGlobeClick}
-          onLabelClick={handleLabelClick}
-          onFeatureClick={handleFeatureClick}
-          onCameraChange={handleCameraChange}
-        />
+        {/* Backdrop-filter wrapper — blurs the colour haze through transparent ocean pixels */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backdropFilter:       'blur(18px)',
+          WebkitBackdropFilter: 'blur(18px)',
+        }}>
+          <FlowGlobe
+            pins={pins}
+            arcs={arcs}
+            labels={labels}
+            viewpoint={viewpoint}
+            onGlobeClick={handleGlobeClick}
+            onLabelClick={handleLabelClick}
+            onFeatureClick={handleFeatureClick}
+            onCameraChange={handleCameraChange}
+          />
+        </div>
         <GlobeOverlay overlay={mapOverlay} onDismiss={() => setMapOverlay(null)} />
       </div>
     </>
