@@ -358,10 +358,29 @@ export default function FlowGlobe({
     return () => clearInterval(id)
   }, [onCameraChange])
 
-  // ── Globe click (empty surface) ───────────────────────────────────────────
+  // ── Globe click (ocean / empty space) — reset to default globe state ────────
   const handleGlobeClick = useCallback((coords) => {
     if (skipGlobeClick.current) return
-    if (onGlobeClick && coords) onGlobeClick({ lat: coords.lat, lng: coords.lng })
+
+    // Clear any region-zoom state
+    setViewMode('globe')
+    setStatePolygons([])
+    setHoveredPolygon(null)
+    setCityLabels([])
+
+    // Zoom back out to a comfortable global altitude from the current centre
+    if (globeRef.current) {
+      const { lat, lng } = globeRef.current.pointOfView()
+      globeRef.current.pointOfView({ lat, lng, altitude: 2.5 }, 1000)
+    }
+
+    // Resume auto-rotation once the fly-out animation finishes
+    clearTimeout(idleTimerRef.current)
+    idleTimerRef.current = setTimeout(() => {
+      if (globeRef.current?.controls) globeRef.current.controls().autoRotate = true
+    }, 1100)
+
+    onGlobeClick?.(coords ? { lat: coords.lat, lng: coords.lng } : {})
   }, [onGlobeClick])
 
   // ── Polygon colours ───────────────────────────────────────────────────────

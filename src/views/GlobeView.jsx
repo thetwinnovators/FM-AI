@@ -148,13 +148,9 @@ export default function GlobeView() {
   }
 
   // ── Globe interactions ──────────────────────────────────────────────────────
-  function handleGlobeClick({ lat, lng }) {
-    const sign = (v, pos, neg) =>
-      v >= 0 ? `${v.toFixed(3)}°${pos}` : `${Math.abs(v).toFixed(3)}°${neg}`
-    setMapOverlay({
-      type: 'location', lat, lng,
-      address: `${sign(lat, 'N', 'S')}  ${sign(lng, 'E', 'W')}`,
-    })
+  function handleGlobeClick() {
+    // Ocean / empty-space click → dismiss any open overlay card (globe itself resets)
+    setMapOverlay(null)
   }
 
   function handleLabelClick(label) {
