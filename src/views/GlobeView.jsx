@@ -1,12 +1,15 @@
-import { useState, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import FlowGlobe from '../flow-globe/FlowGlobe.jsx'
 import { GlobeOverlay } from '../flow-globe/GlobeOverlay.jsx'
 import { useGlobeState } from '../flow-globe/useGlobeState.js'
 import {
   Search, Plane, Navigation, Map, ExternalLink,
   GripVertical, PictureInPicture2, LayoutPanelLeft,
+  Wind, Droplets,
 } from 'lucide-react'
 import LiveMap, { latSpanToZoom } from '../flow-globe/LiveMap.jsx'
+import BottomBar from '../flow-globe/BottomBar.jsx'
+import { fetchWeather } from '../flow-globe/weatherService.js'
 
 const LocationSearch = lazy(() => import('../flow-globe/LocationSearch.jsx'))
 const FlightSearch   = lazy(() => import('../flow-globe/FlightSearch.jsx'))
@@ -29,9 +32,23 @@ const DEFAULT_FLOAT = { x: 60, y: 52, w: 620, h: 440 }
 
 export default function GlobeView() {
   const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, flyTo } = useGlobeState()
-  const [activeTab,  setActiveTab ] = useState('search')
-  const [mapOverlay, setMapOverlay] = useState(null)
-  const [mapView,    setMapView   ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
+  const [activeTab,    setActiveTab   ] = useState('search')
+  const [mapOverlay,   setMapOverlay  ] = useState(null)
+  const [mapView,      setMapView     ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
+  // Explicitly-selected location (label click / feature click) — drives weather fetch
+  const [selectedLoc,  setSelectedLoc ] = useState(null)   // { lat, lng, name }
+  const [mapWeather,   setMapWeather  ] = useState(null)
+  const mapWeatherRef  = useRef({ lat: null, lng: null })
+
+  // ── Fetch weather when user explicitly selects a location ────────────────────
+  useEffect(() => {
+    if (!selectedLoc) { setMapWeather(null); return }
+    const { lat, lng } = selectedLoc
+    if (lat === mapWeatherRef.current.lat && lng === mapWeatherRef.current.lng) return
+    mapWeatherRef.current = { lat, lng }
+    setMapWeather(null)
+    fetchWeather(lat, lng).then(setMapWeather).catch(() => setMapWeather(null))
+  }, [selectedLoc])
 
   // ── Panel width — persisted so the user's resize survives navigation ─────────
   const [panelWidth, setPanelWidth] = useState(() => {
@@ -146,6 +163,7 @@ export default function GlobeView() {
       setMapOverlay({ type: 'location', lat: label.lat, lng: label.lng, address: label.text })
       // Zoom the Leaflet map to street level for this city
       setMapView({ lat: label.lat, lng: label.lng, latSpan: 0.25, lngSpan: 0.25, name: label.text })
+      setSelectedLoc({ lat: label.lat, lng: label.lng, name: label.text })
       setActiveTab('map')
     }
   }
@@ -168,6 +186,7 @@ export default function GlobeView() {
   function handleFeatureClick({ lat, lng, name, latSpan, lngSpan }) {
     setMapOverlay({ type: 'location', lat, lng, address: name })
     setMapView({ lat, lng, latSpan: latSpan ?? 20, lngSpan: lngSpan ?? 20, name })
+    setSelectedLoc({ lat, lng, name })
     setActiveTab('map')
   }
 
@@ -240,13 +259,18 @@ export default function GlobeView() {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div
-      className="relative h-full w-full overflow-hidden"
+      className="h-full w-full flex flex-col overflow-hidden"
+      style={{ background: '#020b16' }}
+    >
+    {/* Main content — globe + side panel (flex-1 so BottomBar sits below) */}
+    <div
+      className="relative flex-1 min-h-0 overflow-hidden"
       style={{
         background: `
           radial-gradient(ellipse at 18% 78%, rgba(0,52,80,0.28) 0%, transparent 50%),
           radial-gradient(ellipse at 72% 92%, rgba(100,0,82,0.30) 0%, transparent 44%),
           radial-gradient(ellipse at 40% 96%, rgba(80,0,100,0.18) 0%, transparent 38%),
-          #020b16
+          transparent
         `,
       }}
     >
@@ -377,6 +401,33 @@ export default function GlobeView() {
                       Full map
                     </a>
                   </div>
+                  {/* Weather strip — only shown when we have data for an explicit location */}
+                  {mapWeather && selectedLoc && (
+                    <div
+                      className="flex-shrink-0 flex items-center gap-2.5 px-3 py-1.5 border-b"
+                      style={{
+                        borderColor: 'rgba(255,255,255,0.05)',
+                        background: 'rgba(0,0,0,0.18)',
+                        fontSize: 11,
+                        color: 'rgba(255,255,255,0.40)',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: 15, lineHeight: 1 }}>{mapWeather.icon}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                        {mapWeather.temp}°C
+                      </span>
+                      <span style={{ color: 'rgba(255,255,255,0.38)' }}>{mapWeather.condition}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
+                      <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10 }}>Feels like {mapWeather.feelsLike}°C</span>
+                      <div style={{ flex: 1 }} />
+                      <Wind size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
+                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.windKmh} km/h</span>
+                      <Droplets size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
+                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.humidity}%</span>
+                    </div>
+                  )}
+
                   {/* Live Leaflet map — no iframe reload, smooth flyTo transitions */}
                   <div className="flex-1 relative min-h-0">
                     <LiveMap
@@ -398,6 +449,9 @@ export default function GlobeView() {
           )}
         </div>
       </div>
+    </div>{/* end main content */}
+
+    <BottomBar selectedLoc={selectedLoc} selectedWeather={mapWeather} />
     </div>
   )
 }
