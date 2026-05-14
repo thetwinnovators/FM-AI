@@ -334,13 +334,13 @@ export default function FlightSearch() {
   const [addingAlert, setAddingAlert] = useState(false)
   const [alertTarget, setAlertTarget] = useState('')
 
-  // ── Is the current search already being watched? ────────────────────────
-  const isWatching = links
-    ? watches.find((w) =>
+  // ── All alerts for the current search (may be multiple) ──────────────
+  const currentWatches = links
+    ? watches.filter((w) =>
         w.origin === origin.trim().toUpperCase() &&
         w.dest   === dest.trim().toUpperCase()   &&
         w.departDate === departDate)
-    : null
+    : []
 
   // ── Check all watch prices (reads fresh from localStorage) ────────────
   const checkAllWatches = useCallback(async () => {
@@ -583,22 +583,26 @@ export default function FlightSearch() {
               </a>
             ))}
 
-            {/* ── Price alert row ───────────────────────────────────────── */}
-            <div className="pt-1">
-              {isWatching ? (
-                <div className="flex items-center gap-1.5 px-0.5">
+            {/* ── Price alerts ──────────────────────────────────────────── */}
+            <div className="pt-1 space-y-1.5">
+              {/* One row per existing alert for this route */}
+              {currentWatches.map((w) => (
+                <div key={w.id} className="flex items-center gap-1.5 px-0.5">
                   <Bell size={10} className="text-teal-400/50 flex-shrink-0" />
                   <span className="text-[10px] text-teal-400/60">
-                    Alert set · target ${isWatching.targetPrice}
+                    Alert below ${w.targetPrice}
                   </span>
                   <button
-                    onClick={() => setWatches(removeWatch(isWatching.id))}
+                    onClick={() => setWatches(removeWatch(w.id))}
                     className="ml-auto text-[9px] text-white/25 hover:text-rose-400/70 transition-colors"
                   >
                     Remove
                   </button>
                 </div>
-              ) : addingAlert ? (
+              ))}
+
+              {/* Inline form when adding, otherwise the add button */}
+              {addingAlert ? (
                 <div className="flex items-center gap-1.5 rounded-xl px-3 py-2"
                   style={{ background: 'rgba(14,210,238,0.05)', border: '1px solid rgba(14,210,238,0.12)' }}>
                   <Bell size={10} className="text-teal-400/60 flex-shrink-0" />
@@ -635,7 +639,7 @@ export default function FlightSearch() {
                   className="flex items-center gap-1.5 text-[10px] text-white/35 hover:text-teal-400/70 transition-colors px-0.5"
                 >
                   <Bell size={10} />
-                  Alert me if price drops
+                  {currentWatches.length > 0 ? 'Add another alert' : 'Alert me if price drops'}
                 </button>
               )}
             </div>
