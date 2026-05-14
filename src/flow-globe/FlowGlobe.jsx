@@ -240,11 +240,12 @@ export default function FlowGlobe({
   // ── Globe surface material ────────────────────────────────────────────────
   const globeMaterial = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({
-      color:       new THREE.Color(0x2a4a6e),
-      emissive:    new THREE.Color(0x070212),
-      shininess:   6,
-      transparent: true,
-      side:        THREE.FrontSide,
+      color:             new THREE.Color(0x2a4a6e),
+      emissive:          new THREE.Color(0xffffff),   // white so emissiveMap shows at natural colour
+      emissiveIntensity: 0.38,                        // city-lights glow on the night side
+      shininess:         6,
+      transparent:       true,
+      side:              THREE.FrontSide,
     })
 
     mat.onBeforeCompile = (shader) => {
@@ -262,10 +263,11 @@ export default function FlowGlobe({
          #endif`,
       )
     }
-    mat.customProgramCacheKey = () => 'flowmap-globe-navy-ocean-v3'
+    mat.customProgramCacheKey = () => 'flowmap-globe-navy-ocean-v4'
 
     new THREE.TextureLoader().load(EARTH_NIGHT, (tex) => {
-      mat.map = tex
+      mat.map         = tex
+      mat.emissiveMap = tex   // same texture drives the city-lights glow on the dark side
       mat.needsUpdate = true
     })
     return mat
@@ -350,10 +352,10 @@ export default function FlowGlobe({
         if (obj.isDirectionalLight) directionals.push(obj)
       })
 
-      ambients.forEach((l) => { l.intensity *= 0.08 })
+      ambients.forEach((l) => { l.intensity *= 0.02 })  // near-zero so night side is truly dark
       directionals.forEach((l) => l.parent?.remove(l))
 
-      const sun = new THREE.DirectionalLight(0xfff8f0, 2.4)
+      const sun = new THREE.DirectionalLight(0xfff8f0, 4.0)  // brighter sun → more contrast
       sun.name = 'flowmap-sun'
       scene.add(sun)
       sunLightRef.current = sun
@@ -465,7 +467,7 @@ export default function FlowGlobe({
         backgroundColor="rgba(0,0,0,0)"
         globeMaterial={globeMaterial}
         showGraticules={true}
-        showAtmosphere={false}
+        showAtmosphere={true}
         graticulesColor={GRATICULE_COLOR}
         onGlobeClick={handleGlobeClick}
         // ── Points ───────────────────────────────────────────────────────────
