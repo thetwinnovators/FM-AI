@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.0.0",
-  "generatedAt": "2026-05-14T00:18:43.400Z",
+  "generatedAt": "2026-05-14T17:45:29.868Z",
   "appName": "FlowMap",
   "appVersion": "0.0.0",
   "stats": {
@@ -62,7 +62,7 @@
         "ollama",
         "local-first"
       ],
-      "createdAt": "2026-05-14T00:18:43.356Z",
+      "createdAt": "2026-05-14T17:45:29.856Z",
       "source": "package.json (static)",
       "metadata": {
         "version": "0.0.0",

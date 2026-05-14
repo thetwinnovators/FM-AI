@@ -51,10 +51,10 @@ export async function fetchDaemonTools() {
   try {
     const r = await daemonFetch('/tools')
     if (!r.ok) return []
-    const tools = await r.json()
-    return Array.isArray(tools)
-      ? tools.filter((t) => t.group === 'docker_mcp')
-      : []
+    const data = await r.json()
+    // Server returns { tools: [...] }; handle that as well as a bare array.
+    const all = Array.isArray(data) ? data : (data?.tools ?? [])
+    return all.filter((t) => t.group === 'docker_mcp')
   } catch {
     return []
   }
@@ -67,7 +67,10 @@ export async function fetchDaemonTools() {
 export function buildDaemonToolMap(daemonTools) {
   const map = new Map()
   for (const t of daemonTools) {
-    map.set(t.toolName, t)
+    // Tool id is 'docker_mcp::{serverId}::{toolName}' — extract the short name
+    // as the map key so the LLM's <tool_call name="toolName"> can find it.
+    const toolName = t.id?.split('::')?.[2] ?? t.toolName
+    if (toolName) map.set(toolName, t)
   }
   return map
 }
@@ -77,9 +80,12 @@ export function buildDaemonToolMap(daemonTools) {
  * buildToolSystemBlock() expects.
  */
 export function daemonToolToMCPShape(t) {
+  const parts    = t.id?.split('::') ?? []
+  const toolName = parts[2] ?? t.toolName ?? t.id ?? 'unknown'
+  const serverId = parts[1] ?? ''
   return {
-    toolName: t.toolName,
-    description: t.description ?? `${t.serverId} / ${t.toolName}`,
+    toolName,
+    description: t.description ?? (serverId ? `${serverId} / ${toolName}` : toolName),
   }
 }
 

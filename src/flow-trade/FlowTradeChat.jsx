@@ -23,7 +23,34 @@ Setup types the scanner detects:
 
 When explaining a signal, cover: what triggered it, how clean the setup looks, the key levels to watch, and the main risk.
 
-Keep responses concise — 3–5 sentences max unless the user asks for more detail. Be direct and practical.`
+Keep responses concise — 3–5 sentences max unless the user asks for more detail. Be direct and practical. Never use markdown code blocks or backticks in your responses.`
+
+// Strip markdown syntax so raw code/formatting never appears during streaming
+function sanitize(raw) {
+  if (!raw) return ''
+  return raw
+    // Complete code fences — keep inner text
+    .replace(/```(?:[^\n`]*)?\n?([\s\S]*?)```/g, (_, inner) => inner.trim())
+    // Incomplete trailing code fence (mid-stream) — drop the fence + everything after
+    .replace(/```[^\n]*\n?[\s\S]*$/, '')
+    // Inline code — strip backticks, keep content
+    .replace(/`([^`\n]+)`/g, '$1')
+    // Bold
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Italic
+    .replace(/\*([^*\s][^*]*)\*/g, '$1')
+    // Heading hashes
+    .replace(/^#{1,6}\s+/gm, '')
+    // Collapse 3+ blank lines → 2
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function renderText(text) {
+  return text.split('\n').map((line, i, arr) => (
+    <span key={i}>{line}{i < arr.length - 1 && <br />}</span>
+  ))
+}
 
 function formatSignalContext(sig) {
   const dir = sig.direction?.toUpperCase() ?? ''
@@ -55,7 +82,10 @@ function Message({ msg }) {
           ? 'bg-white/[0.08] text-white/80 rounded-br-sm'
           : 'bg-white/[0.04] text-white/70 rounded-bl-sm'
       }`}>
-        {msg.content || <span className="opacity-40">…</span>}
+        {isUser
+          ? (msg.content || <span className="opacity-40">…</span>)
+          : (msg.content ? renderText(sanitize(msg.content)) : <span className="opacity-40">…</span>)
+        }
       </div>
     </div>
   )

@@ -1,7 +1,7 @@
 # FlowMap Memory Index
 
 > **Auto-generated — do not edit by hand.**  
-> Generated: 13/05/2026, 20:18:43  
+> Generated: 14/05/2026, 13:45:29  
 > App version: `0.0.0` · Schema: `1.0.0` · Total nodes: **836**
 
 ## Summary
@@ -22,7 +22,7 @@ _Storage keys: `package.json (static)`_
 
 | ID | Label | Tags | Updated |
 |---|---|---|---|
-| `project:flowmap` | FlowMap — topic intelligence platform | react, vite, typescript, tailwindcss, ollama, local-first | 13 May 2026 |
+| `project:flowmap` | FlowMap — topic intelligence platform | react, vite, typescript, tailwindcss, ollama, local-first | 14 May 2026 |
 
 ## 💬 Conversations
 
