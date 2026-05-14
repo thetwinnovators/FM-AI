@@ -27,16 +27,16 @@ function useClock() {
 
 function fmtLocal(date) {
   return date.toLocaleTimeString('en-US', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
   })
 }
 
-/** Return HH:MM in the given IANA timezone, or null if unsupported. */
+/** Return h:MM AM/PM in the given IANA timezone, or null if unsupported. */
 function localTimeAt(timezone) {
   if (!timezone) return null
   try {
     return new Date().toLocaleTimeString('en-US', {
-      hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
+      hour: 'numeric', minute: '2-digit', hour12: true, timeZone: timezone,
     })
   } catch { return null }
 }

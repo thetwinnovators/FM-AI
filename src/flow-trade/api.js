@@ -51,4 +51,5 @@ export const flowTradeApi = {
   getAlpacaOrders:     ()            => req('GET',    '/flow-trade/alpaca/orders'),
   getAlpacaBars:       (symbol)      => req('GET',    `/flow-trade/alpaca/bars/${symbol}`),
   placeOrder:          (signalId, qty) => req('POST', '/flow-trade/orders', { signalId, qty }),
+  cancelAlpacaOrder:   (orderId)     => req('DELETE', `/flow-trade/alpaca/orders/${orderId}`),
 }

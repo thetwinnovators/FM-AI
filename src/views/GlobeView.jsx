@@ -34,7 +34,7 @@ export default function GlobeView() {
   const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, flyTo } = useGlobeState()
   const [activeTab,    setActiveTab   ] = useState('flights')
   const [mapOverlay,   setMapOverlay  ] = useState(null)
-  const [mapView,      setMapView     ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
+  const [mapView,      setMapView     ] = useState({ lat: 20, lng: 0, latSpan: 120, lngSpan: 120, name: '' })
   // Explicitly-selected location (label click / feature click) — drives weather fetch
   const [selectedLoc,  setSelectedLoc ] = useState(null)   // { lat, lng, name }
   const [mapWeather,   setMapWeather  ] = useState(null)
@@ -168,19 +168,27 @@ export default function GlobeView() {
     }
   }
 
-  // When the user manually scrolls in, the Map tab follows the camera.
-  // Only auto-*switch* to the Map tab when the camera first crosses below the
-  // country-zoom threshold (altitude ~0.9); after that just keep the map updated.
+  // Map always mirrors the globe camera — no altitude gate.
+  // Auto-switches to the Map tab the first time the user zooms in past altitude 0.9.
   const handleCameraChange = useCallback(({ lat, lng, altitude }) => {
     const wasAbove = prevAltRef.current > 0.9
     prevAltRef.current = altitude
-    if (altitude >= 0.9) return
     clearTimeout(mapDebounceRef.current)
     mapDebounceRef.current = setTimeout(() => {
-      const span = Math.max(2, altitude * 35)
-      setMapView((prev) => ({ lat, lng, latSpan: span, lngSpan: span, name: prev?.name ?? '' }))
-      if (wasAbove) setActiveTab('map')
-    }, 600)
+      const span = Math.max(1, altitude * 35)
+      setMapView((prev) => ({
+        lat, lng,
+        latSpan: span,
+        lngSpan: span,
+        // Keep the explicit name (from a click) while the camera is near that point;
+        // clear it once the globe has moved far enough away.
+        name: prev?.name && prev.lat != null &&
+              Math.abs(prev.lat - lat) < span * 0.5 &&
+              Math.abs(prev.lng - lng) < span * 0.5
+                ? prev.name : '',
+      }))
+      if (wasAbove && altitude < 0.9) setActiveTab('map')
+    }, 200)
   }, [])
 
   function handleFeatureClick({ lat, lng, name, latSpan, lngSpan }) {
@@ -389,69 +397,61 @@ export default function GlobeView() {
           )}
           {activeTab === 'map' && (
             <div className="flex flex-col h-full overflow-hidden">
-              {mapView ? (
-                <>
-                  {/* Name + external link header */}
-                  <div
-                    className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b"
-                    style={{ borderColor: 'rgba(255,255,255,0.06)' }}
-                  >
-                    <Map size={10} className="text-teal-400/60 flex-shrink-0" />
-                    <span className="flex-1 text-[11px] text-white/55 truncate">{mapView.name || 'Current view'}</span>
-                    <a
-                      href={`https://www.openstreetmap.org/#map=${latSpanToZoom(mapView.latSpan ?? 20)}/${mapView.lat.toFixed(3)}/${mapView.lng.toFixed(3)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1 text-[9px] text-teal-400/45 hover:text-teal-400/85 transition-colors flex-shrink-0"
-                    >
-                      <ExternalLink size={9} />
-                      Full map
-                    </a>
-                  </div>
-                  {/* Weather strip — only shown when we have data for an explicit location */}
-                  {mapWeather && selectedLoc && (
-                    <div
-                      className="flex-shrink-0 flex items-center gap-2.5 px-3 py-1.5 border-b"
-                      style={{
-                        borderColor: 'rgba(255,255,255,0.05)',
-                        background: 'rgba(0,0,0,0.18)',
-                        fontSize: 11,
-                        color: 'rgba(255,255,255,0.40)',
-                        userSelect: 'none',
-                      }}
-                    >
-                      <span style={{ fontSize: 15, lineHeight: 1 }}>{mapWeather.icon}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-                        {mapWeather.temp}°F
-                      </span>
-                      <span style={{ color: 'rgba(255,255,255,0.38)' }}>{mapWeather.condition}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
-                      <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10 }}>Feels like {mapWeather.feelsLike}°F</span>
-                      <div style={{ flex: 1 }} />
-                      <Wind size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
-                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.wind} mph</span>
-                      <Droplets size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
-                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.humidity}%</span>
-                    </div>
-                  )}
+              {/* Name / coordinates + external link header */}
+              <div
+                className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b"
+                style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+              >
+                <Map size={10} className="text-teal-400/60 flex-shrink-0" />
+                <span className="flex-1 text-[11px] text-white/55 truncate font-mono">
+                  {mapView.name || `${mapView.lat.toFixed(2)}°, ${mapView.lng.toFixed(2)}°`}
+                </span>
+                <a
+                  href={`https://www.openstreetmap.org/#map=${latSpanToZoom(mapView.latSpan ?? 20)}/${mapView.lat.toFixed(3)}/${mapView.lng.toFixed(3)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 text-[9px] text-teal-400/45 hover:text-teal-400/85 transition-colors flex-shrink-0"
+                >
+                  <ExternalLink size={9} />
+                  Full map
+                </a>
+              </div>
 
-                  {/* Live Leaflet map — no iframe reload, smooth flyTo transitions */}
-                  <div className="flex-1 relative min-h-0">
-                    <LiveMap
-                      lat={mapView.lat}
-                      lng={mapView.lng}
-                      zoom={latSpanToZoom(mapView.latSpan ?? 20)}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
-                  <Map size={20} className="text-white/15" />
-                  <p className="text-[11px] text-white/25 leading-relaxed">
-                    Click a country or region on the globe to load its street map.
-                  </p>
+              {/* Weather strip — only shown when we have data for an explicit location */}
+              {mapWeather && selectedLoc && (
+                <div
+                  className="flex-shrink-0 flex items-center gap-2.5 px-3 py-1.5 border-b"
+                  style={{
+                    borderColor: 'rgba(255,255,255,0.05)',
+                    background: 'rgba(0,0,0,0.18)',
+                    fontSize: 11,
+                    color: 'rgba(255,255,255,0.40)',
+                    userSelect: 'none',
+                  }}
+                >
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{mapWeather.icon}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+                    {mapWeather.temp}°F
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.38)' }}>{mapWeather.condition}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
+                  <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10 }}>Feels like {mapWeather.feelsLike}°F</span>
+                  <div style={{ flex: 1 }} />
+                  <Wind size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
+                  <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.wind} mph</span>
+                  <Droplets size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
+                  <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.humidity}%</span>
                 </div>
               )}
+
+              {/* Live Leaflet map — always mirrors globe camera */}
+              <div className="flex-1 relative min-h-0">
+                <LiveMap
+                  lat={mapView.lat}
+                  lng={mapView.lng}
+                  zoom={latSpanToZoom(mapView.latSpan ?? 20)}
+                />
+              </div>
             </div>
           )}
         </div>

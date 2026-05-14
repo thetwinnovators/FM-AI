@@ -12,10 +12,12 @@ function approxLocalTime(lng) {
   const offsetH  = Math.round(lng / 15)
   const offsetMs = offsetH * 3_600_000
   const local    = new Date(Date.now() + offsetMs)
-  const hh       = String(local.getUTCHours()).padStart(2, '0')
+  let   h        = local.getUTCHours()
   const mm       = String(local.getUTCMinutes()).padStart(2, '0')
+  const ampm     = h >= 12 ? 'PM' : 'AM'
+  h = h % 12 || 12
   const sign     = offsetH >= 0 ? '+' : ''
-  return { time: `${hh}:${mm}`, label: `UTC${sign}${offsetH}` }
+  return { time: `${h}:${mm} ${ampm}`, label: `UTC${sign}${offsetH}` }
 }
 
 // ── AI quick-facts hook ───────────────────────────────────────────────────────
@@ -39,10 +41,14 @@ function useFacts(overlay) {
     const ctrl = new AbortController()
     const name = overlay.address ?? `${overlay.lat?.toFixed(2)}, ${overlay.lng?.toFixed(2)}`
 
+    const coords = overlay.lat != null
+      ? ` (coordinates: ${overlay.lat.toFixed(2)}, ${overlay.lng.toFixed(2)})`
+      : ''
     const prompt =
-      `You are a compact geography assistant. For the location "${name}" return ONLY ` +
+      `You are a compact geography assistant. For the location "${name}"${coords} return ONLY ` +
       `a minified JSON object — no prose, no markdown, no extra keys.\n` +
       `Shape: {"pop":"e.g. 332 million","capital":"city or N/A","currency":"e.g. USD","flag":"emoji","note":"one short fact"}\n` +
+      `If this is a subnational region (state/province), set capital to its capital city and currency to the country currency.\n` +
       `If coordinates point to ocean or an uninhabited area, set all values to "—".`
 
     fetch('/api/ollama/api/generate', {
@@ -104,7 +110,7 @@ export function GlobeOverlay({ overlay, onDismiss }) {
     <div
       className="absolute top-4 left-4 z-20 pointer-events-auto"
       style={{
-        width: 'min(290px, calc(100% - 32px))',
+        width: 'min(320px, calc(100% - 32px))',
         background: 'rgba(4,10,22,0.82)',
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)',
@@ -125,7 +131,7 @@ export function GlobeOverlay({ overlay, onDismiss }) {
         }
 
         <span
-          className="flex-1 text-[11px] text-white/75 font-mono truncate leading-none"
+          className="flex-1 text-[13px] text-white/85 font-semibold truncate leading-none"
           title={overlay.type === 'location' ? overlay.address : `${overlay.origin} → ${overlay.dest}`}
         >
           {facts?.flag ? `${facts.flag} ` : ''}
@@ -162,7 +168,7 @@ export function GlobeOverlay({ overlay, onDismiss }) {
 
             {/* Coordinates row */}
             {overlay.lat != null && (
-              <p className="text-[10px] text-white/30 font-mono leading-none">
+              <p className="text-[11px] text-white/35 font-mono leading-none">
                 {Math.abs(overlay.lat).toFixed(4)}°{overlay.lat >= 0 ? 'N' : 'S'}
                 {'  ·  '}
                 {Math.abs(overlay.lng).toFixed(4)}°{overlay.lng >= 0 ? 'E' : 'W'}
@@ -172,10 +178,10 @@ export function GlobeOverlay({ overlay, onDismiss }) {
             {/* Local time — always shown, no AI needed */}
             {localTime && (
               <div className="flex items-center gap-1.5">
-                <Clock size={9} className="text-teal-400/50 flex-shrink-0" />
-                <span className="text-[10px] text-white/50 font-mono">
+                <Clock size={10} className="text-teal-400/50 flex-shrink-0" />
+                <span className="text-[12px] text-white/60 font-mono">
                   {localTime.time}
-                  <span className="text-white/25 ml-1">local  ·  {localTime.label}</span>
+                  <span className="text-white/30 ml-1.5">local · {localTime.label}</span>
                 </span>
               </div>
             )}
@@ -190,14 +196,14 @@ export function GlobeOverlay({ overlay, onDismiss }) {
 
             {facts && !loading && (
               <div
-                className="rounded-lg px-2.5 py-2 space-y-1.5 mt-0.5"
+                className="rounded-lg px-3 py-2.5 space-y-2 mt-0.5"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)' }}
               >
                 <FactRow icon="👥" label="Population" value={facts.pop} />
                 <FactRow icon="🏛️" label="Capital"    value={facts.capital} />
                 <FactRow icon="💱" label="Currency"   value={facts.currency} />
                 {facts.note && facts.note !== '—' && (
-                  <p className="text-[9px] text-white/25 leading-relaxed pt-0.5 border-t border-white/[0.05]">
+                  <p className="text-[11px] text-white/35 leading-relaxed pt-1 border-t border-white/[0.05]">
                     {facts.note}
                   </p>
                 )}
@@ -205,9 +211,9 @@ export function GlobeOverlay({ overlay, onDismiss }) {
                   href={`https://en.wikipedia.org/wiki/${encodeURIComponent(overlay.address?.split(',')[0] ?? '')}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-1 mt-0.5 text-[9px] text-teal-400/50 hover:text-teal-400/90 transition-colors w-fit"
+                  className="flex items-center gap-1 mt-0.5 text-[11px] text-teal-400/55 hover:text-teal-400/90 transition-colors w-fit"
                 >
-                  <BookOpen size={9} />
+                  <BookOpen size={10} />
                   Learn more
                 </a>
               </div>
@@ -269,10 +275,10 @@ export function GlobeOverlay({ overlay, onDismiss }) {
 function FactRow({ icon, label, value }) {
   if (!value || value === '—' || value === 'N/A') return null
   return (
-    <div className="flex items-baseline gap-1.5">
-      <span className="text-[10px] flex-shrink-0">{icon}</span>
-      <span className="text-[9px] text-white/25 flex-shrink-0 w-14">{label}</span>
-      <span className="text-[10px] text-white/65 font-mono truncate">{value}</span>
+    <div className="flex items-baseline gap-2">
+      <span className="text-[12px] flex-shrink-0">{icon}</span>
+      <span className="text-[11px] text-white/35 flex-shrink-0 w-16">{label}</span>
+      <span className="text-[12px] text-white/75 font-semibold truncate">{value}</span>
     </div>
   )
 }

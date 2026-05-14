@@ -221,6 +221,16 @@ export class FlowTradeModule {
       catch (e: any) { return reply.code(502).send({ error: e.message }) }
     })
 
+    app.delete('/flow-trade/alpaca/orders/:orderId', async (req, reply) => {
+      if (!requireAuth(req, reply)) return
+      if (this.setupRequired) return reply.code(503).send({ error: 'Alpaca not configured' })
+      const { orderId } = req.params as { orderId: string }
+      try {
+        await this.alpacaFetch(`/v2/orders/${orderId}`, { method: 'DELETE' })
+        return reply.code(204).send()
+      } catch (e: any) { return reply.code(502).send({ error: e.message }) }
+    })
+
     app.get('/flow-trade/alpaca/bars/:symbol', async (req, reply) => {
       if (!requireAuth(req, reply)) return
       if (this.setupRequired) return reply.code(503).send({ error: 'Alpaca not configured' })

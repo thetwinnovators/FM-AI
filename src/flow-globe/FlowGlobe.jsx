@@ -126,11 +126,13 @@ export default function FlowGlobe({
 
   // ── Hierarchical zoom state ───────────────────────────────────────────────
   // viewMode: 'globe' → show countries  |  'region' → show states/provinces
-  const [viewMode,       setViewMode      ] = useState('globe')
-  const [statePolygons,  setStatePolygons ] = useState([])
-  const [hoveredPolygon, setHoveredPolygon] = useState(null)
-  const [loadingPoly,    setLoadingPoly   ] = useState(null)   // tinted while states load
-  const allCityFeats  = useRef([])          // full sorted list, set on country click
+  const [viewMode,        setViewMode      ] = useState('globe')
+  const [statePolygons,   setStatePolygons ] = useState([])
+  const [hoveredPolygon,  setHoveredPolygon] = useState(null)
+  const [loadingPoly,     setLoadingPoly   ] = useState(null)   // tinted while states load
+  const selectedCountryRef = useRef(null)   // { name, iso } — set on country click, used to qualify state names
+  const allCityFeats    = useRef([])  // mapped city objects for current state (altitude slicer reads this)
+  const countryPlacesRef = useRef([]) // raw NE place features for selected country (per-state filter source)
   const [cityLabels,  setCityLabels    ] = useState([])
   const [currentAlt,  setCurrentAlt    ] = useState(2.5)
 
@@ -149,6 +151,8 @@ export default function FlowGlobe({
         setStatePolygons([])
         setHoveredPolygon(null)
         allCityFeats.current = []
+        countryPlacesRef.current = []
+        selectedCountryRef.current = null
         setCityLabels([])
       } else if (allCityFeats.current.length) {
         // Recompute visible city count based on zoom
@@ -180,7 +184,7 @@ export default function FlowGlobe({
     clearTimeout(idleTimerRef.current)
 
     if (viewMode === 'globe') {
-      // ── Country clicked → load its states / provinces + city labels ────
+      // ── Country clicked → load state outlines only (no cities yet) ────
       const name  = polygon.properties.ADMIN ?? polygon.properties.NAME ?? ''
       onFeatureClick?.({ lat, lng, latSpan, lngSpan, name })
       setLoadingPoly(polygon)
@@ -189,8 +193,12 @@ export default function FlowGlobe({
       const isoA3 = polygon.properties.ISO_A3
       const admin = polygon.properties.ADMIN ?? polygon.properties.NAME ?? ''
 
+      // Remember the selected country so state clicks can be fully qualified
+      selectedCountryRef.current = { name: admin, iso, isoA3 }
+
       const [all, places] = await Promise.all([fetchAllStates(), fetchPlaces()])
 
+      // State / province outlines
       const filtered = all.filter((f) =>
         (iso && iso !== '-99' && f.properties.iso_a2 === iso) ||
         f.properties.admin === admin,
@@ -199,39 +207,52 @@ export default function FlowGlobe({
       setViewMode('region')
       setLoadingPoly(null)
 
-      // City / town labels — store full sorted list in ref; the polling interval
-      // slices it to the right count for the current altitude.
-      const mapped = places
+      // Pre-filter country places into ref — cities only shown after a state is clicked
+      countryPlacesRef.current = places
         .filter((p) => isoA3 && isoA3 !== '-99'
           ? p.properties.adm0_a3 === isoA3
           : p.properties.adm0_name === admin)
         .sort((a, b) => (b.properties.pop_max ?? 0) - (a.properties.pop_max ?? 0))
-        .slice(0, 100)
-        .map((p) => {
-          const isCapital = p.properties.featurecla?.includes('capital') ?? false
-          return {
-            lat:       p.geometry.coordinates[1],
-            lng:       p.geometry.coordinates[0],
-            text:      p.properties.name ?? '',
-            isCity:    true,
-            isCapital,
-            size:      isCapital ? 0.44 : 0.30,
-            color:     isCapital ? 'rgba(255,210,80,0.92)' : 'rgba(210,228,255,0.72)',
-            dotRadius: isCapital ? 0.055 : 0.038,
-          }
-        })
+      allCityFeats.current = []
+      setCityLabels([])
+
+    } else {
+      // ── State / province clicked → show cities for this state ─────────
+      const stateName = polygon.properties.name_en ?? polygon.properties.name ?? ''
+      const country   = selectedCountryRef.current
+      // Qualify with country so AI doesn't confuse e.g. "Georgia" state vs country
+      const fullName  = country?.name ? `${stateName}, ${country.name}` : stateName
+      onFeatureClick?.({ lat, lng, latSpan, lngSpan, name: fullName })
+
+      // Match cities whose adm1 field equals either the English or native state name
+      const sNameLo  = stateName.toLowerCase()
+      const sNameAlt = (polygon.properties.name ?? '').toLowerCase()
+      const stateFeats = countryPlacesRef.current.filter((p) => {
+        const pAdm1 = (p.properties.adm1 ?? '').toLowerCase()
+        return pAdm1 === sNameLo || pAdm1 === sNameAlt
+      })
+
+      // Fall back to a top-N country slice if adm1 data is missing
+      const source = stateFeats.length > 0 ? stateFeats : countryPlacesRef.current.slice(0, 30)
+
+      const mapped = source.slice(0, 80).map((p) => {
+        const isCapital = p.properties.featurecla?.includes('capital') ?? false
+        return {
+          lat:       p.geometry.coordinates[1],
+          lng:       p.geometry.coordinates[0],
+          text:      p.properties.name ?? '',
+          isCity:    true,
+          isCapital,
+          color:     isCapital ? 'rgba(255,210,80,0.92)' : 'rgba(210,228,255,0.72)',
+        }
+      })
+
       allCityFeats.current = mapped
-      // Show an initial slice appropriate for the landing altitude
       const initCount =
         altitude > 1.2 ? 12 :
         altitude > 0.8 ? 25 :
-        altitude > 0.5 ? 50 : 100
+        altitude > 0.5 ? 50 : 80
       setCityLabels(mapped.slice(0, initCount))
-
-    } else {
-      // ── State / province clicked → zoom in further ────────────────────
-      const name = polygon.properties.name_en ?? polygon.properties.name ?? ''
-      onFeatureClick?.({ lat, lng, latSpan, lngSpan, name })
     }
   }, [viewMode, onFeatureClick])
 
@@ -435,6 +456,8 @@ export default function FlowGlobe({
     setStatePolygons([])
     setHoveredPolygon(null)
     allCityFeats.current = []
+    countryPlacesRef.current = []
+    selectedCountryRef.current = null
     setCityLabels([])
 
     // Zoom back out to a comfortable global altitude from the current centre

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { X } from 'lucide-react'
 import { flowTradeApi } from './api.js'
 import { useFlowTradeSSE } from './useFlowTradeSSE.js'
 
@@ -35,6 +36,8 @@ export function RiskDashboard({ refreshTick = 0 }) {
   const [alpacaPositions, setAlpacaPositions] = useState(null)
   const [alpacaAccount,   setAlpacaAccount]   = useState(null)
   const [pendingOrders,   setPendingOrders]   = useState([])
+  const [cancellingId,    setCancellingId]    = useState(null)
+  const [cancelErrorId,   setCancelErrorId]   = useState(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -75,6 +78,19 @@ export function RiskDashboard({ refreshTick = 0 }) {
   }, [refresh])
 
   useFlowTradeSSE(handleSSE)
+
+  const handleCancelOrder = useCallback(async (orderId) => {
+    setCancellingId(orderId)
+    setCancelErrorId(null)
+    try {
+      await flowTradeApi.cancelAlpacaOrder(orderId)
+      setPendingOrders(prev => prev.filter(o => o.id !== orderId))
+    } catch {
+      setCancelErrorId(orderId)
+      setTimeout(() => setCancelErrorId(null), 3000)
+    }
+    setCancellingId(null)
+  }, [])
 
   const closeCountdown = useMarketCountdown(16, 0)
   const resetCountdown = useMarketCountdown(9, 30)
@@ -155,6 +171,18 @@ export function RiskDashboard({ refreshTick = 0 }) {
                     {order.side?.toUpperCase()}
                   </span>
                   <span className="text-white/30 text-[11px] ml-auto">{+parseFloat(order.qty ?? 0).toFixed(4)} sh</span>
+                  <button
+                    onClick={() => handleCancelOrder(order.id)}
+                    disabled={cancellingId === order.id}
+                    title={cancelErrorId === order.id ? 'Cancel failed — restart daemon?' : 'Cancel order'}
+                    className={`ml-1 transition-colors disabled:opacity-40 ${
+                      cancelErrorId === order.id
+                        ? 'text-red-400 animate-pulse'
+                        : 'text-white/20 hover:text-red-400'
+                    }`}
+                  >
+                    <X size={11} />
+                  </button>
                 </div>
                 <div className="flex justify-between text-[11px]">
                   <span className="text-teal-400/60 capitalize">{order.order_class === 'bracket' ? 'bracket limit' : order.type}</span>
