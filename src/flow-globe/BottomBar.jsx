@@ -140,13 +140,13 @@ export default function BottomBar({ selectedLoc = null, selectedWeather = null }
           <Sep />
           <span style={{ fontSize: 13, lineHeight: 1 }}>{myWeather.icon}</span>
           <span style={{ color: 'rgba(255,255,255,0.70)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-            {myWeather.temp}°C
+            {myWeather.temp}°F
           </span>
           <span style={{ color: 'rgba(255,255,255,0.38)' }}>{myWeather.condition}</span>
           <Sep />
           <Wind size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.36)', fontVariantNumeric: 'tabular-nums' }}>
-            {myWeather.windKmh} km/h
+            {myWeather.wind} mph
           </span>
           <Droplets size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
           <span style={{ color: 'rgba(255,255,255,0.36)', fontVariantNumeric: 'tabular-nums' }}>
@@ -167,7 +167,7 @@ export default function BottomBar({ selectedLoc = null, selectedWeather = null }
             <Sep />
             <span style={{ fontSize: 13, lineHeight: 1 }}>{selectedWeather.icon}</span>
             <span style={{ color: 'rgba(255,255,255,0.70)', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-              {selectedWeather.temp}°C
+              {selectedWeather.temp}°F
             </span>
             <span style={{ color: 'rgba(255,255,255,0.38)' }}>{selectedWeather.condition}</span>
             {selLocalTime && (

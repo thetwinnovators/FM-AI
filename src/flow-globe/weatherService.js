@@ -45,11 +45,12 @@ const WMO = {
  */
 export async function fetchWeather(lat, lng) {
   const p = new URLSearchParams({
-    latitude:        lat.toFixed(4),
-    longitude:       lng.toFixed(4),
-    current:         'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m',
-    wind_speed_unit: 'kmh',
-    timezone:        'auto',
+    latitude:         lat.toFixed(4),
+    longitude:        lng.toFixed(4),
+    current:          'temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m',
+    temperature_unit: 'fahrenheit',
+    wind_speed_unit:  'mph',
+    timezone:         'auto',
   })
   const r = await fetch(`https://api.open-meteo.com/v1/forecast?${p}`)
   if (!r.ok) throw new Error(`Weather HTTP ${r.status}`)
@@ -60,7 +61,7 @@ export async function fetchWeather(lat, lng) {
     temp:      Math.round(c.temperature_2m),
     feelsLike: Math.round(c.apparent_temperature),
     humidity:  c.relative_humidity_2m,
-    windKmh:   Math.round(c.wind_speed_10m),
+    wind:      Math.round(c.wind_speed_10m),   // mph
     condition,
     icon,
     timezone:  d.timezone               ?? null,

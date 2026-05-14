@@ -40,7 +40,9 @@ function humanDuration(s) {
 }
 
 function humanDistance(m) {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`
+  const miles = m * 0.000621371
+  if (miles >= 0.1) return `${miles.toFixed(1)} mi`
+  return `${Math.round(m * 3.28084)} ft`
 }
 
 // ── Nominatim autocomplete helpers ────────────────────────────────────────────

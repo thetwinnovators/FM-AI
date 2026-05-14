@@ -16,10 +16,10 @@ const FlightSearch   = lazy(() => import('../flow-globe/FlightSearch.jsx'))
 const MapSearch      = lazy(() => import('../flow-globe/MapSearch.jsx'))
 
 const TABS = [
-  { id: 'search',     label: 'Search',  icon: Search     },
-  { id: 'flights',    label: 'Flights', icon: Plane      },
-  { id: 'directions', label: 'Route',   icon: Navigation },
-  { id: 'map',        label: 'Map',     icon: Map        },
+  { id: 'flights',    label: 'Flights',    icon: Plane      },
+  { id: 'directions', label: 'Directions', icon: Navigation },
+  { id: 'search',     label: 'Search',     icon: Search     },
+  { id: 'map',        label: 'Map',        icon: Map        },
 ]
 
 
@@ -32,7 +32,7 @@ const DEFAULT_FLOAT = { x: 60, y: 52, w: 620, h: 440 }
 
 export default function GlobeView() {
   const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, flyTo } = useGlobeState()
-  const [activeTab,    setActiveTab   ] = useState('search')
+  const [activeTab,    setActiveTab   ] = useState('flights')
   const [mapOverlay,   setMapOverlay  ] = useState(null)
   const [mapView,      setMapView     ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
   // Explicitly-selected location (label click / feature click) — drives weather fetch
@@ -415,14 +415,14 @@ export default function GlobeView() {
                     >
                       <span style={{ fontSize: 15, lineHeight: 1 }}>{mapWeather.icon}</span>
                       <span style={{ color: 'rgba(255,255,255,0.72)', fontWeight: 600, fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
-                        {mapWeather.temp}°C
+                        {mapWeather.temp}°F
                       </span>
                       <span style={{ color: 'rgba(255,255,255,0.38)' }}>{mapWeather.condition}</span>
                       <span style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>
-                      <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10 }}>Feels like {mapWeather.feelsLike}°C</span>
+                      <span style={{ color: 'rgba(255,255,255,0.28)', fontSize: 10 }}>Feels like {mapWeather.feelsLike}°F</span>
                       <div style={{ flex: 1 }} />
                       <Wind size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
-                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.windKmh} km/h</span>
+                      <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.wind} mph</span>
                       <Droplets size={9} style={{ color: 'rgba(255,255,255,0.28)', flexShrink: 0 }} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontVariantNumeric: 'tabular-nums' }}>{mapWeather.humidity}%</span>
                     </div>
