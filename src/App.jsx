@@ -35,6 +35,7 @@ const MCPIntegrationDetailPage = lazy(() => import('./mcp/pages/MCPIntegrationDe
 const MCPToolCatalogPage     = lazy(() => import('./mcp/pages/MCPToolCatalogPage.jsx'))
 const MCPExecutionLogPage    = lazy(() => import('./mcp/pages/MCPExecutionLogPage.jsx'))
 const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.jsx'))
+const MCPUseCasesPage        = lazy(() => import('./mcp/pages/MCPUseCasesPage.jsx'))
 const CodeAcademy            = lazy(() => import('./views/CodeAcademy.jsx'))
 const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
 const OperatorWorkspace      = lazy(() => import('./views/OperatorWorkspace.jsx'))
@@ -92,6 +93,7 @@ function AnimatedRoutes({ isWorkspace }) {
           <Route path="/connections/tools"             element={<MCPToolCatalogPage />} />
           <Route path="/connections/tools/:toolId"     element={<MCPToolDetailPage />} />
           <Route path="/connections/log"               element={<MCPExecutionLogPage />} />
+          <Route path="/connections/use-cases"         element={<MCPUseCasesPage />} />
           <Route path="/connections/:id"               element={<MCPIntegrationDetailPage />} />
         </Routes>
       </div>

@@ -1,10 +1,11 @@
-import { LayoutGrid, List, Activity } from 'lucide-react'
+import { LayoutGrid, List, Activity, Sparkles } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 const SUB_NAV = [
   { to: '/connections', label: 'Integrations', Icon: LayoutGrid, end: true },
   { to: '/connections/tools', label: 'Tools', Icon: List },
   { to: '/connections/log', label: 'Log', Icon: Activity },
+  { to: '/connections/use-cases', label: 'Use Cases', Icon: Sparkles },
 ]
 
 export function ConnectionsSubNav() {
