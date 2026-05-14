@@ -24,8 +24,10 @@
     "prism-react-renderer": "^2.4.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-globe.gl": "^2.37.1",
     "react-router-dom": "^7.14.2",
     "tailwindcss": "^4.2.4",
+    "three": "^0.184.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
