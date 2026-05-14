@@ -3,6 +3,7 @@ import Globe from 'react-globe.gl'
 import * as THREE from 'three'
 import { GEO_LABELS } from './geoLabels.js'
 
+const EARTH_DAY       = 'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'
 const EARTH_NIGHT     = 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
 const GRATICULE_COLOR = 'rgba(14,210,238,0.22)'
 const AUTO_ROTATE_SPEED = 0.3
@@ -238,8 +239,10 @@ export default function FlowGlobe({
 
   // ── Globe surface material ────────────────────────────────────────────────
   // Navy sphere with translucent ocean — the night texture drives the
-  // land/ocean alpha mask so oceans are transparent and land is solid.
-  // The blurred background haze shows through the ocean via CSS backdrop-filter.
+  // Ocean is 50 % transparent — the blue-marble texture drives the water
+  // mask (blue channel > red = ocean) while the sphere colour stays navy.
+  // Three.js renders the back-hemisphere graticule lines through the
+  // transparent ocean, giving a "far-side wires show through blurry" look.
   const globeMaterial = useMemo(() => {
     const mat = new THREE.MeshPhongMaterial({
       color:       new THREE.Color(0x0a1628),
@@ -249,23 +252,23 @@ export default function FlowGlobe({
       side:        THREE.FrontSide,
     })
 
-    // Use night-texture luma as land mask — oceans are dark (transparent),
-    // city-lit land areas are bright (opaque). We override map_fragment so
-    // the texture only controls alpha, never the surface colour.
+    // Replace map_fragment so the texture is used ONLY as a water mask —
+    // it never changes the surface colour (stays navy throughout).
     mat.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
         '#include <map_fragment>',
         `#ifdef USE_MAP
-           vec4  _tex  = texture2D(map, vMapUv);
-           float _luma = dot(_tex.rgb, vec3(0.2126, 0.7152, 0.0722));
-           float _land = smoothstep(0.004, 0.14, _luma);
-           diffuseColor.a = mix(0.10, 0.92, _land);
+           vec4  _bm    = texture2D(map, vMapUv);
+           // Blue channel dominates over red in ocean pixels of the blue marble
+           float _water = smoothstep(0.04, 0.22, _bm.b - _bm.r);
+           diffuseColor.a = mix(0.88, 0.50, _water); // land 88 %, ocean 50 %
          #endif`,
       )
     }
-    mat.customProgramCacheKey = () => 'flowmap-globe-ocean-alpha-v1'
+    mat.customProgramCacheKey = () => 'flowmap-globe-ocean-alpha-v2'
 
-    new THREE.TextureLoader().load(EARTH_NIGHT, (tex) => {
+    // Blue marble loaded only to drive the water mask; colour stays navy
+    new THREE.TextureLoader().load(EARTH_DAY, (tex) => {
       mat.map = tex
       mat.needsUpdate = true
     })
