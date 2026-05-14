@@ -26,7 +26,9 @@ export function useGlobeState() {
     setFocusLabel('')
   }, [])
 
-  const flyTo = useCallback(({ lat, lng, altitude = 1.8, label = '' }) => {
+  const flyTo = useCallback((coords) => {
+    if (!coords) return
+    const { lat, lng, altitude = 1.8, label = '' } = coords
     setViewpointState({ lat, lng, altitude })
     if (label) setFocusLabel(label)
   }, [])

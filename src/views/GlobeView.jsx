@@ -1,20 +1,18 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import FlowGlobe from '../flow-globe/FlowGlobe.jsx'
-import GlobeChat from '../flow-globe/GlobeChat.jsx'
+import { GlobeChat } from '../flow-globe/GlobeChat.jsx'
 import { useGlobeState } from '../flow-globe/useGlobeState.js'
 
 export default function GlobeView() {
-  const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, clearAll, flyTo } = useGlobeState()
-  const [autoQuery, setAutoQuery] = useState('')
+  const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, flyTo } = useGlobeState()
+  const [autoQuery, setAutoQuery] = useState(null)
 
   function handleGlobeClick({ lat, lng }) {
-    const query = `What's at ${lat.toFixed(4)}, ${lng.toFixed(4)}?`
-    setAutoQuery(query)
+    const text = `What's at ${lat.toFixed(4)}, ${lng.toFixed(4)}?`
+    setAutoQuery({ text, id: Date.now() })
   }
 
-  function handleAutoQueryConsumed() {
-    setAutoQuery('')
-  }
+  const handleAutoQueryConsumed = useCallback(() => setAutoQuery(null), [])
 
   return (
     <div className="flex h-full w-full overflow-hidden" style={{ background: '#05070f' }}>
@@ -48,7 +46,7 @@ export default function GlobeView() {
           addPins={addPins}
           addArcs={addArcs}
           flyTo={flyTo}
-          autoQuery={autoQuery}
+          autoQuery={autoQuery?.text ?? ''}
           onAutoQueryConsumed={handleAutoQueryConsumed}
         />
       </div>

@@ -6,13 +6,10 @@ import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../li
 
 // ── Globe block parsing ───────────────────────────────────────────────────────
 
-const GLOBE_PINS_RE = /<globe-pins>([\s\S]*?)<\/globe-pins>/g
-const GLOBE_ARCS_RE = /<globe-arcs>([\s\S]*?)<\/globe-arcs>/g
-
 function parseGlobeBlocks(text, addPins, addArcs) {
+  const GLOBE_PINS_RE = /<globe-pins>([\s\S]*?)<\/globe-pins>/g
+  const GLOBE_ARCS_RE = /<globe-arcs>([\s\S]*?)<\/globe-arcs>/g
   let cleaned = text
-  // Extract and process pins
-  GLOBE_PINS_RE.lastIndex = 0
   let m
   while ((m = GLOBE_PINS_RE.exec(text)) !== null) {
     try {
@@ -21,8 +18,6 @@ function parseGlobeBlocks(text, addPins, addArcs) {
     } catch {}
     cleaned = cleaned.replace(m[0], '')
   }
-  // Extract and process arcs
-  GLOBE_ARCS_RE.lastIndex = 0
   while ((m = GLOBE_ARCS_RE.exec(text)) !== null) {
     try {
       const arcs = JSON.parse(m[1].trim())
