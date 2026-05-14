@@ -7,9 +7,17 @@ import { useEffect, useRef } from 'react'
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 
-// CartoDB Positron — clean light map, free, no API key required
-const TILE_URL  = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+// CartoDB Voyager — full-colour light map, free, no API key required.
+// Voyager has vivid blue water, green parks, and a clean modern road palette —
+// the closest free tile style to FlowMap's teal/navy aesthetic.
+const TILE_URL  = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
 const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+
+// CSS filter applied to the map container to shift the palette toward
+// FlowMap's signature cyan-teal tone without sacrificing readability.
+// hue-rotate(8deg) nudges blues/greens toward teal;
+// saturate(1.18)   makes water + greenery pop slightly more.
+const MAP_FILTER = 'hue-rotate(8deg) saturate(1.18)'
 
 /**
  * Convert globe latSpan (degrees visible) → Leaflet integer zoom level.
@@ -93,10 +101,15 @@ export default function LiveMap({ lat, lng, zoom = 6 }) {
   }, [lat, lng, zoom])
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: '100%', height: '100%' }}
-      className="relative"
-    />
+    // Outer wrapper carries the colour filter; inner div is the Leaflet mount point.
+    // Keeping them separate avoids any stacking-context quirk from applying
+    // `filter` directly to the element Leaflet measures for tile positioning.
+    <div style={{ width: '100%', height: '100%', filter: MAP_FILTER }}>
+      <div
+        ref={containerRef}
+        style={{ width: '100%', height: '100%' }}
+        className="relative"
+      />
+    </div>
   )
 }
