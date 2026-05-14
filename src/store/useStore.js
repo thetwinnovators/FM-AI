@@ -96,6 +96,9 @@ function schedulePush() {
     setSyncStatus({ status: 'pushing', error: null })
     const res = await pushToDisk(memoryState)
     if (res?.ok) {
+      // Update lastPulledModified so the next focus/visibility pull skips this
+      // version — we just wrote it, there's nothing newer to pull.
+      lastPulledModified = res.lastModified
       setSyncStatus({ status: 'synced', lastModified: res.lastModified, error: null })
     } else {
       setSyncStatus({ status: 'offline', error: res?.error || 'push failed' })
@@ -213,9 +216,33 @@ function initSync() {
   if (syncInitialized) return
   syncInitialized = true
   pullSyncedState()
+
+  // Pull on tab focus / visibility restore (catches browser window switches)
   function onVis() { if (document.visibilityState === 'visible') pullSyncedState() }
   document.addEventListener('visibilitychange', onVis)
   window.addEventListener('focus', onVis)
+
+  // Same-browser cross-tab sync via storage events. The 'storage' event fires
+  // in OTHER tabs when localStorage changes — this makes edits from one tab
+  // appear immediately in sibling tabs without needing a focus event.
+  window.addEventListener('storage', (e) => {
+    if (e.key !== STORAGE_KEY || e.newValue === null) return
+    try {
+      const parsed = JSON.parse(e.newValue)
+      if (!looksLikeFlowMapState(parsed)) return
+      memoryState = { ...EMPTY, ...parsed }
+      notifyWrite(STORAGE_KEY)
+      listeners.forEach((fn) => fn())
+    } catch { /* malformed value — ignore */ }
+  })
+
+  // Polling fallback for embedded browser contexts (e.g. Claude Code preview,
+  // Electron webviews) that may not fire focus/visibilitychange reliably.
+  // Polls every 10 s — cheap because pullSyncedState() no-ops when the mtime
+  // hasn't changed (lastPulledModified guard).
+  setInterval(() => {
+    if (document.visibilityState === 'visible') pullSyncedState()
+  }, 10_000)
 }
 
 export function unreadBriefCount(briefs = {}) {
