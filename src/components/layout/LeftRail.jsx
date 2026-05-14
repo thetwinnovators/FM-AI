@@ -27,7 +27,7 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/flow-trade', label: 'Flow Trade', icon: TrendingUp },
-    { to: '/globe',      label: 'Globe',      icon: Globe      },
+    { to: '/globe',      label: 'Flow Globe', icon: Globe      },
   ],
 ]
 
@@ -98,8 +98,8 @@ export default function LeftRail() {
         {toggleBtn}
       </div>
 
-      {/* Navigation groups */}
-      <nav className="flex flex-col flex-1 min-h-0">
+      {/* Navigation groups — scrolls when viewport is short */}
+      <nav className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi}>
             {gi > 0 && (
@@ -114,8 +114,8 @@ export default function LeftRail() {
         ))}
       </nav>
 
-      {/* Bottom links */}
-      <div className="mt-auto flex flex-col gap-1">
+      {/* Bottom links — always pinned, never scrolls away */}
+      <div className="flex-shrink-0 flex flex-col gap-1">
         <div className="my-2 border-t border-[color:var(--color-border-subtle)]" />
         <NavItem to="/connections" label="Connections" icon={Plug} collapsed={collapsed} />
       </div>

@@ -144,8 +144,8 @@ function TelegramPollingWorker() {
 }
 
 function IngestionWorker() {
-  const { documents, documentContents } = useStore()
-  useIngestionWorker(documents, documentContents)
+  const { documents, documentContents, manualContent } = useStore()
+  useIngestionWorker(documents, documentContents, manualContent)
   return null
 }
 

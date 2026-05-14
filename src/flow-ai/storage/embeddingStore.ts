@@ -96,6 +96,23 @@ class EmbeddingStore {
     } catch { /* silent */ }
   }
 
+  /**
+   * Delete all records whose id starts with `prefix`.
+   * Used to evict all chunks of a document without knowing the exact chunk count.
+   */
+  async deleteByPrefix(prefix: string): Promise<void> {
+    try {
+      const db    = await this.open()
+      const range = IDBKeyRange.bound(prefix, prefix + '￿')
+      await new Promise<void>((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite')
+        tx.objectStore(STORE_NAME).delete(range)
+        tx.oncomplete = () => resolve()
+        tx.onerror    = () => resolve()
+      })
+    } catch { /* silent */ }
+  }
+
   /** Wipe all stored embeddings (useful after a model change). */
   async clear(): Promise<void> {
     try {

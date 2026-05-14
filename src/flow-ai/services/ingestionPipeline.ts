@@ -139,15 +139,13 @@ export async function ingestDocuments(
 
 /**
  * Remove all cached chunk embeddings for a document.
+ * Uses a prefix scan so the caller doesn't need to know the exact chunk count.
  * Called when a document is deleted so the embedding store doesn't accumulate
  * orphaned vectors.
  */
-export async function evictDocument(docId: string, chunkCount: number): Promise<void> {
-  const deletions: Promise<void>[] = []
-  for (let i = 0; i < chunkCount; i++) {
-    deletions.push(embeddingStore.delete(`${docId}_c${i}`))
-  }
-  // Also evict the whole-doc entry that older versions of the pipeline created
-  deletions.push(embeddingStore.delete(docId))
-  await Promise.all(deletions)
+export async function evictDocument(docId: string): Promise<void> {
+  // Prefix scan covers doc_xyz_c0 … doc_xyz_cN in one range delete
+  await embeddingStore.deleteByPrefix(`${docId}_c`)
+  // Also evict the bare-id entry that older pipeline versions created
+  await embeddingStore.delete(docId)
 }

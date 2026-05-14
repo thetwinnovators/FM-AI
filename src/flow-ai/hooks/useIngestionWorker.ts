@@ -1,54 +1,72 @@
 /**
- * useIngestionWorker — background document embedding hook.
+ * useIngestionWorker — background embedding hook.
  *
- * Watches the document store for new or updated documents and automatically
- * triggers chunk embedding via the ingestion pipeline.  This is the mechanism
- * that turns the pipeline from lazy (cold-start O(N × 80ms)) into pre-indexed
- * (query time only embeds the incoming query).
+ * Indexes two data types into the vector store so Flow AI can find them:
+ *
+ *   1. Documents (pasted text / uploaded files)
+ *      - Watches documentContents for new / changed plainText
+ *      - Chunks each doc and embeds via Ollama
+ *      - Evicts stale chunk vectors when a document is deleted
+ *
+ *   2. Manual content (user-saved URLs with title + description)
+ *      - Watches manualContent for new / changed items
+ *      - Embeds title + description as a single short record keyed "manual_<id>"
  *
  * Design:
- *   - Tracks a hash per document so re-renders don't retrigger ingestion.
- *   - Each document is queued independently — one document's failure doesn't
- *     block others.
- *   - Uses a stable abort controller tied to the hook lifetime so Ollama
- *     requests are cancelled on unmount.
- *   - Fully silent — never throws or logs to the console in production.
+ *   - Content hash per item → re-renders and unchanged items are no-ops.
+ *   - Each item is queued independently — one failure never blocks others.
+ *   - Abort controller tied to hook lifetime cancels in-flight Ollama calls.
+ *   - Fully silent — never throws or logs in production.
  */
 
-import { useEffect, useRef } from 'react'
-import { ingestDocument }    from '../services/ingestionPipeline.js'
-import { hashText }          from '../utils/embeddings.js'
+import { useEffect, useRef }             from 'react'
+import { ingestDocument, evictDocument } from '../services/ingestionPipeline.js'
+import { getEmbedding, hashText }        from '../utils/embeddings.js'
+import { embeddingStore }                from '../storage/embeddingStore.js'
+import { OLLAMA_CONFIG }                 from '../../lib/llm/ollamaConfig.js'
 
-interface DocEntry {
-  id:        string
-  title:     string
-  plainText: string
-}
+// ─── types ────────────────────────────────────────────────────────────────────
 
 interface ContentEntry {
   plainText?: string
 }
 
+interface ManualItem {
+  id?:          string
+  title?:       string
+  description?: string
+  body?:        string
+  excerpt?:     string
+}
+
+interface ManualContentEntry {
+  item?: ManualItem
+}
+
+// ─── hook ─────────────────────────────────────────────────────────────────────
+
 /**
- * Mount this hook at the App root so it runs for the lifetime of the session.
+ * Mount at the App root so it runs for the lifetime of the session.
  *
- * @param documents        useStore().documents   — record of doc metadata
- * @param documentContents useStore().documentContents — record of doc content
+ * @param documents        useStore().documents         — doc metadata
+ * @param documentContents useStore().documentContents  — doc text content
+ * @param manualContent    useStore().manualContent      — user-saved URLs
  */
 export function useIngestionWorker(
   documents:        Record<string, { id: string; title: string }>,
   documentContents: Record<string, ContentEntry>,
+  manualContent:    Record<string, ManualContentEntry> = {},
 ): void {
-  // Map of docId → hash of the last plainText we successfully dispatched for
-  // ingestion.  Persists across re-renders via ref so we never re-queue a doc
-  // whose content hasn't changed.
-  const ingestedHashRef = useRef<Map<string, string>>(new Map())
 
-  // Abort controller for in-flight embedding requests — cancelled on unmount.
+  // docId → hash of last-dispatched plainText
+  const docHashRef    = useRef<Map<string, string>>(new Map())
+  // Set of docIds seen last run — used to detect deletions
+  const prevDocIdsRef = useRef<Set<string>>(new Set())
+  // itemId → hash of last-dispatched manual content text
+  const manualHashRef = useRef<Map<string, string>>(new Map())
+
   const abortRef = useRef<AbortController | null>(null)
 
-  // Cancel any pending embeddings when the component unmounts (e.g. hot-reload
-  // or user closes the tab before a batch completes).
   useEffect(() => {
     abortRef.current = new AbortController()
     return () => {
@@ -57,12 +75,24 @@ export function useIngestionWorker(
     }
   }, [])
 
+  // ── 1. Document embedding + eviction on delete ───────────────────────────
   useEffect(() => {
     if (!documentContents || !documents) return
-
     const ctrl = abortRef.current
     if (!ctrl || ctrl.signal.aborted) return
 
+    const currentDocIds = new Set(Object.keys(documentContents))
+
+    // Detect deleted documents and evict their vectors
+    for (const oldId of prevDocIdsRef.current) {
+      if (!currentDocIds.has(oldId)) {
+        docHashRef.current.delete(oldId)
+        evictDocument(oldId).catch(() => { /* silent */ })
+      }
+    }
+    prevDocIdsRef.current = currentDocIds
+
+    // Embed new / changed documents
     for (const [docId, content] of Object.entries(documentContents)) {
       const plainText = content?.plainText?.trim()
       if (!plainText) continue
@@ -70,26 +100,63 @@ export function useIngestionWorker(
       const meta = documents[docId]
       if (!meta) continue
 
-      // Cheap change detection — skip if we already dispatched this exact text.
       const contentHash = hashText(plainText)
-      if (ingestedHashRef.current.get(docId) === contentHash) continue
+      if (docHashRef.current.get(docId) === contentHash) continue
 
-      // Mark as dispatched before firing so concurrent effect invocations
-      // (React StrictMode double-invoke) don't queue the same doc twice.
-      ingestedHashRef.current.set(docId, contentHash)
+      docHashRef.current.set(docId, contentHash)
 
-      const doc: DocEntry = { id: docId, title: meta.title || '', plainText }
-
-      // Fire and forget — errors are caught inside ingestDocument and counted
-      // but never re-thrown.
-      ingestDocument(doc, ctrl.signal).catch(() => {
-        // If ingestion fails (e.g. Ollama stopped), clear the hash so the
-        // next effect run will retry when the document hasn't changed.
-        ingestedHashRef.current.delete(docId)
+      ingestDocument(
+        { id: docId, title: meta.title || '', plainText },
+        ctrl.signal,
+      ).catch(() => {
+        docHashRef.current.delete(docId)
       })
     }
-  // We intentionally only re-run when content changes, not on every render.
-  // documents is stable enough for our purposes (title changes are rare).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentContents])
+
+  // ── 2. Manual content embedding ──────────────────────────────────────────
+  useEffect(() => {
+    if (!manualContent) return
+    const ctrl = abortRef.current
+    if (!ctrl || ctrl.signal.aborted) return
+
+    for (const [entryId, entry] of Object.entries(manualContent)) {
+      const item = entry?.item
+      if (!item) continue
+
+      // Build the embeddable text from available fields
+      const title = item.title?.trim() ?? ''
+      const body  = (item.description ?? item.excerpt ?? item.body ?? '').trim()
+      const text  = [title, body].filter(Boolean).join('\n')
+      if (!text) continue
+
+      const contentHash = hashText(text)
+      const storeId     = `manual_${entryId}`
+
+      if (manualHashRef.current.get(storeId) === contentHash) continue
+      manualHashRef.current.set(storeId, contentHash)
+
+      if (!OLLAMA_CONFIG.enabled) continue
+
+      // Single-record embed — no chunking needed for short snippets
+      ;(async () => {
+        try {
+          if (ctrl.signal.aborted) return
+          const vector = await getEmbedding(text, ctrl.signal)
+          if (vector) {
+            await embeddingStore.set({
+              id:        storeId,
+              vector,
+              textHash:  contentHash,
+              indexedAt: new Date().toISOString(),
+            })
+          }
+        } catch {
+          manualHashRef.current.delete(storeId)
+        }
+      })()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualContent])
 }

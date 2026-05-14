@@ -45,6 +45,7 @@ export interface RetrievalInput {
   seedTopics?:      any[]                // useSeed().topics
   signals?:         any[]                // localSignalsStorage.listSignals()
   userNotes?:       Record<string, any>  // useStore.userNotes
+  manualContent?:   Record<string, any>  // useStore.manualContent (user-saved URLs)
 
   // Tuning (optional — defaults from rerankingService)
   maxResults?:      number
@@ -124,6 +125,7 @@ function buildCandidates(input: RetrievalInput): SearchCandidate[] {
     ...buildSignalCandidates(input),
     ...buildTopicCandidates(input),
     ...buildSaveCandidates(input),
+    ...buildManualContentCandidates(input),
     ...buildNoteCandidates(input),
   ]
 }
@@ -261,6 +263,34 @@ function buildSaveCandidates(input: RetrievalInput): SearchCandidate[] {
         hasUrl:      Boolean(item.url),
         url:         item.url ?? undefined,
         sourceLabel: item.source ?? 'Saved',
+      }
+    })
+}
+
+function buildManualContentCandidates(input: RetrievalInput): SearchCandidate[] {
+  if (!input.manualContent) return []
+  return Object.entries(input.manualContent)
+    .filter(([, entry]: [string, any]) => entry?.item)
+    .map(([entryId, entry]: [string, any]) => {
+      const item = entry.item
+      const text = [
+        item.title ?? '',
+        item.description ?? item.excerpt ?? item.summary ?? '',
+      ].filter(Boolean).join(' ')
+      return {
+        // id matches what useIngestionWorker stores ("manual_<entryId>")
+        id:          `manual_${entryId}`,
+        type:        'save' as const,
+        title:       item.title ?? 'Saved item',
+        snippet:     buildSnippet(item.title ?? '', item.description ?? item.excerpt ?? ''),
+        searchBody:  text,
+        date:        entry.savedAt,
+        saved:       true,
+        hasSummary:  Boolean(item.description ?? item.summary),
+        hasUrl:      Boolean(item.url),
+        url:         item.url ?? undefined,
+        sourceLabel: 'Saved URL',
+        topicTags:   entry.topicIds ?? [],
       }
     })
 }
