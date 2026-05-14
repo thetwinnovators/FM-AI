@@ -11,6 +11,7 @@ import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
 import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voice/player.js'
 import { startRecording, transcribeBlob } from '../../lib/voice/stt.js'
 import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../../lib/chat/mcpTools.js'
+import { fetchDaemonTools, buildDaemonToolMap, daemonToolToMCPShape } from '../../lib/chat/daemonTools.js'
 
 // "Talk to FlowMap" launcher — a fixed pill at the bottom-center of the
 // FlowMap page that expands into an inline chat panel. Ephemeral by design
@@ -42,6 +43,7 @@ export default function QuickChatLauncher() {
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const modelPickerRef = useRef(null)
   const abortRef = useRef(null)
+  const daemonToolMapRef = useRef(new Map())
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
   const atBottomRef = useRef(true) // true while the scroll container is near the bottom
@@ -88,6 +90,16 @@ export default function QuickChatLauncher() {
   // Subscribe to TTS playing state so the Stop button can react to voice-only
   // activity (e.g. a finished stream that's still being read aloud).
   useEffect(() => subscribeVoicePlaying(setVoicePlaying), [])
+
+  // Load Docker MCP tools from the daemon once on mount so the model can call
+  // them via <tool_call> instead of hallucinating <fm-action> fetch blocks.
+  const [daemonMCPTools, setDaemonMCPTools] = useState([])
+  useEffect(() => {
+    fetchDaemonTools().then((tools) => {
+      setDaemonMCPTools(tools)
+      daemonToolMapRef.current = buildDaemonToolMap(tools)
+    }).catch(() => {})
+  }, [])
 
   // Discover pulled Ollama models for the inline model picker.
   useEffect(() => {
@@ -199,7 +211,10 @@ export default function QuickChatLauncher() {
     const intent = classifyIntent(text)
     const baseSystemMessage = buildSystemMessage(retrieved, text, allMemory, allTopics, allNotes, intent, {}, null, allDocs)
     // Append MCP tool descriptions so the model knows what tools it can call.
-    const mcpTools = getActiveMCPTools()
+    const mcpTools = [
+      ...getActiveMCPTools(),
+      ...daemonMCPTools.map(daemonToolToMCPShape),
+    ]
     const toolBlock = buildToolSystemBlock(mcpTools)
     const systemMessage = toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage
 
@@ -224,7 +239,7 @@ export default function QuickChatLauncher() {
     if (mcpTools.length > 0 && !ctrl.signal.aborted && assistantText.includes('<tool_call>')) {
       setStreaming('') // clear while tools run
       try {
-        const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText)
+        const { hasToolCalls, processedText, toolResultBlock } = await processToolCalls(assistantText, daemonToolMapRef.current)
         if (hasToolCalls) {
           const ctrl2 = new AbortController()
           abortRef.current = ctrl2
@@ -279,9 +294,16 @@ export default function QuickChatLauncher() {
         playTtsForReply(cleaned).catch(() => {})
       }
     } else if (assistantText.trim()) {
-      // Strip removed everything → just show the raw text. Better than the
-      // confusing "(no response — try rephrasing)" placeholder.
-      setMessages((m) => [...m, { role: 'assistant', content: assistantText.trim() }])
+      // Strip removed everything. If the raw text contains <fm-action> blocks the
+      // model hallucinated (e.g. fake "fetch" actions it can't actually run), don't
+      // show them — that would expose raw XML syntax to the user. Only fall back to
+      // raw text when the response is clean prose that the strip over-eagerly removed.
+      const rawHasActionBlocks = /[<\[(]\s*fm-action\s*[>\]]/.test(assistantText)
+      if (!rawHasActionBlocks) {
+        setMessages((m) => [...m, { role: 'assistant', content: assistantText.trim() }])
+      }
+      // (If only action blocks were present and nothing else, silently discard —
+      //  the action was either processed or was a hallucination.)
     }
   }
 
