@@ -110,6 +110,8 @@ export default function FlowGlobe({
   const skipGlobeClick  = useRef(false)   // prevent polygon click → globe click double-fire
   const onLabelClickRef = useRef(onLabelClick)
   useEffect(() => { onLabelClickRef.current = onLabelClick }, [onLabelClick])
+  const allLabelsRef  = useRef([])
+  const [screenLabels, setScreenLabels] = useState([])
 
   // ── Countries (always loaded) ─────────────────────────────────────────────
   const [countries, setCountries] = useState([])
@@ -238,6 +240,42 @@ export default function FlowGlobe({
     () => [...GEO_LABELS, ...labels, ...cityLabels],
     [labels, cityLabels],
   )
+  useEffect(() => { allLabelsRef.current = allLabels }, [allLabels])
+
+  // ── Project labels to screen coords every 50 ms ───────────────────────────
+  // We own the label DOM elements (React JSX overlay) so there is no
+  // duplication risk — the Globe receives no labelsData / htmlElementsData.
+  useEffect(() => {
+    const GLOBE_R = 100
+    const id = setInterval(() => {
+      const globe = globeRef.current
+      if (!globe) return
+      const camera   = globe.camera?.()
+      const renderer = globe.renderer?.()
+      if (!camera || !renderer) return
+
+      const cw      = renderer.domElement.clientWidth
+      const ch      = renderer.domElement.clientHeight
+      const camNorm = camera.position.clone().normalize()
+
+      const next = allLabelsRef.current.flatMap((d) => {
+        // react-globe.gl coordinate system: phi from N-pole, theta from +Z eastward
+        const phi   = ((90 - d.lat) * Math.PI) / 180
+        const theta = ((90 + d.lng) * Math.PI) / 180
+        const v = new THREE.Vector3(
+          GLOBE_R * 1.01 * Math.sin(phi) * Math.cos(theta),
+          GLOBE_R * 1.01 * Math.cos(phi),
+          GLOBE_R * 1.01 * Math.sin(phi) * Math.sin(theta),
+        )
+        // Cull labels on the back hemisphere
+        if (v.clone().normalize().dot(camNorm) < 0.08) return []
+        const p = v.project(camera)
+        return [{ ...d, x: (p.x * 0.5 + 0.5) * cw, y: (-p.y * 0.5 + 0.5) * ch }]
+      })
+      setScreenLabels(next)
+    }, 50)
+    return () => clearInterval(id)
+  }, [])
 
 
   // ── Globe surface material ────────────────────────────────────────────────
@@ -465,7 +503,7 @@ export default function FlowGlobe({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="w-full h-full" style={{ background: 'transparent' }}>
+    <div ref={containerRef} className="w-full h-full" style={{ background: 'transparent', position: 'relative' }}>
       <Globe
         ref={globeRef}
         width={dims.w  || undefined}
@@ -499,28 +537,7 @@ export default function FlowGlobe({
         arcDashLength={0.4}
         arcDashGap={0.2}
         arcDashAnimateTime={2000}
-        // ── Labels ───────────────────────────────────────────────────────────
-        labelsData={allLabels}
-        labelLat="lat"
-        labelLng="lng"
-        labelText="text"
-        labelResolution={3}
-        labelSize={(d) => {
-          const base = d.size ?? 1.2
-          if (!d.isCity) return base
-          const scale = Math.max(0.08, currentAlt) / 1.6
-          return Math.max(0.03, base * scale)
-        }}
-        labelColor={() => 'rgba(255,255,255,0.95)'}
-        labelDotRadius={(d) => {
-          const base = d.dotRadius ?? 0.3
-          if (!d.isCity) return base
-          const scale = Math.max(0.08, currentAlt) / 1.6
-          return Math.max(0.01, base * scale)
-        }}
-        labelDotColor={(d) => d.color ?? 'rgba(14,210,238,0.9)'}
-        labelAltitude={0.01}
-        onLabelClick={(label) => onLabelClickRef.current?.(label)}
+        // Labels are rendered by our own React overlay below — no labelsData here
         // ── Country / state polygons ──────────────────────────────────────────
         polygonsData={activePolygons}
         polygonGeoJsonGeometry={(d) => d.geometry}
@@ -532,6 +549,54 @@ export default function FlowGlobe({
         onPolygonHover={(polygon) => setHoveredPolygon(polygon ?? null)}
         onPolygonClick={handlePolygonClick}
       />
+
+      {/* ── Label overlay — React-managed divs, no duplication risk ─────────── */}
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        {screenLabels.map((d) => (
+          <div
+            key={`${d.lat},${d.lng},${d.text}`}
+            style={{
+              position:      'absolute',
+              left:          d.x,
+              top:           d.y,
+              transform:     'translate(6px, -50%)',
+              display:       'flex',
+              alignItems:    'center',
+              gap:           4,
+              pointerEvents: 'auto',
+              cursor:        'pointer',
+              userSelect:    'none',
+            }}
+            onClick={() => onLabelClickRef.current?.(d)}
+          >
+            {/* Coloured dot */}
+            <div style={{
+              width:        d.isCapital ? 5 : 3,
+              height:       d.isCapital ? 5 : 3,
+              borderRadius: '50%',
+              background:   d.color ?? 'rgba(14,210,238,0.9)',
+              flexShrink:   0,
+            }} />
+            {/* Text with hard shadow for legibility on any background */}
+            <span style={{
+              fontSize:    d.isCapital ? 12 : d.isCity ? 10 : 11,
+              fontWeight:  d.isCapital ? 600 : 400,
+              fontFamily:  'system-ui, sans-serif',
+              color:       'rgba(255,255,255,0.95)',
+              letterSpacing: '0.04em',
+              whiteSpace:  'nowrap',
+              textShadow:
+                '0 0 6px rgba(0,0,0,1),' +
+                '0 0 14px rgba(0,0,0,0.9),' +
+                '0 1px 3px rgba(0,0,0,1),' +
+                '-1px 0 3px rgba(0,0,0,0.9),' +
+                '1px 0 3px rgba(0,0,0,0.9)',
+            }}>
+              {d.text}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
