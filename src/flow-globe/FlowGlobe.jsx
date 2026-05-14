@@ -259,14 +259,8 @@ export default function FlowGlobe({
       const camNorm = camera.position.clone().normalize()
 
       const next = allLabelsRef.current.flatMap((d) => {
-        // react-globe.gl coordinate system: phi from N-pole, theta from +Z eastward
-        const phi   = ((90 - d.lat) * Math.PI) / 180
-        const theta = ((90 + d.lng) * Math.PI) / 180
-        const v = new THREE.Vector3(
-          GLOBE_R * 1.01 * Math.sin(phi) * Math.cos(theta),
-          GLOBE_R * 1.01 * Math.cos(phi),
-          GLOBE_R * 1.01 * Math.sin(phi) * Math.sin(theta),
-        )
+        // geoToVec3 matches react-globe.gl's coordinate system exactly
+        const v = geoToVec3(d.lat, d.lng).multiplyScalar(GLOBE_R * 1.01)
         // Cull labels on the back hemisphere
         if (v.clone().normalize().dot(camNorm) < 0.08) return []
         const p = v.project(camera)
