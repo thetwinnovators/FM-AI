@@ -247,7 +247,7 @@ export default function FlowGlobe({
     const mat = new THREE.MeshPhongMaterial({
       color:             new THREE.Color(0xffffff),   // show true day-texture colours
       emissive:          new THREE.Color(0xffffff),   // emissiveMap drives city lights
-      emissiveIntensity: 0.28,                        // city lights visible but not blown out
+      emissiveIntensity: 0.10,                        // city lights only — night side stays dark
       shininess:         12,
       side:              THREE.FrontSide,
     })
