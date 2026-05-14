@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2 } from 'lucide-react'
+import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2, Bell, BellOff, RefreshCw } from 'lucide-react'
 import { searchAirports } from './airportData.js'
+import { getWatches, addWatch, removeWatch, patchWatch } from './priceWatches.js'
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
@@ -10,23 +11,25 @@ function dateOffset(days) {
   return d.toISOString().slice(0, 10)
 }
 
-// YYMMDD for Skyscanner
-function ssDate(iso) { return iso.replace(/-/g, '').slice(2) }
-
-// Readable date for display  e.g. "May 14"
+function ssDate(iso)    { return iso.replace(/-/g, '').slice(2) }
 function shortDate(iso) {
   return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
-
-// DD/MM/YYYY for Kiwi API
 function kiwiDate(iso) {
   const [y, m, d] = iso.split('-')
   return `${d}/${m}/${y}`
 }
+function timeAgo(iso) {
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60)    return 'just now'
+  if (s < 3600)  return `${Math.floor(s / 60)} min ago`
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`
+  return `${Math.floor(s / 86400)}d ago`
+}
 
-// ── Price fetching (Kiwi public API, no auth required) ─────────────────────────
+// ── Price fetching (Kiwi public API) ──────────────────────────────────────────
 
-async function fetchCheapestPrice({ origin, dest, departDate, returnDate, tripType }) {
+export async function fetchCheapestPrice({ origin, dest, departDate, returnDate, tripType }) {
   try {
     const params = new URLSearchParams({
       flyFrom:  origin.toUpperCase(),
@@ -42,15 +45,15 @@ async function fetchCheapestPrice({ origin, dest, departDate, returnDate, tripTy
       locale:   'en',
     })
     if (tripType === 'roundtrip') {
-      params.set('returnFrom',  kiwiDate(returnDate))
-      params.set('returnTo',    kiwiDate(returnDate))
-      params.set('typeFlight',  'round')
+      params.set('returnFrom', kiwiDate(returnDate ?? departDate))
+      params.set('returnTo',   kiwiDate(returnDate ?? departDate))
+      params.set('typeFlight', 'round')
     }
     const r = await fetch(`/api/kiwi/flights?${params}`)
     if (!r.ok) return null
     const d = await r.json()
-    const price = d.data?.[0]?.price
-    return price ? Math.round(price) : null
+    const p = d.data?.[0]?.price
+    return p ? Math.round(p) : null
   } catch {
     return null
   }
@@ -64,7 +67,6 @@ function buildLinks({ origin, dest, departDate, returnDate, tripType }) {
   const orgL = origin.toLowerCase()
   const dstL = dest.toLowerCase()
   const rt   = tripType === 'roundtrip'
-
   return [
     {
       name:   'Google Flights',
@@ -72,7 +74,7 @@ function buildLinks({ origin, dest, departDate, returnDate, tripType }) {
       accent: 'rgba(14,210,238,0.70)',
       bg:     'rgba(14,210,238,0.07)',
       border: 'rgba(14,210,238,0.18)',
-      url: `https://www.google.com/travel/flights?q=Flights+from+${org}+to+${dst}`,
+      url:    `https://www.google.com/travel/flights?q=Flights+from+${org}+to+${dst}`,
     },
     {
       name:   'Kayak',
@@ -97,6 +99,22 @@ function buildLinks({ origin, dest, departDate, returnDate, tripType }) {
   ]
 }
 
+// ── Notification helpers ───────────────────────────────────────────────────────
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
+}
+
+function sendNotification(watch, price) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  new Notification(`✈️ Price drop! ${watch.origin} → ${watch.dest}`, {
+    body: `Now $${price} — your target was $${watch.targetPrice}`,
+    icon: '/favicon.ico',
+  })
+}
+
 // ── AirportInput ───────────────────────────────────────────────────────────────
 
 function AirportInput({ value, onChange, placeholder, required }) {
@@ -111,33 +129,23 @@ function AirportInput({ value, onChange, placeholder, required }) {
   const suggestions = query.length >= 1 ? searchAirports(query, 7) : []
 
   function select(airport) {
-    setQuery(airport.iata)
-    onChange(airport.iata)
-    setOpen(false)
-    setActive(-1)
+    setQuery(airport.iata); onChange(airport.iata); setOpen(false); setActive(-1)
   }
-
   function handleChange(e) {
     const v = e.target.value.toUpperCase()
-    setQuery(v)
-    onChange(v)
-    setOpen(true)
-    setActive(-1)
+    setQuery(v); onChange(v); setOpen(true); setActive(-1)
   }
-
   function handleKeyDown(e) {
-    if (!open || suggestions.length === 0) return
+    if (!open || !suggestions.length) return
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, suggestions.length - 1)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
+    else if (e.key === 'ArrowUp')   { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)) }
     else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); select(suggestions[active]) }
     else if (e.key === 'Escape') { setOpen(false); setActive(-1) }
   }
-
   useEffect(() => {
     if (active >= 0 && listRef.current)
       listRef.current.children[active]?.scrollIntoView({ block: 'nearest' })
   }, [active])
-
   const handleFocus = useCallback(() => { clearTimeout(blurTimer.current); if (query.length >= 1) setOpen(true) }, [query])
   const handleBlur  = useCallback(() => { blurTimer.current = setTimeout(() => setOpen(false), 150) }, [])
 
@@ -195,18 +203,162 @@ function AirportInput({ value, onChange, placeholder, required }) {
   )
 }
 
+// ── WatchCard ─────────────────────────────────────────────────────────────────
+
+function WatchCard({ watch: w, checking, onRemove, onOpen }) {
+  const dropped = w.triggered
+  return (
+    <div
+      className="rounded-xl px-3 py-2.5 space-y-1.5"
+      style={{
+        background: dropped ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.03)',
+        border:     dropped ? '1px solid rgba(52,211,153,0.22)' : '1px solid rgba(255,255,255,0.07)',
+      }}
+    >
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-1">
+        <div className="min-w-0">
+          <p className="text-[12px] font-semibold text-white/75 leading-snug">
+            {w.origin} → {w.dest}
+          </p>
+          <p className="text-[9px] text-white/30 font-mono">
+            {shortDate(w.departDate)}
+            {w.returnDate ? ` – ${shortDate(w.returnDate)}` : ''}
+            {' · '}{w.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <a
+            href={buildLinks(w)[0].url}
+            target="_blank"
+            rel="noreferrer"
+            className="w-5 h-5 flex items-center justify-center rounded opacity-30 hover:opacity-75 transition-opacity"
+            title="Open Google Flights"
+          >
+            <ExternalLink size={9} className="text-white" />
+          </a>
+          <button
+            onClick={onRemove}
+            className="w-5 h-5 flex items-center justify-center rounded opacity-30 hover:opacity-75 transition-opacity text-white"
+            title="Remove alert"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+
+      {/* Price row */}
+      <div className="flex items-end gap-4">
+        <div>
+          <p className="text-[9px] text-white/25 uppercase tracking-wide leading-none mb-0.5">Current</p>
+          <p
+            className="text-[15px] font-mono font-bold leading-none"
+            style={{ color: dropped ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.70)' }}
+          >
+            {checking ? '…' : w.currentPrice != null ? `$${w.currentPrice}` : '—'}
+          </p>
+        </div>
+        <div>
+          <p className="text-[9px] text-white/25 uppercase tracking-wide leading-none mb-0.5">Target</p>
+          <p className="text-[15px] font-mono text-white/40 leading-none">${w.targetPrice}</p>
+        </div>
+        {w.lowestSeen != null && w.lowestSeen !== w.currentPrice && (
+          <div>
+            <p className="text-[9px] text-white/25 uppercase tracking-wide leading-none mb-0.5">Lowest</p>
+            <p className="text-[15px] font-mono text-white/40 leading-none">${w.lowestSeen}</p>
+          </div>
+        )}
+        {dropped && (
+          <span className="ml-auto text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+            style={{ background: 'rgba(52,211,153,0.15)', color: 'rgba(52,211,153,0.90)', border: '1px solid rgba(52,211,153,0.25)' }}>
+            ↓ Dropped!
+          </span>
+        )}
+      </div>
+
+      {/* Last checked */}
+      <p className="text-[9px] text-white/20">
+        {checking ? 'Checking prices…' : w.lastChecked ? `Checked ${timeAgo(w.lastChecked)}` : 'Not checked yet'}
+      </p>
+    </div>
+  )
+}
+
 // ── FlightSearch ───────────────────────────────────────────────────────────────
 
 export default function FlightSearch() {
-  const [tripType,      setTripType     ] = useState('roundtrip')   // default round-trip
-  const [origin,        setOrigin       ] = useState('')
-  const [dest,          setDest         ] = useState('')
-  const [departDate,    setDepartDate   ] = useState(dateOffset(7))
-  const [returnDate,    setReturnDate   ] = useState(dateOffset(14))
-  const [links,         setLinks        ] = useState(null)
-  const [price,         setPrice        ] = useState(null)   // number | null
-  const [priceLoading,  setPriceLoading ] = useState(false)
+  const [tripType,     setTripType    ] = useState('roundtrip')
+  const [origin,       setOrigin      ] = useState('')
+  const [dest,         setDest        ] = useState('')
+  const [departDate,   setDepartDate  ] = useState(dateOffset(7))
+  const [returnDate,   setReturnDate  ] = useState(dateOffset(14))
+  const [links,        setLinks       ] = useState(null)
+  const [price,        setPrice       ] = useState(null)
+  const [priceLoading, setPriceLoading] = useState(false)
 
+  // ── Price watches ──────────────────────────────────────────────────────────
+  const [watches,     setWatches    ] = useState(() => getWatches())
+  const [checkingIds, setCheckingIds] = useState(new Set())
+  const [addingAlert, setAddingAlert] = useState(false)
+  const [alertTarget, setAlertTarget] = useState('')
+
+  // ── Is the current search already being watched? ────────────────────────
+  const isWatching = links
+    ? watches.find((w) =>
+        w.origin === origin.trim().toUpperCase() &&
+        w.dest   === dest.trim().toUpperCase()   &&
+        w.departDate === departDate)
+    : null
+
+  // ── Check all watch prices (reads fresh from localStorage) ────────────
+  const checkAllWatches = useCallback(async () => {
+    const current = getWatches()
+    if (!current.length) return
+    setCheckingIds(new Set(current.map((w) => w.id)))
+
+    for (const w of current) {
+      const newPrice = await fetchCheapestPrice({
+        origin:     w.origin,
+        dest:       w.dest,
+        departDate: w.departDate,
+        returnDate: w.returnDate ?? w.departDate,
+        tripType:   w.tripType,
+      })
+      const nowTriggered = newPrice != null && newPrice <= w.targetPrice
+      const updates = {
+        currentPrice: newPrice,
+        lowestSeen:   newPrice != null
+          ? (w.lowestSeen != null ? Math.min(w.lowestSeen, newPrice) : newPrice)
+          : w.lowestSeen,
+        lastChecked:  new Date().toISOString(),
+        triggered:    nowTriggered,
+      }
+      const updated = patchWatch(w.id, updates)
+      setWatches([...updated])
+
+      // Notify if this is the first time hitting the target
+      if (nowTriggered && !w.triggered) sendNotification(w, newPrice)
+
+      setCheckingIds((ids) => { const n = new Set(ids); n.delete(w.id); return n })
+    }
+  }, [])
+
+  // ── Poll every 5 minutes while the app is open ─────────────────────────
+  useEffect(() => {
+    if (!watches.length) return
+
+    // On mount: check if any watch is stale (> 10 min since last check)
+    const isStale = watches.some((w) =>
+      !w.lastChecked || Date.now() - new Date(w.lastChecked).getTime() > 10 * 60 * 1000,
+    )
+    if (isStale) checkAllWatches()
+
+    const id = setInterval(checkAllWatches, 5 * 60 * 1000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watches.length])
+
+  // ── Search ─────────────────────────────────────────────────────────────────
   function handleSearch(e) {
     e.preventDefault()
     if (!origin.trim() || !dest.trim()) return
@@ -214,10 +366,31 @@ export default function FlightSearch() {
     setLinks(buildLinks(params))
     setPrice(null)
     setPriceLoading(true)
-    fetchCheapestPrice(params).then((p) => {
-      setPrice(p)
-      setPriceLoading(false)
-    })
+    setAddingAlert(false)
+    fetchCheapestPrice(params).then((p) => { setPrice(p); setPriceLoading(false) })
+  }
+
+  // ── Add alert ──────────────────────────────────────────────────────────────
+  function handleAddAlert() {
+    const target = parseInt(alertTarget)
+    if (!target || !origin.trim() || !dest.trim()) return
+    const watch = {
+      id:           Math.random().toString(36).slice(2),
+      origin:       origin.trim().toUpperCase(),
+      dest:         dest.trim().toUpperCase(),
+      departDate,
+      returnDate:   tripType === 'roundtrip' ? returnDate : null,
+      tripType,
+      targetPrice:  target,
+      currentPrice: price ?? null,
+      lowestSeen:   price ?? null,
+      lastChecked:  price != null ? new Date().toISOString() : null,
+      triggered:    price != null && price <= target,
+    }
+    setWatches(addWatch(watch))
+    setAddingAlert(false)
+    setAlertTarget('')
+    requestNotifPermission()
   }
 
   const summary = links
@@ -229,7 +402,7 @@ export default function FlightSearch() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* Search card */}
+      {/* ── Search form card ─────────────────────────────────────────────── */}
       <div
         className="m-3 rounded-2xl flex-shrink-0"
         style={{
@@ -240,7 +413,6 @@ export default function FlightSearch() {
         }}
       >
         <form onSubmit={handleSearch} className="p-3 space-y-2.5">
-
           {/* Trip type */}
           <div className="flex gap-1">
             {['oneway', 'roundtrip'].map((t) => (
@@ -270,24 +442,14 @@ export default function FlightSearch() {
           <div className="flex gap-1.5">
             <div className="flex-1">
               <label className="text-[10px] text-white/25 block mb-0.5">Depart</label>
-              <input
-                type="date"
-                value={departDate}
-                onChange={(e) => setDepartDate(e.target.value)}
-                className="glass-input w-full text-[11px]"
-                required
-              />
+              <input type="date" value={departDate} onChange={(e) => setDepartDate(e.target.value)}
+                className="glass-input w-full text-[11px]" required />
             </div>
             {tripType === 'roundtrip' && (
               <div className="flex-1">
                 <label className="text-[10px] text-white/25 block mb-0.5">Return</label>
-                <input
-                  type="date"
-                  value={returnDate}
-                  onChange={(e) => setReturnDate(e.target.value)}
-                  className="glass-input w-full text-[11px]"
-                  required
-                />
+                <input type="date" value={returnDate} onChange={(e) => setReturnDate(e.target.value)}
+                  className="glass-input w-full text-[11px]" required />
               </div>
             )}
           </div>
@@ -300,16 +462,16 @@ export default function FlightSearch() {
             <Search size={13} />
             Find Flights
           </button>
-
         </form>
       </div>
 
-      {/* Results */}
-      <div className="flex-1 overflow-y-auto px-3 pb-3 min-h-0">
-        {links ? (
+      {/* ── Scrollable content ───────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-3 pb-3 min-h-0 space-y-4">
+
+        {/* Search results */}
+        {links && (
           <div className="space-y-2">
-            {/* Route summary */}
-            <p className="text-[10px] text-white/25 font-mono px-0.5 mb-3">{summary}</p>
+            <p className="text-[10px] text-white/25 font-mono px-0.5">{summary}</p>
 
             {links.map((link) => (
               <a
@@ -318,54 +480,145 @@ export default function FlightSearch() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between gap-3 rounded-xl px-3.5 py-3 transition-all group"
-                style={{
-                  background: link.bg,
-                  border: `1px solid ${link.border}`,
-                }}
+                style={{ background: link.bg, border: `1px solid ${link.border}` }}
               >
                 <div className="flex items-center gap-2.5">
-                  <Plane
-                    size={13}
-                    className="flex-shrink-0 transition-transform group-hover:translate-x-0.5"
-                    style={{ color: link.accent }}
-                  />
+                  <Plane size={13} className="flex-shrink-0 transition-transform group-hover:translate-x-0.5"
+                    style={{ color: link.accent }} />
                   <div>
                     <p className="text-[13px] font-semibold text-white/80 leading-snug">{link.name}</p>
                     <p className="text-[9px] font-mono" style={{ color: link.accent, opacity: 0.7 }}>{link.hint}</p>
                   </div>
                 </div>
-
-                {/* Price + external link */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {priceLoading ? (
-                    <Loader2 size={10} className="animate-spin text-white/20" />
-                  ) : price != null ? (
-                    <span
-                      className="text-[12px] font-mono font-semibold tabular-nums"
-                      style={{ color: link.accent }}
-                    >
-                      from ${price}
-                    </span>
-                  ) : null}
-                  <ExternalLink size={11} className="text-white/20 group-hover:text-white/50 flex-shrink-0 transition-colors" />
+                  {priceLoading
+                    ? <Loader2 size={10} className="animate-spin text-white/20" />
+                    : price != null
+                      ? <span className="text-[12px] font-mono font-semibold tabular-nums"
+                          style={{ color: link.accent }}>from ${price}</span>
+                      : null}
+                  <ExternalLink size={11} className="text-white/20 group-hover:text-white/50 transition-colors" />
                 </div>
               </a>
             ))}
 
-            <p className="text-[9px] text-white/15 text-center pt-2 leading-relaxed">
+            {/* ── Price alert row ───────────────────────────────────────── */}
+            <div className="pt-1">
+              {isWatching ? (
+                <div className="flex items-center gap-1.5 px-0.5">
+                  <Bell size={10} className="text-teal-400/50 flex-shrink-0" />
+                  <span className="text-[10px] text-teal-400/60">
+                    Alert set · target ${isWatching.targetPrice}
+                  </span>
+                  <button
+                    onClick={() => setWatches(removeWatch(isWatching.id))}
+                    className="ml-auto text-[9px] text-white/25 hover:text-rose-400/70 transition-colors"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : addingAlert ? (
+                <div className="flex items-center gap-1.5 rounded-xl px-3 py-2"
+                  style={{ background: 'rgba(14,210,238,0.05)', border: '1px solid rgba(14,210,238,0.12)' }}>
+                  <Bell size={10} className="text-teal-400/60 flex-shrink-0" />
+                  <span className="text-[10px] text-white/40 flex-shrink-0">Alert below $</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={alertTarget}
+                    onChange={(e) => setAlertTarget(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddAlert()}
+                    placeholder={price ? String(Math.max(1, price - 15)) : '300'}
+                    className="glass-input text-[11px] font-mono w-16 px-1.5 py-0.5"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleAddAlert}
+                    className="text-[10px] text-teal-400/80 hover:text-teal-400 transition-colors font-medium ml-0.5"
+                  >
+                    Set
+                  </button>
+                  <button
+                    onClick={() => setAddingAlert(false)}
+                    className="text-[10px] text-white/25 hover:text-white/55 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    setAddingAlert(true)
+                    setAlertTarget(price ? String(Math.max(1, price - 15)) : '')
+                  }}
+                  className="flex items-center gap-1.5 text-[10px] text-white/35 hover:text-teal-400/70 transition-colors px-0.5"
+                >
+                  <Bell size={10} />
+                  Alert me if price drops
+                </button>
+              )}
+            </div>
+
+            <p className="text-[9px] text-white/15 text-center pt-1 leading-relaxed">
               Opens booking site with route pre-filled · prices are estimates
             </p>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+        )}
+
+        {/* Empty state */}
+        {!links && watches.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-32 gap-2 text-center">
             <Plane size={20} className="text-white/15" />
-            <p className="text-[11px] text-white/25">
-              Enter airports and a date to find flights.
+            <p className="text-[11px] text-white/25">Enter airports and a date to find flights.</p>
+          </div>
+        )}
+
+        {/* ── Price alerts section ─────────────────────────────────────── */}
+        {watches.length > 0 && (
+          <div className="space-y-2">
+            {/* Section header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Bell size={10} className="text-white/30" />
+                <span className="text-[10px] text-white/30 uppercase tracking-wide font-medium">
+                  Price Alerts
+                </span>
+                <span
+                  className="text-[9px] font-mono px-1 rounded-full"
+                  style={{ background: 'rgba(14,210,238,0.10)', color: 'rgba(14,210,238,0.65)' }}
+                >
+                  {watches.length}
+                </span>
+              </div>
+              <button
+                onClick={checkAllWatches}
+                disabled={checkingIds.size > 0}
+                title="Check all prices now"
+                className="flex items-center gap-1 text-[9px] text-white/25 hover:text-white/55 transition-colors disabled:opacity-40"
+              >
+                {checkingIds.size > 0
+                  ? <Loader2 size={9} className="animate-spin" />
+                  : <RefreshCw size={9} />}
+                {checkingIds.size > 0 ? 'Checking…' : 'Check now'}
+              </button>
+            </div>
+
+            {watches.map((w) => (
+              <WatchCard
+                key={w.id}
+                watch={w}
+                checking={checkingIds.has(w.id)}
+                onRemove={() => setWatches(removeWatch(w.id))}
+              />
+            ))}
+
+            <p className="text-[9px] text-white/15 text-center leading-relaxed">
+              Checks every 5 min while this tab is open · browser notification on drop
             </p>
           </div>
         )}
-      </div>
 
+      </div>
     </div>
   )
 }
