@@ -126,21 +126,36 @@ export default function FlowGlobe({
   const [statePolygons,  setStatePolygons ] = useState([])
   const [hoveredPolygon, setHoveredPolygon] = useState(null)
   const [loadingPoly,    setLoadingPoly   ] = useState(null)   // tinted while states load
-  const [cityLabels,     setCityLabels    ] = useState([])
+  const allCityFeats  = useRef([])          // full sorted list, set on country click
+  const [cityLabels,  setCityLabels    ] = useState([])
+  const [currentAlt,  setCurrentAlt    ] = useState(2.5)
 
   const activePolygons = viewMode === 'globe' ? countries : statePolygons
 
-  // Auto-reset to globe view when user scrolls back out to altitude > 2.5
+  // Auto-reset to globe view when user scrolls back out to altitude > 2.5.
+  // Also tracks currentAlt so city-count can be capped at each zoom level.
   useEffect(() => {
-    if (viewMode === 'globe') return
     const id = setInterval(() => {
       if (!globeRef.current) return
       const { altitude } = globeRef.current.pointOfView()
-      if (altitude > 2.5) {
+      setCurrentAlt(altitude)
+
+      if (viewMode !== 'globe' && altitude > 2.5) {
         setViewMode('globe')
         setStatePolygons([])
         setHoveredPolygon(null)
+        allCityFeats.current = []
         setCityLabels([])
+      } else if (allCityFeats.current.length) {
+        // Recompute visible city count based on zoom
+        const count =
+          altitude > 1.2 ? 12 :
+          altitude > 0.8 ? 25 :
+          altitude > 0.5 ? 50 : 100
+        const next = allCityFeats.current.slice(0, count)
+        setCityLabels((prev) =>
+          prev.length === next.length ? prev : next,
+        )
       }
     }, 600)
     return () => clearInterval(id)
@@ -180,22 +195,27 @@ export default function FlowGlobe({
       setViewMode('region')
       setLoadingPoly(null)
 
-      // City / town labels for this country (capitals first, then by population)
-      const cityFeats = places
+      // City / town labels — store full sorted list in ref; the polling interval
+      // slices it to the right count for the current altitude.
+      const mapped = places
         .filter((p) => isoA3 && isoA3 !== '-99'
           ? p.properties.adm0_a3 === isoA3
           : p.properties.adm0_name === admin)
         .sort((a, b) => (b.properties.pop_max ?? 0) - (a.properties.pop_max ?? 0))
         .slice(0, 100)
-      setCityLabels(cityFeats.map((p) => {
-        const isCapital = p.properties.featurecla?.includes('capital')
-        return {
+        .map((p) => ({
           lat:       p.geometry.coordinates[1],
           lng:       p.geometry.coordinates[0],
           text:      p.properties.name ?? '',
-          isCapital,
-        }
-      }))
+          isCapital: p.properties.featurecla?.includes('capital') ?? false,
+        }))
+      allCityFeats.current = mapped
+      // Show an initial slice appropriate for the landing altitude
+      const initCount =
+        altitude > 1.2 ? 12 :
+        altitude > 0.8 ? 25 :
+        altitude > 0.5 ? 50 : 100
+      setCityLabels(mapped.slice(0, initCount))
 
     } else {
       // ── State / province clicked → zoom in further ────────────────────
@@ -246,8 +266,8 @@ export default function FlowGlobe({
     const span = document.createElement('span')
     span.textContent        = d.text
     span.style.color        = textColor
-    span.style.fontSize     = '10px'
-    span.style.fontWeight   = d.isCapital ? '600' : '400'
+    span.style.fontSize     = d.isCapital ? '9px' : '8px'
+    span.style.fontWeight   = d.isCapital ? '500' : '400'
     span.style.fontFamily   = 'system-ui,-apple-system,sans-serif'
     span.style.textShadow   = '0 1px 4px rgba(0,0,0,0.95),0 0 8px rgba(0,0,0,0.7)'
     span.style.marginTop    = '2px'
@@ -399,12 +419,11 @@ export default function FlowGlobe({
     }
   }, [])
 
-  // ── Camera position polling — lets parent sync its Map tab ───────────────
+  // ── Camera position → parent Map tab sync ─────────────────────────────────
   useEffect(() => {
     if (!onCameraChange) return
     const id = setInterval(() => {
-      if (!globeRef.current) return
-      onCameraChange(globeRef.current.pointOfView())
+      if (globeRef.current) onCameraChange(globeRef.current.pointOfView())
     }, 600)
     return () => clearInterval(id)
   }, [onCameraChange])
@@ -417,6 +436,7 @@ export default function FlowGlobe({
     setViewMode('globe')
     setStatePolygons([])
     setHoveredPolygon(null)
+    allCityFeats.current = []
     setCityLabels([])
 
     // Zoom back out to a comfortable global altitude from the current centre
