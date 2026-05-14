@@ -1,54 +1,390 @@
-import { useState, useCallback } from 'react'
+import { useState, useRef, useCallback, lazy, Suspense } from 'react'
 import FlowGlobe from '../flow-globe/FlowGlobe.jsx'
-import { GlobeChat } from '../flow-globe/GlobeChat.jsx'
+import { GlobeOverlay } from '../flow-globe/GlobeOverlay.jsx'
 import { useGlobeState } from '../flow-globe/useGlobeState.js'
+import {
+  Search, Plane, Navigation, Map, ExternalLink,
+  GripVertical, PictureInPicture2, LayoutPanelLeft,
+} from 'lucide-react'
+
+const LocationSearch = lazy(() => import('../flow-globe/LocationSearch.jsx'))
+const FlightSearch   = lazy(() => import('../flow-globe/FlightSearch.jsx'))
+const MapSearch      = lazy(() => import('../flow-globe/MapSearch.jsx'))
+
+const TABS = [
+  { id: 'search',     label: 'Search',  icon: Search     },
+  { id: 'flights',    label: 'Flights', icon: Plane      },
+  { id: 'directions', label: 'Route',   icon: Navigation },
+  { id: 'map',        label: 'Map',     icon: Map        },
+]
+
+/** Build an OpenStreetMap embed URL from a {lat, lng, latSpan, lngSpan} view. */
+function buildOsmUrl({ lat, lng, latSpan, lngSpan }) {
+  const buf   = 0.08
+  const west  = Math.max(-180, lng  - lngSpan / 2 - buf)
+  const east  = Math.min( 180, lng  + lngSpan / 2 + buf)
+  const south = Math.max( -85, lat  - latSpan / 2 - buf)
+  const north = Math.min(  85, lat  + latSpan / 2 + buf)
+  const marker = `${lat.toFixed(4)},${lng.toFixed(4)}`
+  return (
+    `https://www.openstreetmap.org/export/embed.html` +
+    `?bbox=${west.toFixed(4)},${south.toFixed(4)},${east.toFixed(4)},${north.toFixed(4)}` +
+    `&layer=mapnik&marker=${marker}`
+  )
+}
+
+function PanelLoader() {
+  return <div className="p-4 text-[12px] text-white/25">Loading…</div>
+}
+
+// Default floating size / position
+const DEFAULT_FLOAT = { x: 60, y: 52, w: 620, h: 440 }
 
 export default function GlobeView() {
   const { pins, arcs, labels, viewpoint, focusLabel, addPins, addArcs, flyTo } = useGlobeState()
-  const [autoQuery, setAutoQuery] = useState(null)
+  const [activeTab,  setActiveTab ] = useState('search')
+  const [mapOverlay, setMapOverlay] = useState(null)
+  const [mapView,    setMapView   ] = useState(null)   // { lat, lng, latSpan, lngSpan, name }
 
-  function handleGlobeClick({ lat, lng }) {
-    const text = `What's at ${lat.toFixed(4)}, ${lng.toFixed(4)}?`
-    setAutoQuery({ text, id: Date.now() })
+  // ── Floating state ──────────────────────────────────────────────────────────
+  const [floating, setFloating] = useState(false)
+  const [floatPos, setFloatPos] = useState({ x: DEFAULT_FLOAT.x, y: DEFAULT_FLOAT.y })
+  const [floatW,   setFloatW  ] = useState(DEFAULT_FLOAT.w)
+  const [floatH,   setFloatH  ] = useState(DEFAULT_FLOAT.h)
+
+  const interactRef    = useRef(null) // { kind, startX, startY, ox, oy, ow, oh }
+  const prevAltRef     = useRef(999)
+  const mapDebounceRef = useRef(null)
+
+  // ── Drag (move) ─────────────────────────────────────────────────────────────
+  const onDragMouseDown = useCallback((e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    interactRef.current = {
+      kind:   'drag',
+      startX: e.clientX,
+      startY: e.clientY,
+      ox:     floatPos.x,
+      oy:     floatPos.y,
+    }
+    bindInteract()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floatPos])
+
+  // ── Resize edges ────────────────────────────────────────────────────────────
+  const onResizeMouseDown = useCallback((kind) => (e) => {
+    if (e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    interactRef.current = {
+      kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      ox: floatPos.x,
+      oy: floatPos.y,
+      ow: floatW,
+      oh: floatH,
+    }
+    bindInteract()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [floatPos, floatW, floatH])
+
+  function bindInteract() {
+    const onMove = (e) => {
+      const r = interactRef.current
+      if (!r) return
+      const dx = e.clientX - r.startX
+      const dy = e.clientY - r.startY
+      if (r.kind === 'drag') {
+        setFloatPos({ x: r.ox + dx, y: r.oy + dy })
+      } else if (r.kind === 'resize-right') {
+        setFloatW(Math.max(280, r.ow + dx))
+      } else if (r.kind === 'resize-bottom') {
+        setFloatH(Math.max(220, r.oh + dy))
+      } else if (r.kind === 'resize-corner') {
+        setFloatW(Math.max(280, r.ow + dx))
+        setFloatH(Math.max(220, r.oh + dy))
+      }
+    }
+    const onUp = () => {
+      interactRef.current = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup',   onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup',   onUp)
   }
 
-  const handleAutoQueryConsumed = useCallback(() => setAutoQuery(null), [])
+  function toggleFloat() {
+    setFloating((f) => {
+      if (!f) {
+        // Reset to default position when popping out
+        setFloatPos({ x: DEFAULT_FLOAT.x, y: DEFAULT_FLOAT.y })
+        setFloatW(DEFAULT_FLOAT.w)
+        setFloatH(DEFAULT_FLOAT.h)
+      }
+      return !f
+    })
+  }
 
-  return (
-    <div className="flex h-full w-full overflow-hidden" style={{ background: '#05070f' }}>
-      {/* Globe panel — 68% */}
-      <div className="flex flex-col" style={{ width: '68%', minWidth: 0 }}>
-        {/* Focus header */}
-        <div
-          className="flex-shrink-0 px-4 py-2 text-[12px] text-white/40 font-mono border-b border-white/[0.06] truncate"
-          style={{ background: 'rgba(0,0,0,0.3)' }}
-        >
-          {focusLabel || 'Globe — click anywhere to explore'}
-        </div>
-        {/* Globe renderer */}
-        <div className="flex-1 relative">
-          <FlowGlobe
-            pins={pins}
-            arcs={arcs}
-            labels={labels}
-            viewpoint={viewpoint}
-            onGlobeClick={handleGlobeClick}
-          />
-        </div>
+  // ── Globe interactions ──────────────────────────────────────────────────────
+  function handleGlobeClick({ lat, lng }) {
+    const sign = (v, pos, neg) =>
+      v >= 0 ? `${v.toFixed(3)}°${pos}` : `${Math.abs(v).toFixed(3)}°${neg}`
+    setMapOverlay({
+      type: 'location', lat, lng,
+      address: `${sign(lat, 'N', 'S')}  ${sign(lng, 'E', 'W')}`,
+    })
+  }
+
+  function handleLabelClick(label) {
+    if (label.lat != null && label.lng != null) {
+      flyTo({ lat: label.lat, lng: label.lng, altitude: 1.8, label: label.text })
+      setMapOverlay({ type: 'location', lat: label.lat, lng: label.lng, address: label.text })
+    }
+  }
+
+  // When the user manually scrolls in, the Map tab follows the camera.
+  // Only auto-*switch* to the Map tab when the camera first crosses below the
+  // country-zoom threshold (altitude ~0.9); after that just keep the map updated.
+  const handleCameraChange = useCallback(({ lat, lng, altitude }) => {
+    const wasAbove = prevAltRef.current > 0.9
+    prevAltRef.current = altitude
+    if (altitude >= 0.9) return
+    clearTimeout(mapDebounceRef.current)
+    mapDebounceRef.current = setTimeout(() => {
+      const span = Math.max(2, altitude * 35)
+      setMapView((prev) => ({ lat, lng, latSpan: span, lngSpan: span, name: prev?.name ?? '' }))
+      if (wasAbove) setActiveTab('map')
+    }, 600)
+  }, [])
+
+  function handleFeatureClick({ lat, lng, name, latSpan, lngSpan }) {
+    setMapOverlay({ type: 'location', lat, lng, address: name })
+    setMapView({ lat, lng, latSpan: latSpan ?? 20, lngSpan: lngSpan ?? 20, name })
+    setActiveTab('map')
+  }
+
+  // ── Shared globe panel JSX ──────────────────────────────────────────────────
+  const floatToggleBtn = (
+    <button
+      type="button"
+      onClick={toggleFloat}
+      onMouseDown={(e) => e.stopPropagation()}
+      title={floating ? 'Dock back' : 'Float — drag anywhere on screen'}
+      className="flex-shrink-0 opacity-30 hover:opacity-75 transition-opacity"
+    >
+      {floating
+        ? <LayoutPanelLeft size={11} />
+        : <PictureInPicture2 size={11} />}
+    </button>
+  )
+
+  const globeContent = (
+    <>
+      {/* Focus header — drag handle when floating */}
+      <div
+        className={`
+          flex-shrink-0 flex items-center gap-2 px-3 py-2 text-[12px] text-white/40 font-mono
+          border-b border-white/[0.06] select-none
+          ${floating ? 'cursor-grab active:cursor-grabbing' : ''}
+        `}
+        style={{ background: 'rgba(0,0,0,0.35)' }}
+        onMouseDown={floating ? onDragMouseDown : undefined}
+      >
+        {floating && (
+          <GripVertical size={12} className="text-white/25 flex-shrink-0" />
+        )}
+        <span className="flex-1 truncate text-[11px]">
+          {focusLabel || 'Globe — click a label or anywhere to explore'}
+        </span>
+        {floatToggleBtn}
       </div>
 
-      {/* Chat panel — 32% */}
-      <div
-        className="flex flex-col border-l border-white/[0.07]"
-        style={{ width: '32%', minWidth: '280px' }}
-      >
-        <GlobeChat
-          addPins={addPins}
-          addArcs={addArcs}
-          flyTo={flyTo}
-          autoQuery={autoQuery?.text ?? ''}
-          onAutoQueryConsumed={handleAutoQueryConsumed}
+      {/* Globe canvas area */}
+      <div className="flex-1 relative min-h-0 overflow-hidden">
+        {/* Blurred colour haze */}
+        <div
+          className="absolute inset-0 overflow-hidden pointer-events-none"
+          style={{
+            background: `
+              radial-gradient(ellipse at 30% 62%, rgba(0,92,128,0.60) 0%, transparent 52%),
+              radial-gradient(ellipse at 70% 92%, rgba(130,0,105,0.58) 0%, transparent 46%),
+              rgba(2,9,20,0.94)
+            `,
+            filter: 'blur(88px)',
+            transform: 'scale(1.18)',
+          }}
         />
+        <FlowGlobe
+          pins={pins}
+          arcs={arcs}
+          labels={labels}
+          viewpoint={viewpoint}
+          onGlobeClick={handleGlobeClick}
+          onLabelClick={handleLabelClick}
+          onFeatureClick={handleFeatureClick}
+          onCameraChange={handleCameraChange}
+        />
+        <GlobeOverlay overlay={mapOverlay} onDismiss={() => setMapOverlay(null)} />
+      </div>
+    </>
+  )
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  return (
+    <div
+      className="relative h-full w-full overflow-hidden"
+      style={{
+        background: `
+          radial-gradient(ellipse at 18% 78%, rgba(0,52,80,0.28) 0%, transparent 50%),
+          radial-gradient(ellipse at 72% 92%, rgba(100,0,82,0.30) 0%, transparent 44%),
+          radial-gradient(ellipse at 40% 96%, rgba(80,0,100,0.18) 0%, transparent 38%),
+          #020b16
+        `,
+      }}
+    >
+      {/* ── Globe — full-screen background ───────────────────────────────────── */}
+      {floating ? (
+        /* Floating window — fixed-position, draggable, resizable */
+        <div
+          style={{
+            position: 'fixed',
+            left:     floatPos.x,
+            top:      floatPos.y,
+            width:    floatW,
+            height:   floatH,
+            zIndex:   9998,
+            display:  'flex',
+            flexDirection: 'column',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.13)',
+            boxShadow: '0 28px 80px rgba(0,0,0,0.85), 0 0 0 1px rgba(14,210,238,0.06)',
+          }}
+        >
+          {globeContent}
+
+          {/* Resize — right edge */}
+          <div
+            className="absolute right-0 top-8 bottom-3 w-1.5 cursor-ew-resize"
+            onMouseDown={onResizeMouseDown('resize-right')}
+          />
+          {/* Resize — bottom edge */}
+          <div
+            className="absolute bottom-0 left-3 right-3 h-1.5 cursor-ns-resize"
+            onMouseDown={onResizeMouseDown('resize-bottom')}
+          />
+          {/* Resize — bottom-right corner */}
+          <div
+            className="absolute bottom-0 right-0 w-3 h-3 cursor-nwse-resize"
+            onMouseDown={onResizeMouseDown('resize-corner')}
+            style={{
+              background: 'linear-gradient(135deg, transparent 50%, rgba(14,210,238,0.25) 50%)',
+              borderBottomRightRadius: '12px',
+            }}
+          />
+        </div>
+      ) : (
+        /* Docked — globe fills the entire view behind the side panel */
+        <div className="absolute inset-0 flex flex-col">
+          {globeContent}
+        </div>
+      )}
+
+      {/* ── Side panel — glass overlay pinned to the right ───────────────────── */}
+      <div
+        className="absolute top-0 right-0 bottom-0 flex flex-col"
+        style={{
+          width: floating ? '100%' : '320px',
+          background: 'rgba(2,7,18,0.72)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderLeft: '1px solid rgba(255,255,255,0.07)',
+          zIndex: 10,
+        }}
+      >
+        {/* Tab switcher */}
+        <div className="flex border-b border-white/[0.07] flex-shrink-0">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[11px] font-medium transition-colors border-b-2 ${
+                activeTab === id
+                  ? 'text-teal-400 border-teal-500/60'
+                  : 'text-white/30 hover:text-white/60 border-transparent'
+              }`}
+            >
+              <Icon size={11} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Panel content */}
+        <div className="flex-1 overflow-hidden min-h-0">
+          {activeTab === 'search' && (
+            <Suspense fallback={<PanelLoader />}>
+              <LocationSearch addPins={addPins} flyTo={flyTo} onResult={setMapOverlay} />
+            </Suspense>
+          )}
+          {activeTab === 'flights' && (
+            <Suspense fallback={<PanelLoader />}>
+              <FlightSearch />
+            </Suspense>
+          )}
+          {activeTab === 'directions' && (
+            <Suspense fallback={<PanelLoader />}>
+              <MapSearch addPins={addPins} addArcs={addArcs} flyTo={flyTo} onResult={setMapOverlay} />
+            </Suspense>
+          )}
+          {activeTab === 'map' && (
+            <div className="flex flex-col h-full overflow-hidden">
+              {mapView ? (
+                <>
+                  {/* Name + external link header */}
+                  <div
+                    className="flex-shrink-0 flex items-center gap-2 px-3 py-2 border-b"
+                    style={{ borderColor: 'rgba(255,255,255,0.06)' }}
+                  >
+                    <Map size={10} className="text-teal-400/60 flex-shrink-0" />
+                    <span className="flex-1 text-[11px] text-white/55 truncate">{mapView.name || 'Current view'}</span>
+                    <a
+                      href={`https://www.openstreetmap.org/#map=6/${mapView.lat.toFixed(3)}/${mapView.lng.toFixed(3)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-1 text-[9px] text-teal-400/45 hover:text-teal-400/85 transition-colors flex-shrink-0"
+                    >
+                      <ExternalLink size={9} />
+                      Full map
+                    </a>
+                  </div>
+                  {/* OSM embed */}
+                  <div className="flex-1 relative min-h-0">
+                    <iframe
+                      key={`${mapView.lat}|${mapView.lng}`}
+                      title="Street map"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 0, display: 'block' }}
+                      src={buildOsmUrl(mapView)}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
+                  <Map size={20} className="text-white/15" />
+                  <p className="text-[11px] text-white/25 leading-relaxed">
+                    Click a country or region on the globe to load its street map.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

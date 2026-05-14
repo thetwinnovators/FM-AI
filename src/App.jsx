@@ -205,7 +205,9 @@ function AppShell() {
         </div>
       </div>
       <BackToTop scrollRef={mainRef} />
-      <QuickChatLauncher />
+      {/* Only show the floating chat launcher when no embedded AI is already on screen.
+          Hidden on workspace views (/globe, /flow-trade) and the full chat page. */}
+      {!isWorkspace && !location.pathname.startsWith('/chat') && <QuickChatLauncher />}
     </>
   )
 }

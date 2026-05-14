@@ -41,10 +41,9 @@ const _enabledOverride = readBoolOverride(ENABLED_OVERRIDE_KEY)
 const _modelOverride = readStringOverride(MODEL_OVERRIDE_KEY)
 
 export const OLLAMA_CONFIG = {
-  // Default OFF — most users haven't spun up the container yet, and we don't
-  // want spammy console warnings on first run. User flips on via the gear menu
-  // once `docker run ollama/ollama` is happy.
-  enabled: _enabledOverride !== null ? _enabledOverride : false,
+  // Default ON — Ollama container is running locally on port 11434.
+  // Toggle off via the gear menu or set flowmap.ollama.enabled=false in localStorage.
+  enabled: _enabledOverride !== null ? _enabledOverride : true,
 
   // Vite proxy path; not the actual Ollama URL. See vite.config.js for that.
   baseUrl: '/api/ollama',
