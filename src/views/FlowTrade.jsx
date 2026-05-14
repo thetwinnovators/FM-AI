@@ -116,8 +116,18 @@ function OfflineShell({ message, icon: Icon, children }) {
 
 export default function FlowTrade() {
   const { status, refresh } = useStatus()
-  const [isBlocked, setIsBlocked] = useState(false)
-  const [rightTab, setRightTab] = useState('risk')
+  const [isBlocked,    setIsBlocked]    = useState(false)
+  const [rightTab,     setRightTab]     = useState('risk')
+  const [refreshTick,  setRefreshTick]  = useState(0)
+  const [refreshing,   setRefreshing]   = useState(false)
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return
+    setRefreshing(true)
+    await refresh()
+    setRefreshTick((t) => t + 1)
+    setTimeout(() => setRefreshing(false), 600)
+  }, [refresh, refreshing])
 
   useEffect(() => {
     if (!status?.online) return
@@ -143,14 +153,24 @@ export default function FlowTrade() {
           <div className="text-[15px] font-semibold text-white/85 leading-none">Flow Trade</div>
           <div className="text-[11px] text-white/35 mt-0.5">paper day-trading workspace</div>
         </div>
-        {status && (
-          <div className="ml-auto flex items-center gap-1.5 text-[11px]">
-            <span className={`h-1.5 w-1.5 rounded-full ${status.online ? 'bg-emerald-400' : 'bg-white/20'}`} />
-            <span className={status.online ? 'text-emerald-400/80' : 'text-white/30'}>
-              {status.online ? 'daemon online' : 'daemon offline'}
-            </span>
-          </div>
-        )}
+        <div className="ml-auto flex items-center gap-3">
+          {status && (
+            <div className="flex items-center gap-1.5 text-[11px]">
+              <span className={`h-1.5 w-1.5 rounded-full ${status.online ? 'bg-emerald-400' : 'bg-white/20'}`} />
+              <span className={status.online ? 'text-emerald-400/80' : 'text-white/30'}>
+                {status.online ? 'daemon online' : 'daemon offline'}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            title="Refresh"
+            className="p-1.5 rounded-lg text-white/25 hover:text-white/60 hover:bg-white/[0.06] transition-colors disabled:opacity-40"
+          >
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -224,7 +244,7 @@ export default function FlowTrade() {
 
           {/* Signal feed — main content */}
           <div className="flex-1 min-w-0 overflow-y-auto p-4">
-            <SignalFeed isBlocked={isBlocked} />
+            <SignalFeed isBlocked={isBlocked} refreshTick={refreshTick} />
           </div>
 
           {/* Right panel — tabbed Risk / AI Chat */}
@@ -251,7 +271,7 @@ export default function FlowTrade() {
             <div className="flex-1 min-h-0 overflow-hidden">
               {rightTab === 'risk' ? (
                 <div className="h-full overflow-y-auto">
-                  <RiskDashboard />
+                  <RiskDashboard refreshTick={refreshTick} />
                 </div>
               ) : (
                 <FlowTradeChat />

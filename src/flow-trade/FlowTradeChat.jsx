@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Send, Bot, Loader2 } from 'lucide-react'
+import { Send, Bot, Loader2, Globe } from 'lucide-react'
 import { streamChat } from '../lib/llm/ollama.js'
 import { useFlowTradeSSE } from './useFlowTradeSSE.js'
+
+const URL_REGEX = /https?:\/\/[^\s]+/g
+
+async function fetchPageContent(url) {
+  const res = await fetch(`https://r.jina.ai/${url}`, {
+    headers: { Accept: 'text/plain' },
+  })
+  if (!res.ok) throw new Error(`${res.status}`)
+  const text = await res.text()
+  return text.slice(0, 8000) // cap to keep context window sane
+}
 
 const SYSTEM = `You are a day trading assistant inside Flow Trade, a paper trading workspace.
 
@@ -54,6 +65,7 @@ export function FlowTradeChat() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [streaming, setStreaming] = useState(false)
+  const [fetchingUrl, setFetchingUrl] = useState(null)
   const bottomRef = useRef(null)
   const abortRef  = useRef(null)
   const inputRef  = useRef(null)
@@ -81,18 +93,41 @@ export function FlowTradeChat() {
 
   async function sendMessage(text, auto = false) {
     const content = (text ?? input).trim()
-    if (!content || streaming) return
+    if (!content || streaming || fetchingUrl) return
     if (!auto) setInput('')
 
-    const userMsg = { role: 'user', content }
-    setMessages((prev) => [...prev, userMsg])
+    // Detect URLs and fetch page content via Jina Reader
+    const urls = [...(content.match(URL_REGEX) ?? [])]
+    let enrichedContent = content
+    if (urls.length > 0) {
+      const url = urls[0]
+      setFetchingUrl(url)
+      setMessages((prev) => [
+        ...prev,
+        { role: 'system-notice', content: `Reading page: ${url}` },
+      ])
+      try {
+        const pageText = await fetchPageContent(url)
+        enrichedContent = `[Page content from ${url}]:\n${pageText}\n\n---\n\n${content}`
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          { role: 'system-notice', content: `Couldn't fetch ${url} — answering without it` },
+        ])
+      }
+      setFetchingUrl(null)
+    }
+
+    const userMsg = { role: 'user', content: enrichedContent }
+    const displayMsg = { role: 'user', content }           // show original text in chat
+    setMessages((prev) => [...prev, displayMsg])
     setStreaming(true)
 
     const history = messages.filter((m) => m.role === 'user' || m.role === 'assistant')
     const chatMessages = [
       { role: 'system', content: SYSTEM },
       ...history,
-      userMsg,
+      userMsg,  // enriched (with page text) goes to LLM
     ]
 
     const assistantMsg = { role: 'assistant', content: '' }
@@ -136,6 +171,16 @@ export function FlowTradeChat() {
         ) : (
           messages.map((msg, i) => <Message key={i} msg={msg} />)
         )}
+        {fetchingUrl && (
+          <div className="flex gap-2 px-2 items-center">
+            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <Globe size={11} className="text-blue-400 animate-pulse" />
+            </div>
+            <span className="text-[11px] text-blue-400/70 truncate max-w-[220px]">
+              Fetching page…
+            </span>
+          </div>
+        )}
         {streaming && messages[messages.length - 1]?.content === '' && (
           <div className="flex gap-2 px-2">
             <div className="w-5 h-5 rounded-full bg-violet-500/20 flex items-center justify-center mt-0.5 flex-shrink-0">
@@ -152,13 +197,13 @@ export function FlowTradeChat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={streaming}
-          placeholder="Ask about signals or setups…"
+          disabled={streaming || !!fetchingUrl}
+          placeholder="Ask about signals, setups, or paste a URL…"
           className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-1.5 text-[12px] text-white/80 placeholder:text-white/25 focus:outline-none focus:border-white/20 disabled:opacity-40"
         />
         <button
           onClick={() => sendMessage()}
-          disabled={!input.trim() || streaming}
+          disabled={!input.trim() || streaming || !!fetchingUrl}
           className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] text-white/50 hover:text-white/80 disabled:opacity-30 transition-colors"
         >
           <Send size={13} />

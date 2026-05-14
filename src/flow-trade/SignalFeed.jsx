@@ -3,12 +3,12 @@ import { flowTradeApi } from './api.js'
 import { useFlowTradeSSE } from './useFlowTradeSSE.js'
 import { SignalCard } from './SignalCard.jsx'
 
-export function SignalFeed({ isBlocked }) {
+export function SignalFeed({ isBlocked, refreshTick = 0 }) {
   const [signals,         setSignals]         = useState([])
   const [positionSymbols, setPositionSymbols] = useState(new Set())
   const [pendingSymbols,  setPendingSymbols]  = useState(new Set())
 
-  useEffect(() => { flowTradeApi.getSignals().then(setSignals).catch(() => {}) }, [])
+  useEffect(() => { flowTradeApi.getSignals().then(setSignals).catch(() => {}) }, [refreshTick])
 
   const refreshPositions = useCallback(() => {
     Promise.allSettled([
@@ -24,7 +24,7 @@ export function SignalFeed({ isBlocked }) {
     refreshPositions()
     const id = setInterval(refreshPositions, 30_000)
     return () => clearInterval(id)
-  }, [refreshPositions])
+  }, [refreshPositions, refreshTick])
 
   const handleSSE = useCallback((event) => {
     if (event.type === 'signal' || event.type === 'signal_blocked') {
