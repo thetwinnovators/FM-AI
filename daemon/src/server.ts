@@ -110,19 +110,42 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
   app.post('/docker-mcp/servers', async (req, reply) => {
     if (!requireAuth(req, reply)) return
     const body = req.body as any
-    if (!body?.id || !body?.name || !body?.image) {
+    if (!body?.id || !body?.name) {
       reply.code(400)
-      return { error: 'id, name, and image are required' }
+      return { error: 'id and name are required' }
+    }
+    // Remote servers need a url; Docker image servers need an image
+    if (!body.image && !body.url) {
+      reply.code(400)
+      return { error: 'either image (Docker) or url (remote HTTP) is required' }
     }
     try {
       await mcpManager.addServer({
-        id: body.id, name: body.name, image: body.image,
+        id: body.id,
+        name: body.name,
+        image: body.image ?? '',
         enabled: body.enabled ?? true,
-        args: body.args, env: body.env,
+        url: body.url,
+        transport: body.transport,
+        args: body.args,
+        env: body.env,
       })
       return { servers: mcpManager.listServers() }
     } catch (err: any) {
       reply.code(400)
+      return { error: err?.message ?? String(err) }
+    }
+  })
+
+  app.post('/docker-mcp/import-from-desktop', async (req, reply) => {
+    if (!requireAuth(req, reply)) return
+    const body = req.body as any
+    const profileId = body?.profileId ?? 'flowmap'
+    try {
+      const { added, updated } = await mcpManager.importFromDockerDesktop(profileId)
+      return { servers: mcpManager.listServers(), added, updated }
+    } catch (err: any) {
+      reply.code(500)
       return { error: err?.message ?? String(err) }
     }
   })

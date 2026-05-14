@@ -1,5 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
 
 export interface MCPServerTool {
   name: string
@@ -54,6 +56,49 @@ export async function connectMCPServer(
         name: t.name,
         description: t.description,
         inputSchema: t.inputSchema as Record<string, unknown> | undefined,
+      }))
+    },
+
+    async callTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+      const res = await client.callTool({ name, arguments: args })
+      return (res as { content?: unknown }).content
+    },
+
+    async close(): Promise<void> {
+      await client.close()
+    },
+  }
+}
+
+/** Connect to a remote HTTP MCP server (streamable-http or SSE transport). */
+export async function connectMCPServerHTTP(
+  serverId: string,
+  url: string,
+  transport: 'streamable-http' | 'sse' = 'streamable-http',
+): Promise<MCPClientHandle> {
+  const endpoint = new URL(url)
+
+  const t =
+    transport === 'sse'
+      ? new SSEClientTransport(endpoint)
+      : new StreamableHTTPClientTransport(endpoint)
+
+  const client = new Client(
+    { name: 'flowmap-operator', version: '1.0.0' },
+    { capabilities: {} },
+  )
+
+  await client.connect(t)
+
+  return {
+    serverId,
+
+    async listTools(): Promise<MCPServerTool[]> {
+      const res = await client.listTools()
+      return (res.tools ?? []).map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema as Record<string, unknown> | undefined,
       }))
     },
 

@@ -6,8 +6,13 @@ import { homedir } from 'node:os'
 export interface DockerMCPServerConfig {
   id: string
   name: string
+  /** Docker image tag (stdio servers). Empty string for remote HTTP servers. */
   image: string
   enabled: boolean
+  /** Remote HTTP endpoint URL (streamable-http or SSE servers). */
+  url?: string
+  /** Transport type for remote servers. Defaults to 'streamable-http'. */
+  transport?: 'streamable-http' | 'sse'
   args?: string[]
   env?: Record<string, string>
 }

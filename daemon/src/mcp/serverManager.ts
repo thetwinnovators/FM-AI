@@ -1,4 +1,4 @@
-import { connectMCPServer, MCPClientHandle, MCPServerTool } from './mcpClient.js'
+import { connectMCPServer, connectMCPServerHTTP, MCPClientHandle, MCPServerTool } from './mcpClient.js'
 import { loadServerRegistry, saveServerRegistry, DockerMCPServerConfig } from './serverRegistry.js'
 
 export interface ManagedServer {
@@ -47,12 +47,19 @@ export class ServerManager {
       if (this.handles.has(cfg.id)) continue
 
       try {
-        const dockerArgs = ['run', '--rm', '-i']
-        for (const [k, v] of Object.entries(cfg.env ?? {})) {
-          dockerArgs.push('-e', `${k}=${v}`)
+        let handle: MCPClientHandle
+        if (cfg.url) {
+          // Remote HTTP server (streamable-http or SSE)
+          handle = await connectMCPServerHTTP(cfg.id, cfg.url, cfg.transport ?? 'streamable-http')
+        } else {
+          // Docker stdio server
+          const dockerArgs = ['run', '--rm', '-i']
+          for (const [k, v] of Object.entries(cfg.env ?? {})) {
+            dockerArgs.push('-e', `${k}=${v}`)
+          }
+          dockerArgs.push(cfg.image, ...(cfg.args ?? []))
+          handle = await connectMCPServer(cfg.id, 'docker', dockerArgs)
         }
-        dockerArgs.push(cfg.image, ...(cfg.args ?? []))
-        const handle = await connectMCPServer(cfg.id, 'docker', dockerArgs)
         const tools = await handle.listTools()
         this.handles.set(cfg.id, handle)
         this.servers.set(cfg.id, { config: cfg, status: 'connected', tools })
@@ -84,17 +91,44 @@ export class ServerManager {
 
   async addServer(cfg: DockerMCPServerConfig): Promise<void> {
     const configs = await loadServerRegistry(this.registryPath)
-    if (configs.find((c) => c.id === cfg.id)) throw new Error(`Server "${cfg.id}" already exists`)
-    configs.push(cfg)
+    // If a server with this id already exists, update it instead of erroring
+    const idx = configs.findIndex((c) => c.id === cfg.id)
+    if (idx !== -1) {
+      configs[idx] = { ...configs[idx], ...cfg, id: cfg.id }
+    } else {
+      configs.push(cfg)
+    }
     await saveServerRegistry(configs, this.registryPath)
     await this.sync()
+  }
+
+  /** Import servers from Docker Desktop MCP Toolkit, merging into existing registry. */
+  async importFromDockerDesktop(profileId = 'flowmap'): Promise<{ added: number; updated: number }> {
+    const { syncFromDockerDesktop } = await import('./dockerDesktopSync.js')
+    const incoming = syncFromDockerDesktop(profileId)
+    const existing = await loadServerRegistry(this.registryPath)
+    let added = 0
+    let updated = 0
+    for (const cfg of incoming) {
+      const idx = existing.findIndex((c) => c.id === cfg.id)
+      if (idx !== -1) {
+        existing[idx] = { ...existing[idx], ...cfg, id: cfg.id }
+        updated++
+      } else {
+        existing.push(cfg)
+        added++
+      }
+    }
+    await saveServerRegistry(existing, this.registryPath)
+    await this.sync()
+    return { added, updated }
   }
 
   async patchServer(id: string, patch: Partial<DockerMCPServerConfig>): Promise<void> {
     const configs = await loadServerRegistry(this.registryPath)
     const idx = configs.findIndex((c) => c.id === id)
     if (idx === -1) throw new Error(`Server "${id}" not found`)
-    configs[idx] = { ...configs[idx], ...patch, id }
+    configs[idx] = { ...configs[idx], ...patch, id } as DockerMCPServerConfig
     await saveServerRegistry(configs, this.registryPath)
     await this.sync()
   }

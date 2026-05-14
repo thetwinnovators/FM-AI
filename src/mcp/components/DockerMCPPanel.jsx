@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Plus, Trash2, Circle, ChevronDown, ChevronRight, X } from 'lucide-react'
+import { RefreshCw, Plus, Trash2, Circle, ChevronDown, ChevronRight, X, Download } from 'lucide-react'
 
 async function getDaemonInfo() {
   try {
@@ -195,6 +195,8 @@ export default function DockerMCPPanel() {
   const [servers, setServers] = useState([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState(null) // { added, updated } | null
   const [error, setError] = useState(null)
   const [showAdd, setShowAdd] = useState(false)
 
@@ -222,6 +224,21 @@ export default function DockerMCPPanel() {
       setError(err.message)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function handleImportFromDesktop() {
+    setImporting(true)
+    setImportResult(null)
+    setError(null)
+    try {
+      const data = await daemonFetch('POST', '/docker-mcp/import-from-desktop', { profileId: 'flowmap' })
+      setServers(data.servers ?? [])
+      setImportResult({ added: data.added ?? 0, updated: data.updated ?? 0 })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -260,6 +277,15 @@ export default function DockerMCPPanel() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={handleImportFromDesktop}
+            disabled={importing || syncing}
+            title="Import all servers from your Docker Desktop MCP Toolkit 'flowmap' profile"
+            className="flex items-center gap-1.5 text-[11px] text-teal-400/70 hover:text-teal-300 transition-colors disabled:opacity-40"
+          >
+            <Download size={11} className={importing ? 'animate-bounce' : ''} />
+            {importing ? 'Importing…' : 'Import from Docker Desktop'}
+          </button>
+          <button
             onClick={handleSync}
             disabled={syncing}
             className="flex items-center gap-1.5 text-[11px] text-white/35 hover:text-white/70 transition-colors disabled:opacity-40"
@@ -279,6 +305,17 @@ export default function DockerMCPPanel() {
       {error && (
         <div className="mb-3 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/20 text-[11px] text-rose-300">
           {error}
+        </div>
+      )}
+
+      {importResult && (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-teal-500/10 border border-teal-500/20 text-[11px] text-teal-300 flex items-center justify-between">
+          <span>
+            Imported from Docker Desktop — {importResult.added} added, {importResult.updated} updated
+          </span>
+          <button onClick={() => setImportResult(null)} className="text-teal-400/50 hover:text-teal-300 ml-3">
+            <X size={11} />
+          </button>
         </div>
       )}
 
