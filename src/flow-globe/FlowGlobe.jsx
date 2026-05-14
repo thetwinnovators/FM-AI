@@ -258,7 +258,7 @@ export default function FlowGlobe({
         '#include <map_fragment>',
         `#include <map_fragment>
          float _lum = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(_lum), 0.40) * 0.68;`,
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(_lum), 0.60) * 0.52;`,
       )
     }
     mat.customProgramCacheKey = () => 'flowmap-globe-daynight-muted-v1'
