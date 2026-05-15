@@ -90,8 +90,10 @@ function setSyncStatus(patch) {
 }
 
 let pushTimer = null
-function schedulePush() {
+let pushRetryTimer = null
+function schedulePush(debounce = 800) {
   clearTimeout(pushTimer)
+  clearTimeout(pushRetryTimer)
   pushTimer = setTimeout(async () => {
     setSyncStatus({ status: 'pushing', error: null })
     const res = await pushToDisk(memoryState)
@@ -102,8 +104,11 @@ function schedulePush() {
       setSyncStatus({ status: 'synced', lastModified: res.lastModified, error: null })
     } else {
       setSyncStatus({ status: 'offline', error: res?.error || 'push failed' })
+      // Retry after 30 s — catches transient Vite server restarts or brief
+      // unavailability without hammering the endpoint on sustained outage.
+      pushRetryTimer = setTimeout(() => schedulePush(0), 30_000)
     }
-  }, 800) // debounce — coalesce bursts of edits into one write
+  }, debounce)
 }
 
 function persist(next) {
@@ -217,8 +222,14 @@ function initSync() {
   syncInitialized = true
   pullSyncedState()
 
-  // Pull on tab focus / visibility restore (catches browser window switches)
-  function onVis() { if (document.visibilityState === 'visible') pullSyncedState() }
+  // Pull (and push if previously offline) on tab focus / visibility restore.
+  // The push here catches any writes that failed while the Vite server was
+  // temporarily unavailable — data stayed in localStorage and now gets flushed.
+  function onVis() {
+    if (document.visibilityState !== 'visible') return
+    pullSyncedState()
+    if (syncState.status === 'offline') schedulePush(0)
+  }
   document.addEventListener('visibilitychange', onVis)
   window.addEventListener('focus', onVis)
 
