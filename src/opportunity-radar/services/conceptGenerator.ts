@@ -1,5 +1,9 @@
 import type { OpportunityCluster, PainSignal, AppConcept } from '../types.js'
-import type { VentureConceptCandidate } from '../../venture-scope/types.js'
+import type {
+  VentureConceptCandidate,
+  EvidenceTraceEntry,
+  OpportunityFrame,
+} from '../../venture-scope/types.js'
 import { generateResponse } from '../../lib/llm/ollama.js'
 
 // ── Section parser ────────────────────────────────────────────────────────────
@@ -384,8 +388,16 @@ async function generateWithOllama(
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-function makeId(): string {
-  return `concept_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+/** Stable concept ID: deterministic from clusterId + angleType.
+ *  Repeated rescans produce the same ID → saveVsConcept() upserts instead of accumulating. */
+function makeConceptId(clusterId: string, angleType: string): string {
+  const str = `${clusterId}:${angleType}`
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i)
+    hash |= 0
+  }
+  return `vs_${Math.abs(hash).toString(36)}`
 }
 
 export async function generateConcept(
@@ -423,97 +435,464 @@ export async function generateConcept(
   }
 }
 
-// ── Multi-candidate generation (Venture Scope) ────────────────────────────────
+// ── Venture Scope: graph-grounded multi-candidate generation ─────────────────
+//
+// Three genuinely different strategic angles, each grounded in the entity graph:
+//
+//   Rank 1 — Persona-First:         who has this problem, what workflow breaks for them,
+//                                   what workaround they use instead of a real tool.
+//   Rank 2 — Workflow-First:        what process is broken, where it fails (bottleneck),
+//                                   why existing tools miss this specific step.
+//   Rank 3 — Technology-Enablement: what new capability makes this tractable now,
+//                                   why tools built before it can't catch up.
+//
+// Ollama (when available) receives the structured frame — not raw pain snippets.
 
-const REVENUE_MODELS = [
-  'Free tier + one-time purchase for power features',
-  'Monthly SaaS subscription ($9–$29/mo)',
-  'Per-seat team pricing',
-  'Usage-based (documents processed or API calls)',
-  'Open source core + paid hosted version',
-]
+// ── Shared helpers ────────────────────────────────────────────────────────────
 
-const COMPLEXITY_LEVELS: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high']
+function cap(s: string): string {
+  return s
+    .split(' ')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ')
+}
 
-const WEDGE_TEMPLATES = [
-  (name: string) => `Eliminate the #1 manual step in ${name}`,
-  (name: string) => `One-click automation of the worst part of ${name}`,
-  (name: string) => `Browser-first tool that replaces the spreadsheet workaround for ${name}`,
-]
-
-const WHY_NOW = [
-  'LLMs now make it possible to parse and structure unstructured inputs at near-zero cost.',
-  'Recent platform shifts have left this workflow underserved by existing tools.',
-  'Growing community frustration signals the market is actively searching for a solution.',
-]
+/** Safe value accessor — returns entity value at index, or empty string. */
+function ev(
+  entities: import('../../opportunity-radar/types.js').ExtractedEntity[],
+  idx = 0,
+): string {
+  return entities[idx]?.value ?? ''
+}
 
 /**
- * Generate N distinct VentureConceptCandidate objects for a given cluster.
- * Rank 1 is the leading concept (tries Ollama first); alternates use template.
+ * Select evidence-trace entries for a candidate, anchored to a specific entity value.
+ * Signals that mention the anchor (in entities[] or plain text) rank highest.
+ * Falls back to any corpus-sourced signals if no specific matches found.
+ */
+function buildEvidenceTrace(
+  signals: PainSignal[],
+  anchorValue: string,
+  max = 4,
+): EvidenceTraceEntry[] {
+  const anchor = anchorValue.toLowerCase()
+
+  const scored = signals
+    .filter((s) => s.corpusSourceId) // only signals with corpus lineage
+    .map((s) => {
+      const inText     = s.painText.toLowerCase().includes(anchor) ? 2 : 0
+      const inEntities = (s.entities ?? []).some(
+        (e) => e.value.toLowerCase() === anchor,
+      )
+        ? 3
+        : 0
+      return { signal: s, relevance: inText + inEntities }
+    })
+    .sort((a, b) => b.relevance - a.relevance)
+
+  // Use anchor-matched signals if we have at least 2; otherwise fall back to all corpus signals
+  const pool =
+    scored.filter((x) => x.relevance > 0).length >= 2
+      ? scored
+      : signals
+          .filter((s) => s.corpusSourceId)
+          .map((s) => ({ signal: s, relevance: 0 }))
+
+  return pool.slice(0, max).map(({ signal: s }) => ({
+    signalId:        s.id,
+    sourceId:        s.corpusSourceId!,
+    sourceType:      s.corpusSourceType ?? 'corpus',
+    topicId:         s.corpusTopicId,
+    documentId:
+      s.corpusSourceType === 'document' ? s.corpusSourceId : undefined,
+    evidenceSnippet: s.painText.slice(0, 280),
+    extractedAt:     s.detectedAt,
+  }))
+}
+
+// ── Graph-structured Ollama prompt ────────────────────────────────────────────
+
+async function generateWithOllamaFrame(
+  frame: OpportunityFrame,
+  angleType: 'persona_first' | 'workflow_first' | 'technology_enablement',
+  coreWedge: string,
+): Promise<Partial<Record<SectionKey, string>> | null> {
+  const {
+    cluster, signals,
+    personas, workflows, workarounds, technologies,
+    bottlenecks, platformShifts, emergingTech, existingSolutions, industries,
+  } = frame
+
+  const angleLabel = {
+    persona_first:         "Persona-First — who has this problem, what breaks in their workflow",
+    workflow_first:        "Workflow-First — what process is broken and where it specifically fails",
+    technology_enablement: "Technology-Enablement — what new capability makes this solvable now",
+  }[angleType]
+
+  // Evidence lines: prefer signals with corpus lineage and a meaningful snippet
+  const evidenceLines = signals
+    .filter((s) => s.corpusSourceId && s.painText.length > 40)
+    .slice(0, 5)
+    .map(
+      (s, i) =>
+        `${i + 1}. "${s.painText.slice(0, 200)}" [${s.corpusSourceType ?? 'corpus'}: ${s.corpusSourceId}]`,
+    )
+    .join('\n')
+
+  const lines: string[] = [
+    `You are a venture intelligence analyst. Generate a focused venture brief from this structured opportunity frame.`,
+    ``,
+    `ANALYSIS LENS: ${angleLabel}`,
+    `CLUSTER: "${cluster.clusterName}"`,
+    `PROPOSED WEDGE: "${coreWedge}"`,
+    ``,
+    `GRAPH CONTEXT (derived from user's research corpus):`,
+  ]
+
+  if (personas.length)          lines.push(`Personas affected: ${personas.slice(0, 3).map((e) => e.value).join(', ')}`)
+  if (workflows.length)         lines.push(`Workflows involved: ${workflows.slice(0, 3).map((e) => e.value).join(', ')}`)
+  if (workarounds.length)       lines.push(`Current workarounds: ${workarounds.slice(0, 2).map((e) => e.value).join(', ')}`)
+  if (bottlenecks.length)       lines.push(`Bottlenecks identified: ${bottlenecks.slice(0, 2).map((e) => e.value).join(', ')}`)
+  if ([...emergingTech, ...platformShifts].length)
+    lines.push(`Platform / technology shifts: ${[...emergingTech, ...platformShifts].slice(0, 2).map((e) => e.value).join(', ')}`)
+  if (technologies.length)      lines.push(`Technologies in context: ${technologies.slice(0, 3).map((e) => e.value).join(', ')}`)
+  if (existingSolutions.length) lines.push(`Existing solutions with gaps: ${existingSolutions.slice(0, 2).map((e) => e.value).join(', ')}`)
+  if (industries.length)        lines.push(`Industries: ${industries.slice(0, 2).map((e) => e.value).join(', ')}`)
+
+  lines.push(
+    ``,
+    `SOURCE EVIDENCE (from user's research corpus):`,
+    evidenceLines || '(corpus lineage not available for these signals)',
+    ``,
+    `Return EXACTLY these sections in this order. No extra sections. No skipped sections.`,
+    `## OPPORTUNITY_SUMMARY`,
+    `## PROBLEM_STATEMENT`,
+    `## TARGET_USER`,
+    `## PROPOSED_SOLUTION`,
+    `## VALUE_PROPOSITION`,
+    `## MVP_SCOPE`,
+    `## RISKS`,
+    `## IMPLEMENTATION_PLAN`,
+  )
+
+  try {
+    const response = await generateResponse(lines.join('\n'), { temperature: 0.6 })
+    if (!response || typeof response !== 'string') return null
+    return parseSections(response)
+  } catch {
+    return null
+  }
+}
+
+// ── Candidate builders ────────────────────────────────────────────────────────
+
+function buildPersonaFirstCandidate(
+  frame: OpportunityFrame,
+  now: string,
+  rank: number,
+  ollama: Partial<Record<SectionKey, string>> | null,
+): VentureConceptCandidate {
+  const {
+    cluster, signals,
+    personas, workflows, workarounds, existingSolutions,
+    buyerRoles, industries, emergingTech, platformShifts,
+  } = frame
+
+  const persona    = ev(personas)   || 'practitioners'
+  const workflow   = ev(workflows)  || cluster.clusterName
+  const workaround = ev(workarounds)
+  const incumbent  = ev(existingSolutions)
+  const buyer      = ev(buyerRoles) || ev(personas, 1) || 'team lead or manager'
+  const industry   = ev(industries)
+  const shift      = ev([...emergingTech, ...platformShifts])
+
+  const coreWedge = workaround
+    ? `${cap(persona)} doing ${workflow} still resort to ${workaround} — no focused tool closes this gap`
+    : incumbent
+      ? `${cap(persona)} can't rely on ${incumbent} for ${workflow} — the gap is real and unaddressed`
+      : `${cap(persona)} lacks a purpose-built tool for ${workflow}`
+
+  const whyNow = shift
+    ? `${cap(shift)} creates a new window for ${workflow} tooling that didn't exist before`
+    : workaround
+      ? `Active workaround use confirms unmet demand — the workaround is a product waiting to be built`
+      : `Signal frequency across the corpus confirms recurring unsolved friction, not a one-off frustration`
+
+  const titleFallback = `${cap(persona)} ${cap(workflow)} Tool`
+  const title =
+    ollama?.OPPORTUNITY_SUMMARY
+      ? ollama.OPPORTUNITY_SUMMARY.split('\n')[0].slice(0, 80) || titleFallback
+      : titleFallback
+
+  return {
+    id:                     makeConceptId(cluster.id, 'persona_first'),
+    clusterId:              cluster.id,
+    rank,
+    angleType:              'persona_first',
+    title,
+    tagline:                `The focused tool for ${persona} who still struggle with ${workflow}`,
+    coreWedge,
+    primaryUser:            persona,
+    buyer,
+    workflowImprovement:    workaround
+      ? `Eliminates the ${workaround} workaround from the ${workflow} process`
+      : `Streamlines ${workflow} for ${persona} without manual steps`,
+    whyNow,
+    complexityEstimate:     'medium',
+    revenueModelHypothesis: 'Monthly SaaS subscription charged to the team that owns the workflow',
+    opportunityScore:       cluster.opportunityScore ?? 50,
+    confidenceScore:        Math.min(0.95, cluster.dimensionScores?.confidence ?? 0.6),
+    generatedBy:            ollama ? 'ollama' : 'graph',
+    status:                 'active',
+    createdAt:              now,
+    updatedAt:              now,
+    evidenceTrace:          buildEvidenceTrace(signals, ev(personas) || ev(workflows) || cluster.clusterName),
+    opportunitySummary:     ollama?.OPPORTUNITY_SUMMARY ?? (
+      `${cap(persona)} consistently encounter friction with ${workflow}` +
+      (industry ? ` in ${industry}` : '') +
+      (workaround ? `. Current workaround: ${workaround}.` : '.') +
+      ` ${cluster.signalCount} corpus items confirm this pattern.`
+    ),
+    problemStatement:       ollama?.PROBLEM_STATEMENT ?? (
+      `${cap(persona)} performing ${workflow}` +
+      (workaround ? ` must use ${workaround} to compensate for missing tooling.` : ' lack dedicated tooling.') +
+      (incumbent ? ` ${cap(incumbent)} doesn't address this specific need.` : '')
+    ),
+    targetUser:             ollama?.TARGET_USER ?? (
+      `${cap(persona)}` +
+      (industry ? ` in ${industry}` : '') +
+      ` who regularly perform ${workflow} and need a better path than current workarounds.`
+    ),
+    proposedSolution:       ollama?.PROPOSED_SOLUTION ?? (
+      `A focused tool that handles ${workflow} end-to-end for ${persona}.` +
+      (workaround ? ` Replaces ${workaround} with a purpose-built workflow.` : '')
+    ),
+    valueProp:              ollama?.VALUE_PROPOSITION ?? (
+      `${cap(persona)} complete ${workflow} faster, with less manual effort` +
+      (workaround ? ` and without maintaining ${workaround}` : '') + '.'
+    ),
+    mvpScope:               ollama?.MVP_SCOPE ?? (
+      `Core: solve the ${workflow} problem for ${persona}. Single flow, no sign-up required.` +
+      (workaround ? ` Replaces ${workaround}.` : '')
+    ),
+    risks:                  ollama?.RISKS ?? (
+      `Signals may represent a vocal minority — validate with real users before building. ` +
+      (incumbent ? `Watch for ${incumbent} shipping a focused mode for this use case.` : 'Watch for incumbents closing the gap.')
+    ),
+    implementationPlan:     ollama?.IMPLEMENTATION_PLAN ?? buildImplementationPlan(cluster),
+  }
+}
+
+function buildWorkflowFirstCandidate(
+  frame: OpportunityFrame,
+  now: string,
+  rank: number,
+): VentureConceptCandidate {
+  const {
+    cluster, signals,
+    workflows, bottlenecks, existingSolutions, personas, buyerRoles, industries,
+  } = frame
+
+  // Prefer the second workflow to differentiate from persona-first (same data, different angle)
+  const workflow   = ev(workflows, 1) || ev(workflows) || cluster.clusterName
+  const bottleneck = ev(bottlenecks)
+  const incumbent  = ev(existingSolutions)
+  const persona    = ev(personas, 1) || ev(personas) || 'practitioners'
+  const buyer      = ev(buyerRoles) || 'operations or product lead'
+  const industry   = ev(industries)
+
+  const coreWedge =
+    bottleneck && incumbent
+      ? `${cap(workflow)} stalls at ${bottleneck} — ${cap(incumbent)} doesn't address this breakpoint`
+      : bottleneck
+        ? `The ${workflow} process breaks at ${bottleneck}, a step every general tool overlooks`
+        : incumbent
+          ? `${cap(workflow)} needs a dedicated tool — ${cap(incumbent)} is too broad to solve the core step`
+          : `${cap(workflow)} lacks purpose-built tooling — general solutions leave the hardest steps to manual effort`
+
+  const whyNow = incumbent
+    ? `${cap(incumbent)} owns the category but leaves ${workflow} friction unaddressed — a focused tool can take the specific use case`
+    : bottleneck
+      ? `No tool has specifically targeted the ${bottleneck} step — a focused entry point exists`
+      : `No focused tool exists for this exact workflow — the space is clear`
+
+  return {
+    id:                     makeConceptId(cluster.id, 'workflow_first'),
+    clusterId:              cluster.id,
+    rank,
+    angleType:              'workflow_first',
+    title:                  bottleneck
+      ? `${cap(workflow)} ${cap(bottleneck)} Solver`
+      : `${cap(workflow)} Workflow Tool`,
+    tagline:                `Fix the ${bottleneck || workflow} step that ${cap(incumbent) || 'every tool'} leaves broken`,
+    coreWedge,
+    primaryUser:            persona,
+    buyer,
+    workflowImprovement:    bottleneck
+      ? `Automates the ${bottleneck} step, removing the main failure point in ${workflow}`
+      : `Provides end-to-end ${workflow} support without the gaps of general-purpose tools`,
+    whyNow,
+    complexityEstimate:     bottleneck ? 'low' : 'medium',
+    revenueModelHypothesis: 'Per-seat team pricing — bought by the team that owns the workflow',
+    opportunityScore:       Math.max(10, (cluster.opportunityScore ?? 50) - 5),
+    confidenceScore:        Math.min(0.9, (cluster.dimensionScores?.confidence ?? 0.55) - 0.05),
+    generatedBy:            'graph',
+    status:                 'active',
+    createdAt:              now,
+    updatedAt:              now,
+    evidenceTrace:          buildEvidenceTrace(signals, ev(workflows) || ev(bottlenecks) || cluster.clusterName),
+    opportunitySummary:
+      `${cap(workflow)} repeatedly breaks at the same point` +
+      (bottleneck ? ` — ${bottleneck}` : '') +
+      (industry ? ` in ${industry}` : '') + '. ' +
+      (incumbent ? `${cap(incumbent)} users consistently report this gap. ` : '') +
+      `${cluster.signalCount} corpus items confirm the pattern.`,
+    problemStatement:
+      `The ${workflow} process has a documented failure point` +
+      (bottleneck ? ` at ${bottleneck}` : '') +
+      (incumbent ? `. ${cap(incumbent)} doesn't solve it and users compensate manually.` : '. No dedicated solution exists.'),
+    targetUser:
+      `${cap(persona)} who manage or participate in ${workflow}` +
+      (industry ? ` in ${industry}` : '') +
+      ' and are frustrated by the lack of purpose-built tooling for the hard steps.',
+    proposedSolution:
+      `A workflow-specific tool that handles ${workflow}` +
+      (bottleneck ? `, with particular focus on ${bottleneck}` : '') + '.' +
+      (incumbent ? ` More focused than ${cap(incumbent)} — solves the exact step it misses.` : ''),
+    valueProp:
+      `${cap(workflow)} completes without the manual intervention currently required` +
+      (bottleneck ? ` at ${bottleneck}` : '') + '.',
+    mvpScope:
+      `Single-workflow tool covering ${workflow}` +
+      (bottleneck ? `, prioritising ${bottleneck}` : '') +
+      '. No sign-up, local-first, exports on demand.',
+    risks:
+      `Workflow tooling can suffer from scope creep — keep the MVP narrow. ` +
+      (incumbent ? `${cap(incumbent)} could ship a focused mode for this use case.` : ''),
+    implementationPlan:     buildImplementationPlan(cluster),
+  }
+}
+
+function buildTechEnablementCandidate(
+  frame: OpportunityFrame,
+  now: string,
+  rank: number,
+): VentureConceptCandidate {
+  const {
+    cluster, signals,
+    emergingTech, platformShifts, technologies, workflows,
+    existingSolutions, personas, buyerRoles, industries,
+  } = frame
+
+  // Anchor on the most forward-looking technology signal available
+  const techAnchorEntity = emergingTech[0] ?? platformShifts[0] ?? technologies[0]
+  const techValue        = techAnchorEntity?.value || 'new automation capabilities'
+  const isForwardTech    = emergingTech.length > 0 || platformShifts.length > 0
+
+  const workflow  = ev(workflows)  || cluster.clusterName
+  const incumbent = ev(existingSolutions)
+  const persona   = ev(personas)   || 'early adopters'
+  const buyer     = ev(buyerRoles) || 'technical lead or architect'
+  const industry  = ev(industries)
+
+  const coreWedge = isForwardTech
+    ? `${cap(techValue)} makes ${workflow} automation tractable — existing tools were built before this capability existed`
+    : incumbent
+      ? `${cap(techValue)} provides the infrastructure for a new class of ${workflow} tools that ${cap(incumbent)} hasn't adopted`
+      : `${cap(techValue)} opens a new approach to ${workflow} that general tools haven't targeted yet`
+
+  const whyNow = isForwardTech
+    ? `${cap(techValue)} is production-ready today, but no focused product has applied it to ${workflow} yet`
+    : `Technical infrastructure for this solution category now exists at accessible cost and scale`
+
+  return {
+    id:                     makeConceptId(cluster.id, 'technology_enablement'),
+    clusterId:              cluster.id,
+    rank,
+    angleType:              'technology_enablement',
+    title:                  `${cap(techValue)}-Powered ${cap(workflow)} Tool`,
+    tagline:                `What ${techValue} makes possible for ${workflow} that existing tools haven't built`,
+    coreWedge,
+    primaryUser:            persona,
+    buyer,
+    workflowImprovement:    `Leverages ${techValue} to automate or dramatically improve ${workflow} in ways that pre-${techValue} tools cannot`,
+    whyNow,
+    complexityEstimate:     isForwardTech ? 'low' : 'medium',
+    revenueModelHypothesis: isForwardTech
+      ? 'Usage-based pricing — charge on value delivered via the new capability'
+      : 'Monthly SaaS subscription with a generous free tier for technical evaluation',
+    opportunityScore:       Math.max(10, (cluster.opportunityScore ?? 50) - 8),
+    confidenceScore:        Math.min(0.85, (cluster.dimensionScores?.confidence ?? 0.5) - 0.08),
+    generatedBy:            'graph',
+    status:                 'active',
+    createdAt:              now,
+    updatedAt:              now,
+    evidenceTrace:          buildEvidenceTrace(signals, techValue),
+    opportunitySummary:
+      `${cap(techValue)} creates a genuine new window for ${workflow} tooling` +
+      (industry ? ` in ${industry}` : '') +
+      (incumbent ? ` — ${cap(incumbent)} hasn't adapted, leaving the field open.` : '.'),
+    problemStatement:
+      `${cap(workflow)} has been addressed by tools built before ${techValue} was viable. ` +
+      `Those tools have structural gaps that only a native ${techValue} approach can close.`,
+    targetUser:
+      `${cap(persona)} who want ${workflow} support built on ${techValue}` +
+      (industry ? ` in ${industry}` : '') +
+      ' and are willing to adopt early if the tool solves their specific use case.',
+    proposedSolution:
+      `A ${techValue}-native tool for ${workflow}.` +
+      (incumbent ? ` Unlike ${cap(incumbent)}, built from the ground up for the ${techValue} era.` : ''),
+    valueProp:
+      `Delivers ${workflow} outcomes that aren't achievable with pre-${techValue} tools — ` +
+      `faster, more automated, and structurally better matched to how the work is actually done.`,
+    mvpScope:
+      `One ${techValue}-powered ${workflow} flow, end-to-end. ` +
+      `Demonstrate the capability gap between this and ${incumbent ? cap(incumbent) : 'existing tools'} directly.`,
+    risks:
+      `Early-stage technology carries adoption risk — validate ${techValue} maturity with target users. ` +
+      (incumbent ? `${cap(incumbent)} may ship native ${techValue} support.` : ''),
+    implementationPlan:     buildImplementationPlan(cluster),
+  }
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Generate up to `count` VentureConceptCandidates from a structured
+ * OpportunityFrame. Each candidate represents a distinct strategic angle:
+ *
+ *   Rank 1 (persona_first)          — grounded in who + workflow + workaround
+ *   Rank 2 (workflow_first)         — grounded in process breakpoint + solution gap
+ *   Rank 3 (technology_enablement)  — grounded in new capability + timing window
+ *
+ * The rank-1 candidate attempts Ollama synthesis from the structured frame.
+ * Ollama receives graph context (not raw pain snippets) so its output stays
+ * grounded in corpus evidence rather than inventing from generic cluster labels.
+ *
+ * @param frame  OpportunityFrame built by opportunityFrameBuilder.buildOpportunityFrame()
+ * @param count  Number of candidates to return (default 3, max 3 in current model)
  */
 export async function generateConcepts(
-  cluster: OpportunityCluster,
-  signals: PainSignal[],
-  count: number = 3,
+  frame: OpportunityFrame,
+  count = 3,
 ): Promise<VentureConceptCandidate[]> {
-  const now      = new Date().toISOString()
-  const template = buildTemplateConcept(cluster, signals)
-  const es       = cluster.entitySummary
+  const now = new Date().toISOString()
 
-  // Attempt Ollama only for the leading concept
-  const ollamaSections = await generateWithOllama(cluster, signals)
+  // Build rank-1 deterministically first so we have its coreWedge for the Ollama prompt
+  const rank1Det = buildPersonaFirstCandidate(frame, now, 1, null)
 
-  const candidates: VentureConceptCandidate[] = []
+  // Attempt Ollama synthesis for rank-1 with graph-structured prompt
+  const ollamaSections = await generateWithOllamaFrame(
+    frame,
+    'persona_first',
+    rank1Det.coreWedge,
+  )
 
-  for (let i = 0; i < count; i++) {
-    const wedgeFn      = WEDGE_TEMPLATES[i % WEDGE_TEMPLATES.length]
-    const revenueModel = REVENUE_MODELS[i % REVENUE_MODELS.length]
-    const whyNow       = WHY_NOW[i % WHY_NOW.length]
-    const complexity   = COMPLEXITY_LEVELS[Math.min(i, COMPLEXITY_LEVELS.length - 1)]
+  const candidates: VentureConceptCandidate[] = [
+    buildPersonaFirstCandidate(frame, now, 1, ollamaSections ?? null),
+    buildWorkflowFirstCandidate(frame, now, 2),
+    buildTechEnablementCandidate(frame, now, 3),
+  ]
 
-    const personaList = es?.personas ?? []
-    const primaryUser = personaList[i % Math.max(personaList.length, 1)]
-      ?? template.targetUser.split(',')[0].trim()
-
-    const isLead = i === 0
-    const title = isLead && ollamaSections?.OPPORTUNITY_SUMMARY
-      ? ollamaSections.OPPORTUNITY_SUMMARY.split('\n')[0].slice(0, 80) || template.title
-      : i === 0
-        ? template.title
-        : `${template.title} — Angle ${i + 1}`
-
-    const confidenceScore = Math.max(0.3, (template.confidenceScore / 100) - i * 0.08)
-
-    candidates.push({
-      id:                     `vs_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`,
-      clusterId:              cluster.id,
-      rank:                   i + 1,
-      title,
-      tagline:                template.tagline,
-      coreWedge:              wedgeFn(cluster.clusterName),
-      primaryUser,
-      buyer:                  personaList.find((p) => /cto|manager|director|head|vp/i.test(p)) ?? primaryUser,
-      workflowImprovement:    template.proposedSolution,
-      whyNow,
-      complexityEstimate:     complexity,
-      revenueModelHypothesis: revenueModel,
-      opportunityScore:       Math.max(20, (cluster.opportunityScore ?? 50) - i * 5),
-      confidenceScore,
-      generatedBy:            isLead && ollamaSections ? 'ollama' : 'template',
-      status:                 'active',
-      createdAt:              now,
-      updatedAt:              now,
-      // Populate brief fields from template (lead concept only gets Ollama overrides)
-      opportunitySummary:   isLead && ollamaSections?.OPPORTUNITY_SUMMARY ? ollamaSections.OPPORTUNITY_SUMMARY : template.opportunitySummary,
-      problemStatement:     isLead && ollamaSections?.PROBLEM_STATEMENT    ? ollamaSections.PROBLEM_STATEMENT    : template.problemStatement,
-      targetUser:           isLead && ollamaSections?.TARGET_USER           ? ollamaSections.TARGET_USER           : template.targetUser,
-      proposedSolution:     isLead && ollamaSections?.PROPOSED_SOLUTION    ? ollamaSections.PROPOSED_SOLUTION    : template.proposedSolution,
-      valueProp:            isLead && ollamaSections?.VALUE_PROPOSITION    ? ollamaSections.VALUE_PROPOSITION    : template.valueProp,
-      mvpScope:             isLead && ollamaSections?.MVP_SCOPE            ? ollamaSections.MVP_SCOPE            : template.mvpScope,
-      risks:                isLead && ollamaSections?.RISKS                ? ollamaSections.RISKS                : template.risks,
-      implementationPlan:   isLead && ollamaSections?.IMPLEMENTATION_PLAN  ? ollamaSections.IMPLEMENTATION_PLAN  : template.implementationPlan,
-    })
-  }
-
-  return candidates
+  return candidates.slice(0, Math.max(1, count))
 }

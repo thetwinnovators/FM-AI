@@ -50,7 +50,7 @@ export default function OverviewTab({ clusters, signals, concepts, meta, onSelec
               {top.dimensionScores?.confidence != null && (
                 <ConfidenceBadge confidence={top.dimensionScores.confidence} />
               )}
-              <span className="text-2xl font-semibold text-fuchsia-300/90">
+              <span className="text-2xl font-semibold" style={{ color: 'var(--color-topic)' }}>
                 {top.opportunityScore ?? '—'}
               </span>
             </div>

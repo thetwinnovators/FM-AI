@@ -12,10 +12,11 @@ export default function OpportunityRankChart({ opportunities, onSelect, selected
             key={opp.id}
             onClick={() => onSelect?.(opp)}
             className={`w-full text-left group transition-colors rounded-lg px-3 py-2 ${
-              isSelected
-                ? 'bg-fuchsia-500/10 border border-fuchsia-500/30'
-                : 'hover:bg-white/4 border border-transparent'
+              isSelected ? '' : 'hover:bg-white/4'
             }`}
+            style={isSelected
+              ? { background: 'rgba(217,70,239,0.08)', border: '1px solid rgba(217,70,239,0.28)' }
+              : { border: '1px solid transparent' }}
           >
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[12px] font-medium truncate pr-4">{opp.clusterName ?? opp.title}</span>
@@ -25,8 +26,8 @@ export default function OpportunityRankChart({ opportunities, onSelect, selected
             </div>
             <div className="h-1 bg-white/5 rounded-full overflow-hidden">
               <div
-                className="h-full bg-fuchsia-500/60 rounded-full transition-all duration-500"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${pct}%`, backgroundColor: 'rgba(20,184,166,0.6)' }}
               />
             </div>
           </button>

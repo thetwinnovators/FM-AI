@@ -506,9 +506,10 @@ export function collectDimensionDrivers(
     for (const v of (es?.technologies ?? []).slice(0, 2)) {
       drivers.push(entityDriver(v, 'technology', `Tech entanglement: ${v}`, 5))
     }
-    if ((es?.industries?.length ?? 0) > 1) {
+    const industryCount = es?.industries?.length ?? 0
+    if (industryCount > 1) {
       drivers.push(flagDriver('multiIndustry',
-        `${es!.industries!.length} industries — cross-market signal`, 'positive', 20))
+        `${industryCount} industries — cross-market signal`, 'positive', 20))
     }
     if ((['workflow', 'integration'] as string[]).includes(cluster.painTheme)) {
       drivers.push(flagDriver('complexPainType',
@@ -565,8 +566,10 @@ export function scoreOpportunity(
   totalScore:        number
   inferredCategory:  string | null
   dimensionScores:   DimensionScores
+  isBuildable:       boolean
 } {
   const dim = scoreDimensions(cluster, signals)
+  const isBuildable = applyBuildabilityFilter(cluster, signals)
 
   // Market-layer: App Store charts + winning-app database
   const { marketScore: marketLayerScore, inferredCategory } =
@@ -608,6 +611,7 @@ export function scoreOpportunity(
     totalScore,
     inferredCategory,
     dimensionScores: dim,
+    isBuildable,
   }
 }
 

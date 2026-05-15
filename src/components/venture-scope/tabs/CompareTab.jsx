@@ -45,7 +45,7 @@ export default function CompareTab({ clusters }) {
               <th key={c.id} className="text-left py-2 px-3 text-[12px] font-medium min-w-[160px]">
                 <div className="truncate" title={c.clusterName}>{c.clusterName}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-fuchsia-300/80 font-mono text-[11px]">{c.opportunityScore}</span>
+                  <span className="font-mono text-[11px]" style={{ color: 'rgba(217,70,239,0.8)' }}>{c.opportunityScore}</span>
                   {c.dimensionScores?.confidence != null && (
                     <ConfidenceBadge confidence={c.dimensionScores.confidence} />
                   )}
@@ -68,7 +68,7 @@ export default function CompareTab({ clusters }) {
                     <td key={c.id} className="py-2 px-3">
                       <ScoreBar
                         score={score}
-                        color={isWinner ? 'fuchsia' : 'sky'}
+                        color={isWinner ? 'topic' : 'sky'}
                         showValue
                       />
                     </td>

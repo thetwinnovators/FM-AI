@@ -101,7 +101,7 @@ export default function VentureScope() {
           buildabilityScore: result.buildabilityScore,
           inferredCategory:  result.inferredCategory,
           dimensionScores:   result.dimensionScores,
-          isBuildable:       result.dimensionScores.feasibility > 0,
+          isBuildable:       result.isBuildable,
           dimensionDrivers:  drivers,
         }
       })

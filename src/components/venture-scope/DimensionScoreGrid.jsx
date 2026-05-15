@@ -72,7 +72,7 @@ export default function DimensionScoreGrid({ dimensionScores, explanations = [],
             )}
             {dimDrivers?.length > 0 && (
               <div className="mt-1 pl-[124px] flex flex-wrap gap-1 min-h-0">
-                {dimDrivers.slice(0, 3).map((d, i) => <DriverPill key={i} driver={d} />)}
+                {dimDrivers.slice(0, 3).map((d, i) => <DriverPill key={`${d.type}-${d.flagKey ?? d.signalId ?? d.entityValue ?? i}`} driver={d} />)}
                 {dimDrivers.length > 3 && (
                   <span className="text-[10px] text-[color:var(--color-text-tertiary)] self-center">
                     +{dimDrivers.length - 3} more

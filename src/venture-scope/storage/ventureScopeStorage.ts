@@ -78,9 +78,26 @@ export function loadVsConcepts(
 
 export function saveVsConcept(concept: VentureConceptCandidate): void {
   const all = read<VentureConceptCandidate[]>(KEYS.concepts, [])
-  const idx = all.findIndex((c) => c.id === concept.id)
-  if (idx >= 0) {
-    all[idx] = { ...concept, updatedAt: new Date().toISOString() }
+
+  // Primary path: stable ID match — upsert in-place.
+  const byId = all.findIndex((c) => c.id === concept.id)
+  if (byId >= 0) {
+    all[byId] = { ...concept, updatedAt: new Date().toISOString() }
+    write(KEYS.concepts, all)
+    return
+  }
+
+  // Migration path: concept IDs were previously random (Date.now + random).
+  // If a record exists for the same cluster + rank, replace it in-place so old
+  // random-ID records don't accumulate alongside the new stable-ID records.
+  // Skips hard-deleted records (user made an explicit irreversible choice).
+  const byClusterRank = all.findIndex(
+    (c) => c.clusterId === concept.clusterId &&
+           c.rank === concept.rank &&
+           c.status !== 'hard_deleted',
+  )
+  if (byClusterRank >= 0) {
+    all[byClusterRank] = { ...concept, updatedAt: new Date().toISOString() }
   } else {
     all.push(concept)
   }
