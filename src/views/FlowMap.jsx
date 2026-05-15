@@ -129,6 +129,9 @@ export default function FlowMap() {
   const videos   = content.filter((c) => c.type === 'video').length   + userDocs.filter((d) => d.type === 'video').length
   const articles = content.filter((c) => c.type === 'article').length + userDocs.filter((d) => d.type === 'article').length
   const posts    = content.filter((c) => c.type === 'social_post').length + userDocs.filter((d) => d.type === 'social_post').length
+  // Documents & PDFs — uploaded/pasted files (sourceType: upload | ai_summary | web)
+  const docCount = userDocs.length
+  const pdfCount = userDocs.filter((d) => d.mimeType === 'application/pdf').length
   const totalContent = content.length + userDocs.length
 
   const kpis = [
@@ -139,6 +142,7 @@ export default function FlowMap() {
     { label: 'Videos',          value: videos,   live: userDocs.some((d) => d.type === 'video'),        spark: videos   / Math.max(1, totalContent), color: '#ec4899' },
     { label: 'Articles',        value: articles, live: userDocs.some((d) => d.type === 'article'),      spark: articles / Math.max(1, totalContent), color: '#6366f1' },
     { label: 'Posts',           value: posts,    live: userDocs.some((d) => d.type === 'social_post'),  spark: posts    / Math.max(1, totalContent), color: '#8b5cf6' },
+    { label: 'Docs & PDFs',     value: docCount, live: docCount > 0, sub: pdfCount > 0 ? `${pdfCount} PDF${pdfCount !== 1 ? 's' : ''}` : undefined, spark: Math.min(1, docCount / 20), color: '#f97316' },
   ]
 
   const retainCount = savedCount + Object.keys(memoryEntries || {}).length
