@@ -349,7 +349,7 @@ export function collectDimensionDrivers(
   {
     const recencyContrib: 'positive' | 'negative' = ageDays < 90 ? 'positive' : 'negative'
     const recencyLabel = `Last signal ${ageDays.toFixed(0)} days ago`
-    const urgencyTypeMatch = (['speed', 'workflow'] as string[]).includes(cluster.painTheme)
+    const urgencyTypeMatch = (URGENCY_PAIN_TYPES as string[]).includes(cluster.painTheme)
     const drivers: DimensionDriver[] = []
 
     if (isCorpusCluster) {
@@ -450,9 +450,9 @@ export function collectDimensionDrivers(
         `Pain type "${cluster.painTheme}" confirms poor solution fit`, 'positive', 20))
     }
     drivers.push(flagDriver('saturation',
-      isSaturated ? 'Incumbent detected (saturation penalty)' : 'No dominant incumbent',
+      isSaturated ? 'Incumbent detected — misses +20 bonus' : 'No dominant incumbent',
       isSaturated ? 'negative' : 'positive',
-      isSaturated ? -20 : 20,
+      isSaturated ? undefined : 20,
     ))
     map.poorSolutionFit = drivers
   }
