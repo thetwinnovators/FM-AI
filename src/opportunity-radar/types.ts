@@ -66,6 +66,40 @@ export interface EntityGraph {
   updatedAt:     string
 }
 
+// ─── 10-Dimension scoring model ───────────────────────────────────────────────
+
+/**
+ * The 10-dimension opportunity scoring breakdown.
+ * Each dimension is 0–100. Populated by scoreDimensions() and stored on the
+ * cluster after each scan so the UI can surface individual dimension insights.
+ *
+ *   Demand:  painSeverity, frequency, urgency, willingnessToPay
+ *   Market:  marketBreadth, poorSolutionFit
+ *   Supply:  feasibility, whyNow, defensibility, gtmClarity
+ */
+export interface DimensionScores {
+  /** How intense is the reported pain across signals? (intensity avg + high-intensity ratio) */
+  painSeverity:     number
+  /** Signal volume and cross-source breadth. */
+  frequency:        number
+  /** Time-pressure signals: urgency keywords + recency + pain-type bonus. */
+  urgency:          number
+  /** Evidence that people will pay: financial keywords, cost-type pain, existing paid tools. */
+  willingnessToPay: number
+  /** Breadth of affected audience: source diversity + distinct personas + industries. */
+  marketBreadth:    number
+  /** Evidence of inadequate existing solutions: workarounds, workaround pain-type, non-saturation. */
+  poorSolutionFit:  number
+  /** Can a solo/small team build this? Passes buildability filter + tech clarity. */
+  feasibility:      number
+  /** Is the timing right? Recency of signals + AI/automation momentum. */
+  whyNow:           number
+  /** Long-term moat potential: workflow depth, tech entanglement, cross-industry presence. */
+  defensibility:    number
+  /** Clarity of go-to-market: named personas, industry focus, community presence. */
+  gtmClarity:       number
+}
+
 // ─── PainSignal (extended — backward compatible) ──────────────────────────────
 
 export interface PainSignal {
@@ -103,12 +137,14 @@ export interface OpportunityCluster {
   aiValidated?:        boolean        // undefined = not yet evaluated, true = approved, false = rejected
   aiRejectionReason?:  string
   // Market-layer scoring — populated by scoreOpportunity(); undefined until first scored
-  gapScore?:          number          // 0–100; normalised from raw pain signal score
-  marketScore?:       number          // 0–100; from computeMarketScore()
-  buildabilityScore?: number          // 0–100; extends isBuildable boolean with market factors
+  gapScore?:          number          // 0–100; demand-side roll-up (pain severity + urgency + gap + WTP)
+  marketScore?:       number          // 0–100; market-side roll-up (breadth + frequency + chart data)
+  buildabilityScore?: number          // 0–100; supply-side roll-up (feasibility + why-now + defensibility)
   // Three states: undefined = not yet scored, null = scored but no category matched,
   // string = matched category slug (e.g. 'productivity')
   inferredCategory?:  string | null
+  // Schema v1: 10-dimension breakdown (undefined on legacy clusters scored before this upgrade)
+  dimensionScores?: DimensionScores
   // Schema v1: aggregated entity summary for this cluster (undefined on legacy)
   entitySummary?: {
     personas:          string[]   // top persona values seen in cluster signals

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scoreCluster, applyBuildabilityFilter, getTop3, scoreOpportunity } from '../opportunityScorer.js'
+import { scoreCluster, applyBuildabilityFilter, getTop3, scoreOpportunity, scoreDimensions } from '../opportunityScorer.js'
 import type { OpportunityCluster, PainSignal, CategoryChart, WinningApp } from '../../types.js'
 
 function makeCluster(overrides: Partial<OpportunityCluster> = {}): OpportunityCluster {
@@ -133,11 +133,11 @@ describe('scoreOpportunity', () => {
     expect(result.totalScore).toBeLessThanOrEqual(100)
   })
 
-  it('totalScore = Math.round(0.40*market + 0.40*gap + 0.20*buildability)', () => {
+  it('totalScore = Math.round(0.40*gap + 0.40*market + 0.20*buildability)', () => {
     const c = makeCluster()
     const signals = makeSignals(c)
     const result = scoreOpportunity(c, signals, [], [])
-    const expected = Math.round(0.40 * result.marketScore + 0.40 * result.gapScore + 0.20 * result.buildabilityScore)
+    const expected = Math.round(0.40 * result.gapScore + 0.40 * result.marketScore + 0.20 * result.buildabilityScore)
     expect(result.totalScore).toBe(expected)
   })
 
@@ -151,21 +151,99 @@ describe('scoreOpportunity', () => {
     expect(withMarket.marketScore).toBeGreaterThan(withoutMarket.marketScore)
   })
 
-  it('buildabilityScore is 100 for a buildable, non-saturated cluster with paid apps and notes', () => {
-    const c = makeCluster({ termFrequency: { task: 8, todo: 6, organize: 4, plan: 3 } })
-    const signals = makeSignals(c)
-    const apps = [makeWinningApp('productivity')]
-    const result = scoreOpportunity(c, signals, [], apps)
-    expect(result.inferredCategory).toBe('productivity')
-    expect(result.buildabilityScore).toBe(100)
+  it('buildable cluster scores higher buildabilityScore than unbuildable cluster', () => {
+    const buildable   = makeCluster({ termFrequency: { task: 8, todo: 6, organize: 4, plan: 3 } })
+    const unbuildable = makeCluster({ termFrequency: { 'multi-user': 5, admin: 3, oauth: 2 } })
+    const signals     = makeSignals(buildable)
+    const b = scoreOpportunity(buildable,   signals, [], [])
+    const u = scoreOpportunity(unbuildable, signals, [], [])
+    expect(b.buildabilityScore).toBeGreaterThan(u.buildabilityScore)
   })
 
-  it('buildabilityScore loses 35 points for unbuildable cluster', () => {
+  it('unbuildable cluster has feasibility = 0', () => {
     const c = makeCluster({ termFrequency: { 'multi-user': 5, admin: 3, oauth: 2 } })
     const signals = makeSignals(c)
-    const apps = [makeWinningApp('productivity')]
-    const result = scoreOpportunity(c, signals, [], apps)
-    // unbuildable = BUILDABILITY_REGEX matches → loses 35 pts; max = 65
-    expect(result.buildabilityScore).toBeLessThanOrEqual(65)
+    const result = scoreOpportunity(c, signals, [], [])
+    expect(result.dimensionScores.feasibility).toBe(0)
+  })
+
+  it('dimensionScores is present and contains all 10 keys', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const result = scoreOpportunity(c, signals, [], [])
+    expect(result.dimensionScores).toBeDefined()
+    expect(Object.keys(result.dimensionScores)).toHaveLength(10)
+  })
+})
+
+// ── scoreDimensions ───────────────────────────────────────────────────────────
+
+describe('scoreDimensions', () => {
+  it('all 10 dimension scores are between 0 and 100', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const dim = scoreDimensions(c, signals)
+    for (const val of Object.values(dim)) {
+      expect(val).toBeGreaterThanOrEqual(0)
+      expect(val).toBeLessThanOrEqual(100)
+    }
+  })
+
+  it('feasibility is 0 when BUILDABILITY_REGEX matches cluster terms', () => {
+    const c = makeCluster({ termFrequency: { oauth: 5, websocket: 3, 'real-time-collab': 2 } })
+    const signals = makeSignals(c)
+    expect(scoreDimensions(c, signals).feasibility).toBe(0)
+  })
+
+  it('feasibility is > 0 for a cleanly buildable cluster', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    expect(scoreDimensions(c, signals).feasibility).toBeGreaterThan(0)
+  })
+
+  it('urgency is higher for a recent cluster than a 6-month-old one', () => {
+    const recent = makeCluster({ lastDetected: new Date(Date.now() - 2 * 86_400_000).toISOString() })
+    const old    = makeCluster({ lastDetected: new Date(Date.now() - 200 * 86_400_000).toISOString() })
+    const signals = makeSignals(recent)
+    expect(scoreDimensions(recent, signals).urgency).toBeGreaterThan(
+      scoreDimensions(old, makeSignals(old)).urgency,
+    )
+  })
+
+  it('painSeverity increases with higher avgIntensity', () => {
+    const lo = makeCluster({ avgIntensity: 3 })
+    const hi = makeCluster({ avgIntensity: 9 })
+    const signals = makeSignals(lo)
+    expect(scoreDimensions(hi, signals).painSeverity).toBeGreaterThan(
+      scoreDimensions(lo, signals).painSeverity,
+    )
+  })
+
+  it('poorSolutionFit gets a 20-point bonus for workaround pain theme', () => {
+    const workaround = makeCluster({ painTheme: 'workaround' })
+    const cost       = makeCluster({ painTheme: 'cost' })
+    const signals    = makeSignals(workaround)
+    expect(scoreDimensions(workaround, signals).poorSolutionFit).toBeGreaterThan(
+      scoreDimensions(cost, signals).poorSolutionFit,
+    )
+  })
+
+  it('whyNow is boosted by AI-momentum keywords in cluster terms', () => {
+    const aiCluster  = makeCluster({ termFrequency: { llm: 10, ai: 8, automation: 6 } })
+    const noAi       = makeCluster({ termFrequency: { manual: 10, export: 8, report: 6 } })
+    const signals = makeSignals(aiCluster)
+    expect(scoreDimensions(aiCluster, signals).whyNow).toBeGreaterThan(
+      scoreDimensions(noAi, signals).whyNow,
+    )
+  })
+
+  it('frequency grows with signal count and source diversity', () => {
+    const small = makeCluster({ signalCount: 5,  sourceDiversity: 1, signalIds: Array.from({ length: 5 },  (_, i) => `s${i}`) })
+    const large = makeCluster({ signalCount: 40, sourceDiversity: 3, signalIds: Array.from({ length: 40 }, (_, i) => `l${i}`) })
+    const sSmall = makeSignals(small)
+    const sLarge = makeSignals(large)
+    expect(scoreDimensions(large, sLarge).frequency).toBeGreaterThan(
+      scoreDimensions(small, sSmall).frequency,
+    )
   })
 })

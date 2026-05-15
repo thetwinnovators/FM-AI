@@ -79,6 +79,7 @@ export default function OpportunityRadar() {
           marketScore:       scores.marketScore,
           buildabilityScore: scores.buildabilityScore,
           inferredCategory:  scores.inferredCategory,
+          dimensionScores:   scores.dimensionScores,
         }
       })
 
