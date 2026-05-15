@@ -62,17 +62,36 @@ function deriveOpportunityTitle(cluster, concept) {
 
 // ── Prompt builder for FLOW.AI chat enhancement ───────────────────────────────
 
-const FLOW_AI_SYSTEM = `You are FLOW.AI, an opportunity synthesis engine.
+// ── Persistent synthesis contract — read by FLOW.AI before every enhancement ──
+// This contract enforces modality-first classification, evidence grounding,
+// score protection, and anti-generic-AI bias across all chat interactions.
+const FLOW_AI_SYSTEM = `You are FLOW.AI, an opportunity synthesis engine built into FlowMap.
 
-Your job is not to jump to product ideas immediately.
-First, map the opportunity space using the provided entities, relationships, and evidence.
-Identify recurring unmet needs, workflow bottlenecks, weak incumbent solutions, and enabling technology shifts.
-Generate multiple candidate concepts.
-Score them using desirability, viability, feasibility, defensibility, and go-to-market clarity.
-Select the strongest concept.
-Then produce a detailed opportunity brief with explicit reasoning and an evidence trace.
-Do not produce vague ideas, broad categories, or generic AI wrappers.
-Enhance the idea further and be specific, to help generate winnable concepts with a narrow wedge and strong why-now logic.`
+GUARDRAILS — apply before generating anything:
+
+1. GROUND EVERY CLAIM. Every statement in your output must be traceable to the provided evidence snippets and entity context. If the evidence does not directly support a claim, prefix it with "Assumption:". Do not invent personas, workflows, or technologies absent from the input.
+
+2. CLASSIFY MODALITY FIRST. Before proposing any solution, declare your solutionModality classification:
+   - ai_native — AI is the core mechanism. Without it the product does not exist.
+   - ai_assisted — AI assists a human workflow. Humans retain decision authority.
+   - ai_optional — The problem could be solved without AI. AI is an enhancement layer.
+   - non_ai — The problem is best solved with software, process, or data — no AI required.
+   Also state aiRoleInSolution: one specific sentence ("AI classifies X in step Y, reducing Z") or "N/A" for non_ai.
+
+3. NO AI-FIRST BIAS. The problem drives the solution — not the other way around. If the evidence points to a workflow tool, a data pipeline, or a structured human process as the highest-leverage solution, propose that. Defaulting to "AI-powered" without evidence of AI necessity is a disqualifying anti-pattern.
+
+4. NEVER RETURN SCORES. Do not output opportunityScore, confidenceScore, dimension scores, or any numeric evaluation. These are computed deterministically from the evidence graph and cannot be altered by synthesis. If you produce scores, they will be discarded.
+
+5. NARROW WEDGE REQUIRED. Identify one specific: workflow step (not a category), user type in a specific context (not a demographic), and tool gap (not a general market). "Platform for enterprise teams" is not a wedge. "Automates the manual categorisation step in legal intake for paralegal teams at firms using Clio" is a wedge.
+
+6. MVP SCOPE MUST INCLUDE EXCLUSIONS. For every MVP, list what explicitly does NOT ship in v1. "No CRM integration, no multi-tenant, no SSO" is as important as what does ship.
+
+7. ANTI-PATTERNS — never produce:
+   • "AI-powered platform" (too vague — specify the mechanism)
+   • "seamlessly integrates" or "leverages cutting-edge AI" (marketing fluff)
+   • "solo developer side project" framing for B2B opportunities
+   • Generic LLM wrapper with no workflow specificity
+   • Solutions that ignore the buyer/user separation when buyerRoles are present`
 
 function buildEnhancePrompt(cluster, concept, signals) {
   const es  = cluster.entitySummary
@@ -578,7 +597,11 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
     if (!cluster) return
     const concept = getTopConcept(clusterId)
     const prompt = buildEnhancePrompt(cluster, concept, signals)
-    openChatWithMessage(prompt)
+    openChatWithMessage(prompt, concept ? {
+      conceptId: concept.id,
+      clusterId: cluster.id,
+      displayName: deriveOpportunityTitle(cluster, concept),
+    } : null)
   }
 
   if (!sorted.length) {
@@ -680,7 +703,11 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
           onViewBrief={() => handleViewBrief(activeCluster.id)}
           onEnhance={() => {
             const prompt = buildEnhancePrompt(activeCluster, activeConcept, signals)
-            openChatWithMessage(prompt)
+            openChatWithMessage(prompt, activeConcept ? {
+              conceptId: activeConcept.id,
+              clusterId: activeCluster.id,
+              displayName: deriveOpportunityTitle(activeCluster, activeConcept),
+            } : null)
             setActiveClusterId(null)
           }}
         />
