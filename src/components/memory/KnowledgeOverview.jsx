@@ -6,10 +6,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   BookmarkCheck, Brain, FileText, MessageCircle,
-  Play, Search, TrendingUp, Zap, Cpu,
+  Play, RefreshCw, Search, TrendingUp, Zap, Cpu,
 } from 'lucide-react'
 import Pill from '../ui/Pill.jsx'
-import { useStore } from '../../store/useStore.js'
+import { useStore, pullSyncedState, subscribeSyncStatus, syncState } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { loadSignals } from '../../opportunity-radar/storage/radarStorage.js'
 import { OLLAMA_CONFIG, setOllamaModel, setOllamaEnabled, getTokenUsage, getTokenHistory, get7DayUsage } from '../../lib/llm/ollamaConfig.js'
@@ -1136,6 +1136,11 @@ export default function KnowledgeOverview() {
   } = useStore()
   const { contentById, seedMemory } = useSeed()
   const [signals, setSignals] = useState([])
+  const [restoring, setRestoring] = useState(false)
+  const [restoreMsg, setRestoreMsg] = useState(null)
+  const [sync, setSync] = useState(() => ({ ...syncState }))
+
+  useEffect(() => subscribeSyncStatus(() => setSync({ ...syncState })), [])
 
   useEffect(() => {
     try { setSignals(loadSignals()) } catch {}
@@ -1156,8 +1161,61 @@ export default function KnowledgeOverview() {
   const totalMemory   = allMemory.length
   const totalSignals  = signals.length
 
+  // Show a restore prompt when the user's personal data appears missing.
+  // Triggers when: saves + followed-topics + userTopics are all zero but the
+  // disk sync has a lastModified timestamp (meaning a file exists on disk).
+  const looksEmpty    = totalSaved === 0 && Object.keys(userTopics || {}).length === 0
+  const diskHasData   = Boolean(sync.lastModified)
+  const showRestoreHint = looksEmpty && diskHasData && sync.status !== 'offline' && !restoreMsg
+
+  async function handleRestore() {
+    setRestoring(true)
+    setRestoreMsg(null)
+    try {
+      await pullSyncedState()
+      const s = syncState
+      if (s.status === 'synced') {
+        setRestoreMsg({ kind: 'ok', text: 'Data restored from disk.' })
+      } else {
+        setRestoreMsg({ kind: 'err', text: s.error || 'Sync server unreachable — is the Vite dev server running?' })
+      }
+    } catch {
+      setRestoreMsg({ kind: 'err', text: 'Restore failed.' })
+    } finally {
+      setRestoring(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
+
+      {/* ── Missing-data restore banner ──────────────────────────────────── */}
+      {(showRestoreHint || restoreMsg) && (
+        <div className={`flex items-center justify-between gap-4 px-4 py-3 rounded-xl border text-sm fm-fade-up ${
+          restoreMsg?.kind === 'err'
+            ? 'border-amber-500/30 bg-amber-500/5 text-amber-200/90'
+            : restoreMsg?.kind === 'ok'
+              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-200/90'
+              : 'border-sky-500/30 bg-sky-500/8 text-sky-100/80'
+        }`}>
+          <span>
+            {restoreMsg
+              ? restoreMsg.text
+              : 'Your saved data is on disk but not loaded yet in this session.'}
+          </span>
+          {!restoreMsg && (
+            <button
+              onClick={handleRestore}
+              disabled={restoring}
+              className="btn text-xs flex-shrink-0"
+            >
+              {restoring
+                ? <><RefreshCw size={12} className="animate-spin" /> Restoring…</>
+                : <><RefreshCw size={12} /> Restore from disk</>}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Hero line chart ──────────────────────────────────────────────── */}
       <KnowledgeGrowthChart

@@ -1,12 +1,17 @@
-import { useRef, useState } from 'react'
-import { Download, Upload, AlertCircle, Check, Database, ShieldAlert } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Download, Upload, AlertCircle, Check, Database, ShieldAlert, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import { downloadSnapshot, readSnapshotFile, validateSnapshot, summarizeSnapshot, importSnapshotReplace, SNAPSHOT_SCHEMA_VERSION } from '../../lib/snapshot.js'
+import { pullSyncedState, subscribeSyncStatus, syncState } from '../../store/useStore.js'
 import { useConfirm } from '../ui/ConfirmProvider.jsx'
 
 export default function BackupPanel() {
   const fileInputRef = useRef(null)
   const [status, setStatus] = useState(null) // { kind: 'ok' | 'error', message: string }
+  const [pulling, setPulling] = useState(false)
+  const [sync, setSync] = useState(() => ({ ...syncState }))
   const confirm = useConfirm()
+
+  useEffect(() => subscribeSyncStatus(() => setSync({ ...syncState })), [])
 
   function onExport() {
     try {
@@ -54,8 +59,71 @@ export default function BackupPanel() {
     }
   }
 
+  async function onRestoreFromDisk() {
+    setPulling(true)
+    setStatus(null)
+    try {
+      await pullSyncedState()
+      const s = syncState
+      if (s.status === 'synced') {
+        setStatus({ kind: 'ok', message: 'Restored from disk — your data is now up to date.' })
+      } else if (s.status === 'offline') {
+        setStatus({ kind: 'error', message: `Disk sync unavailable: ${s.error || 'server not reachable'}. Is the Vite dev server running?` })
+      }
+    } catch (err) {
+      setStatus({ kind: 'error', message: err?.message || 'Restore failed.' })
+    } finally {
+      setPulling(false)
+    }
+  }
+
+  const syncOk    = sync.status === 'synced' || sync.status === 'pushing'
+  const syncBusy  = sync.status === 'pulling' || sync.status === 'pushing'
+  const syncLabel = sync.status === 'pulling' ? 'Pulling…' : sync.status === 'pushing' ? 'Saving…' : sync.status === 'synced' ? 'Synced' : sync.status === 'offline' ? 'Offline' : 'Idle'
+
   return (
     <div className="space-y-4 max-w-[760px]">
+
+      {/* ── Disk sync / restore ─────────────────────────────────────────── */}
+      <div className="glass-panel p-6">
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            {syncOk
+              ? <Wifi size={18} className="text-emerald-400/80" />
+              : <WifiOff size={18} className="text-amber-400/80" />}
+            <h2 className="text-base font-semibold">Disk sync</h2>
+          </div>
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+            syncOk
+              ? 'text-emerald-300/90 border-emerald-500/30 bg-emerald-500/8'
+              : syncBusy
+                ? 'text-sky-300/90 border-sky-500/30 bg-sky-500/8'
+                : 'text-amber-300/90 border-amber-500/30 bg-amber-500/8'
+          }`}>{syncLabel}</span>
+        </div>
+        <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">
+          While the Vite dev server is running, FlowMap continuously syncs to{' '}
+          <code className="text-[11px] font-mono text-white/60 bg-white/5 px-1 py-0.5 rounded">~/.flowmap/state.json</code>.
+          If your browser session shows missing data, click <strong>Restore from disk</strong> to re-pull that file immediately.
+        </p>
+        <div className="mt-4">
+          <button
+            onClick={onRestoreFromDisk}
+            disabled={pulling}
+            className="btn text-sm"
+          >
+            {pulling
+              ? <><RefreshCw size={13} className="animate-spin" /> Restoring…</>
+              : <><RefreshCw size={13} /> Restore from disk</>}
+          </button>
+          {sync.lastModified ? (
+            <span className="ml-3 text-[11px] text-[color:var(--color-text-tertiary)]">
+              Last synced {new Date(sync.lastModified).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
       <div className="glass-panel p-6">
         <div className="flex items-center gap-2 mb-3">
           <Database size={18} className="text-[color:var(--color-creator)]" />
