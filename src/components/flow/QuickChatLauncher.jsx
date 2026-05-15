@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check, PanelRight, Minimize2 } from 'lucide-react'
+import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check, PanelRight, Minimize2, Zap } from 'lucide-react'
 import { renderInlineText } from '../chat/ChatMessage.jsx'
 import { setChatPanelState } from '../../lib/chatPanelState.js'
+import { loadVsConcepts, saveVsConcept } from '../../venture-scope/storage/ventureScopeStorage.js'
+import { parseConceptUpdate } from '../../venture-scope/utils/parseConceptUpdate.js'
 import { useStore } from '../../store/useStore.js'
 import { useSeed } from '../../store/useSeed.js'
 import { streamChat } from '../../lib/llm/ollama.js'
@@ -42,9 +44,12 @@ export default function QuickChatLauncher() {
   const [availableModels, setAvailableModels] = useState([])
   const [modelPickerOpen, setModelPickerOpen] = useState(false)
   const modelPickerRef = useRef(null)
+  const [conceptTarget, setConceptTarget] = useState(null)  // { conceptId, clusterId, displayName }
+  const [applyStatus, setApplyStatus] = useState(null)      // null | 'success' | 'error'
   const abortRef = useRef(null)
   const daemonToolMapRef = useRef(new Map())
   const pendingInjectRef = useRef(null)   // message injected from another page (VS "Enhance with Flow.AI")
+  const systemOverrideRef = useRef(null) // VS system prompt — replaces FlowMap retrieval pipeline when set
   const sendRef = useRef(null)            // mirror of send() so effects can call it without stale closure
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
@@ -218,7 +223,12 @@ export default function QuickChatLauncher() {
       ...daemonMCPTools.map(daemonToolToMCPShape),
     ]
     const toolBlock = buildToolSystemBlock(mcpTools)
-    const systemMessage = toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage
+    // VS Flow.AI override: skip the FlowMap retrieval system prompt entirely so
+    // the model doesn't receive two competing instruction sets (FlowMap context
+    // vs FLOW.AI synthesis contract). Consume the override — it's single-use.
+    const vsSystemOverride = systemOverrideRef.current
+    if (vsSystemOverride) systemOverrideRef.current = null
+    const systemMessage = vsSystemOverride ?? (toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage)
 
     const llmMessages = [
       { role: 'system', content: systemMessage },
@@ -424,6 +434,8 @@ export default function QuickChatLauncher() {
   useEffect(() => {
     function handleInject(e) {
       pendingInjectRef.current = e.detail?.message ?? ''
+      if (e.detail?.conceptTarget) setConceptTarget(e.detail.conceptTarget)
+      if (e.detail?.systemOverride) systemOverrideRef.current = e.detail.systemOverride
       setOpen(true)
     }
     window.addEventListener('fm-chat-inject', handleInject)
@@ -459,6 +471,33 @@ export default function QuickChatLauncher() {
     document.body.style.userSelect = 'none'
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
+  }
+
+  // Apply the last AI response back to the concept card that triggered the chat
+  async function handleApply() {
+    if (!conceptTarget) return
+    const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant')
+    if (!lastAssistant) return
+    try {
+      const allConcepts = loadVsConcepts({ includeHardDeleted: false })
+      const existing = allConcepts.find((c) => c.id === conceptTarget.conceptId)
+      if (!existing) {
+        setApplyStatus('error')
+        setTimeout(() => setApplyStatus(null), 2000)
+        return
+      }
+      const updated = parseConceptUpdate(lastAssistant.content, existing)
+      saveVsConcept(updated)
+      window.dispatchEvent(new CustomEvent('fm-vs-concept-updated'))
+      setApplyStatus('success')
+      setTimeout(() => {
+        setApplyStatus(null)
+        setConceptTarget(null)
+      }, 2000)
+    } catch {
+      setApplyStatus('error')
+      setTimeout(() => setApplyStatus(null), 2000)
+    }
   }
 
   sendRef.current = send
@@ -648,6 +687,47 @@ export default function QuickChatLauncher() {
           </div>
         ) : null}
       </div>
+
+      {/* ── Apply to concept banner ───────────────────────────────────── */}
+      {conceptTarget && !busy && messages.some((m) => m.role === 'assistant') && (
+        <div className="px-3 pb-1 flex-shrink-0">
+          <div
+            className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg"
+            style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.18)' }}
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Zap size={11} className="text-amber-400/80 flex-shrink-0" />
+              <span className="text-[11px] text-amber-200/80 truncate">
+                Apply to &ldquo;{conceptTarget.displayName}&rdquo;?
+              </span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {applyStatus === 'success' ? (
+                <span className="text-[11px] text-emerald-400 font-medium px-2">✓ Applied</span>
+              ) : applyStatus === 'error' ? (
+                <span className="text-[11px] text-red-400 font-medium px-2">Not found</span>
+              ) : (
+                <button
+                  onClick={handleApply}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors"
+                  style={{ background: 'rgba(251,191,36,0.15)', color: 'rgb(252,211,77)' }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.25)' }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(251,191,36,0.15)' }}
+                >
+                  Apply →
+                </button>
+              )}
+              <button
+                onClick={() => { setConceptTarget(null); setApplyStatus(null) }}
+                className="p-1 rounded-md text-white/25 hover:text-white/55 transition-colors"
+                aria-label="Dismiss"
+              >
+                <X size={11} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <footer className="px-3 py-3 border-t border-white/[0.06] flex flex-col gap-1.5 flex-shrink-0">
         {micError ? (

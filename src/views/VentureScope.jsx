@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { RefreshCw, Telescope } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { RefreshCw, Telescope, Trash2 } from 'lucide-react'
 import { useStore } from '../store/useStore.js'
 import { ingestCorpus } from '../opportunity-radar/services/corpusIngestor.js'
 import { extractSignals } from '../opportunity-radar/services/signalExtractor.js'
@@ -12,11 +12,11 @@ import { buildOpportunityFrame } from '../venture-scope/services/opportunityFram
 // VS uses its own isolated storage — never touches fm_radar_* keys which
 // may contain externally-scraped signals from the old Opportunity Radar.
 import {
-  loadVsSignals, appendVsSignals,
   loadVsClusters, saveVsClusters,
   loadVsConcepts, saveVsConcept,
   loadVsMeta, saveVsMeta,
   loadVsEntityGraph, saveVsEntityGraph,
+  clearVsScanData, clearVsScanDataOnly,
 } from '../venture-scope/storage/ventureScopeStorage.js'
 
 import OverviewTab from '../components/venture-scope/tabs/OverviewTab.jsx'
@@ -39,7 +39,7 @@ export default function VentureScope() {
     briefs:         store.briefs         ?? {},
   }
 
-  const [signals,     setSignals]     = useState(() => loadVsSignals())
+  const [signals,     setSignals]     = useState([])
   const [clusters,    setClusters]    = useState(() => loadVsClusters())
   const [entityGraph, setEntityGraph] = useState(() => loadVsEntityGraph())
   const [vsConcepts,  setVsConcepts]  = useState(() => loadVsConcepts())
@@ -51,6 +51,25 @@ export default function VentureScope() {
   const [selectedClusterId, setSelectedClusterId] = useState(null)
 
   const scanRef = useRef(false)
+
+  const handleResetScanData = useCallback(() => {
+    if (!window.confirm('Clear all scan data (signals, clusters, entity graph)?\nGenerated concepts are preserved.')) return
+    clearVsScanData()
+    setSignals([])
+    setClusters([])
+    setEntityGraph(null)
+    setMeta(null)
+    setScanMsg('Scan data cleared — run a fresh scan to rebuild.')
+  }, [])
+
+  // Refresh concept list when Flow.AI applies an enhancement back to a concept card
+  useEffect(() => {
+    function onConceptUpdated() {
+      setVsConcepts(loadVsConcepts())
+    }
+    window.addEventListener('fm-vs-concept-updated', onConceptUpdated)
+    return () => window.removeEventListener('fm-vs-concept-updated', onConceptUpdated)
+  }, [])
 
   const handleRegenerateConcept = useCallback(async (clusterId) => {
     if (regenerating) return
@@ -80,6 +99,13 @@ export default function VentureScope() {
     setScanMsg('Ingesting corpus…')
 
     try {
+      // Clear stale scan data before every run so localStorage never fills up.
+      // Concepts are preserved — clearVsScanDataOnly() does not touch fm_vs_concepts.
+      clearVsScanDataOnly()
+      setSignals([])
+      setClusters([])
+      setEntityGraph(null)
+
       // Step 1: Ingest corpus — pass the store slice so it reads live state
       const ingestSlice = {
         saves:            store.saves,
@@ -92,14 +118,11 @@ export default function VentureScope() {
       const rawItems = ingestCorpus(ingestSlice)
 
       // Step 2: Convert corpus items to signals.
-      // Corpus signals bypass the intensity-3 threshold (they're curated research,
-      // not raw social posts). All signals here have source='corpus'.
+      // Signals are kept in memory only — not persisted to localStorage.
+      // They're re-derived from the corpus on every scan, so persistence
+      // just wastes storage quota. They live in React state for the session.
       setScanMsg(`Extracting signals from ${rawItems.length} corpus items…`)
-      const newSignals = extractSignals(rawItems, 'corpus_scan')
-
-      // Merge into VS-only signal store (fm_vs_signals) — never touches fm_radar_signals
-      appendVsSignals(newSignals)
-      const allSignals = loadVsSignals()
+      const allSignals = extractSignals(rawItems, 'corpus_scan')
       setSignals(allSignals)
 
       // Step 3: Cluster signals (incremental — preserves existing VS clusters)
@@ -198,6 +221,15 @@ export default function VentureScope() {
           <span className="text-xs text-[color:var(--color-text-tertiary)]">
             Last scan: {lastScanLabel}
           </span>
+          <button
+            onClick={handleResetScanData}
+            disabled={scanning}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-white/10 hover:border-white/20 bg-white/[0.04] hover:bg-white/[0.08] disabled:opacity-40 disabled:cursor-not-allowed text-white/50 hover:text-white/80 text-xs transition-colors"
+            title="Clear signals, clusters and entity graph (concepts preserved)"
+          >
+            <Trash2 className="w-3 h-3" />
+            Reset
+          </button>
           <button
             onClick={runScan}
             disabled={scanning}

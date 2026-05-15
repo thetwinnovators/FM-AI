@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import DimensionScoreGrid from '../DimensionScoreGrid.jsx'
 import ConfidenceBadge from '../ConfidenceBadge.jsx'
 import { buildScoreExplanations } from '../../../opportunity-radar/services/opportunityScorer.js'
+import { formatClusterName } from '../../../venture-scope/utils/formatClusterName.js'
 
 // ── Entity evidence chips ─────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ export default function ScoresTab({ clusters, onSelectCluster, selectedClusterId
                 #{rank + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{cluster.clusterName}</div>
+                <div className="text-sm font-medium truncate">{formatClusterName(cluster.clusterName)}</div>
                 <div className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
                   {cluster.signalCount} signals · {cluster.sourceDiversity} source types
                   {cluster.entitySummary?.personas?.length > 0 && (

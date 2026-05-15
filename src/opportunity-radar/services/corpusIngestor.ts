@@ -19,6 +19,7 @@
 
 import type { RawSearchResult } from './signalExtractor.js'
 import type { CorpusSourceType } from '../types.js'
+import { SEED_CORPUS_ITEMS } from '../../venture-scope/seed/corpusSeedData.js'
 
 // ─── Minimal store-slice types ────────────────────────────────────────────────
 // We only type the fields we actually read; keeps the dependency surface small.
@@ -277,6 +278,23 @@ export function adaptBriefs(
   return out
 }
 
+/** Adapter F: static seed venture briefs bundled with the app.
+ *  These items are NOT in localStorage — they survive resets and quota errors.
+ *  Primary purpose: calibrate signal extraction and clustering with high-quality
+ *  B2B/platform opportunity examples so the pipeline isn't biased toward
+ *  solo-developer personal tools. */
+export function adaptSeedCorpus(): RawSearchResult[] {
+  return SEED_CORPUS_ITEMS.map((item) => ({
+    title:            item.title.slice(0, 200),
+    body:             item.body.slice(0, 3_000),
+    url:              `corpus://seed/${item.id}`,
+    source:           'corpus' as const,
+    publishedAt:      item.publishedAt,
+    corpusSourceId:   item.id,
+    corpusSourceType: 'brief' as CorpusSourceType,
+  }))
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -311,6 +329,8 @@ export function ingestCorpus(storeSlice?: CorpusStoreSlice): RawSearchResult[] {
     ...adaptManualContent(slice.manualContent),
     ...adaptTopicSummaries(slice.topicSummaries),
     ...adaptBriefs(slice.briefs),
+    // Adapter F: static seed briefs — always available, never in localStorage
+    ...adaptSeedCorpus(),
   ]
 
   // Stable-ID dedupe: same content item mapped twice (e.g. save + manualContent) → keep first

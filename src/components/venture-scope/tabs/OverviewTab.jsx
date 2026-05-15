@@ -96,11 +96,10 @@ GUARDRAILS — apply before generating anything:
 function buildEnhancePrompt(cluster, concept, signals) {
   const es  = cluster.entitySummary
   const dim = cluster.dimensionScores
+  // FLOW_AI_SYSTEM is passed separately via openChatWithMessage systemOverride —
+  // NOT embedded here. Embedding it causes QuickChatLauncher to build a competing
+  // FlowMap system prompt, giving the model two conflicting instruction sets.
   const lines = [
-    FLOW_AI_SYSTEM,
-    '',
-    '---',
-    '',
     `OPPORTUNITY: ${deriveOpportunityTitle(cluster, concept)}`,
     `Score: ${cluster.opportunityScore ?? '—'}/100  ·  ${cluster.signalCount ?? 0} signals  ·  ${cluster.sourceDiversity ?? 0} source types`,
     '',
@@ -601,7 +600,7 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
       conceptId: concept.id,
       clusterId: cluster.id,
       displayName: deriveOpportunityTitle(cluster, concept),
-    } : null)
+    } : null, FLOW_AI_SYSTEM)
   }
 
   if (!sorted.length) {
@@ -707,7 +706,7 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
               conceptId: activeConcept.id,
               clusterId: activeCluster.id,
               displayName: deriveOpportunityTitle(activeCluster, activeConcept),
-            } : null)
+            } : null, FLOW_AI_SYSTEM)
             setActiveClusterId(null)
           }}
         />

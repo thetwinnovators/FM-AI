@@ -35,30 +35,83 @@ function updateTermFrequency(
 }
 
 /**
- * Build a human-readable cluster name.
- * When entity data is available, prefer "{persona} × {workflow}" patterns.
- * Falls back to top-3 keyword terms when entities are sparse.
+ * Build a human-readable cluster name as a complete sentence.
+ *
+ * Entity data produces sentence patterns like
+ *   "Developers struggle with AI agent governance"
+ *   "CTOs face tooling friction in legal ops"
+ *
+ * Keyword fallback produces:
+ *   "AI governance compliance is a recurring friction pattern"
+ *
+ * Raw entity values often end with dangling prepositions or incomplete verb
+ * phrases extracted mid-sentence from corpus text. cleanValue() strips those
+ * so the resulting sentence reads naturally.
  */
 function buildClusterName(
   termFrequency: Record<string, number>,
   entitySummary?: OpportunityCluster['entitySummary'],
 ): string {
-  if (entitySummary) {
-    const persona   = entitySummary.personas?.[0]
-    const workflow  = entitySummary.workflows?.[0]
-    const industry  = entitySummary.industries?.[0]
 
-    if (persona && workflow) return `${persona} | ${workflow}`
-    if (workflow && industry) return `${workflow} | ${industry}`
-    if (persona && industry)  return `${persona} | ${industry}`
-    if (workflow)              return workflow
-    if (persona)               return persona
+  /** Remove trailing prepositions, conjunctions, and dangling verb fragments. */
+  function cleanValue(raw: string): string {
+    return raw
+      .trim()
+      // Verb phrases: "appears to be", "seems to be", "is a", "needs to"
+      .replace(/\s+(appears?\s+to\s+be|seems?\s+to\s+be|is\s+(?:a|an|the|not)|needs?\s+to|has\s+to)\s*$/i, '')
+      // Trailing prepositions, conjunctions, articles, aux verbs
+      .replace(/\s+(on|in|to|for|with|by|of|and|or|a|an|the|be|is|are|was|that|which|this|when|where|how)\s*$/i, '')
+      .trim()
   }
-  return Object.entries(termFrequency)
+
+  /** Capitalize first character. */
+  function cap(s: string): string {
+    if (!s) return s
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  }
+
+  /** Pluralize a role noun without producing a double-s. */
+  function pluralRole(noun: string): string {
+    if (!noun) return noun
+    if (/s$/i.test(noun)) return noun   // already plural
+    return noun + 's'
+  }
+
+  if (entitySummary) {
+    const rawPersona  = entitySummary.personas?.[0]
+    const rawWorkflow = entitySummary.workflows?.[0]
+    const rawIndustry = entitySummary.industries?.[0]
+
+    const persona  = rawPersona  ? cleanValue(rawPersona)  : null
+    const workflow = rawWorkflow ? cleanValue(rawWorkflow)  : null
+    const industry = rawIndustry ? cleanValue(rawIndustry)  : null
+
+    if (persona && workflow) {
+      return `${cap(pluralRole(persona))} struggle with ${workflow.toLowerCase()}`
+    }
+    if (workflow && industry) {
+      return `${cap(workflow)} is a tooling gap in ${industry.toLowerCase()}`
+    }
+    if (persona && industry) {
+      return `${cap(pluralRole(persona))} in ${industry} face workflow friction`
+    }
+    if (workflow) {
+      return `${cap(workflow)} is an unmet tooling need`
+    }
+    if (persona) {
+      return `${cap(pluralRole(persona))} face recurring workflow friction`
+    }
+  }
+
+  // Keyword fallback: top-3 terms as a noun phrase
+  const top3 = Object.entries(termFrequency)
     .sort(([, a], [, b]) => b - a)
     .slice(0, 3)
     .map(([term]) => term)
     .join(' ')
+
+  if (!top3) return 'Unclassified opportunity'
+  return `${top3.charAt(0).toUpperCase() + top3.slice(1)} is a recurring friction pattern`
 }
 
 function computeAvgIntensity(signals: PainSignal[], signalIds: string[]): number {

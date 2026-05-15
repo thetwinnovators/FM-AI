@@ -152,20 +152,26 @@ function downloadConceptMd(concept, clusterName) {
   document.body.removeChild(a); URL.revokeObjectURL(url)
 }
 
+// ── Persistent FLOW.AI system prompt for deep regeneration ───────────────────
+// Passed as systemOverride to openChatWithMessage so it goes into the system
+// role — NOT embedded in the user message (which would cause QuickChatLauncher
+// to build a competing FlowMap system prompt alongside it).
+
+const VS_BRIEF_SYSTEM = `You are FLOW.AI, an opportunity synthesis engine built into FlowMap.
+
+GUARDRAILS — apply before generating anything:
+• GROUND EVERY CLAIM. Use only what is present in the concept data below. Prefix invented content with "Assumption:".
+• CLASSIFY MODALITY FIRST. Begin your response with: solutionModality: [ai_native|ai_assisted|ai_optional|non_ai] and aiRoleInSolution: [specific sentence or "N/A"].
+• NO AI-FIRST BIAS. Match the solution to the evidence — not to a default "AI-powered" framing.
+• NEVER RETURN SCORES. Do not output opportunityScore, confidenceScore, or dimension scores.
+• MVP EXCLUSIONS REQUIRED. In your MVP Scope section, include an explicit "What does NOT ship in v1" list.
+• NO GENERIC FLUFF. No "seamlessly integrates", no "cutting-edge AI", no "robust platform".`
+
 // ── Prompt builder — deep concept regeneration via FLOW.AI ────────────────────
 
 function buildRegeneratePrompt(concept) {
   const lines = [
-    `You are FLOW.AI, an opportunity synthesis engine built into FlowMap.`,
-    ``,
-    `GUARDRAILS — apply before generating anything:`,
-    `• GROUND EVERY CLAIM. Use only what is present in the concept data below. Prefix invented content with "Assumption:".`,
-    `• CLASSIFY MODALITY FIRST. Begin your response with: solutionModality: [ai_native|ai_assisted|ai_optional|non_ai] and aiRoleInSolution: [specific sentence or "N/A"].`,
-    `• NO AI-FIRST BIAS. Match the solution to the evidence — not to a default "AI-powered" framing.`,
-    `• NEVER RETURN SCORES. Do not output opportunityScore, confidenceScore, or dimension scores.`,
-    `• MVP EXCLUSIONS REQUIRED. In your MVP Scope section, include an explicit "What does NOT ship in v1" list.`,
-    `• NO GENERIC FLUFF. No "seamlessly integrates", no "cutting-edge AI", no "robust platform".`,
-    ``,
+    // VS_BRIEF_SYSTEM is passed separately as systemOverride — NOT here.
     `Below is a venture concept from FlowMap Venture Scope. Significantly expand and enhance it by reasoning through each workflow dimension. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling that strengthen and differentiate the concept.`,
     ``,
     `For each dimension below, provide specific, actionable enhancements:`,
@@ -480,7 +486,7 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
       conceptId: concept.id,
       clusterId: concept.clusterId,
       displayName: concept.title,
-    })
+    }, VS_BRIEF_SYSTEM)
     onClose()
   }, [concept, onClose])
 
@@ -794,7 +800,7 @@ export default function BriefTab({
                 conceptId: c.id,
                 clusterId: c.clusterId,
                 displayName: c.title,
-              })}
+              }, VS_BRIEF_SYSTEM)}
             />
           ))}
         </div>

@@ -23,6 +23,11 @@ export function subscribeChatPanel(fn) {
 
 // Dispatch an injected message that QuickChatLauncher will pick up,
 // open the panel, and auto-send.
-export function openChatWithMessage(text) {
-  window.dispatchEvent(new CustomEvent('fm-chat-inject', { detail: { message: text } }))
+// conceptTarget: optional { conceptId, clusterId, displayName } — when provided,
+// the chat panel shows an "Apply to card" banner after the AI responds.
+// systemOverride: optional string — when provided, replaces the FlowMap retrieval
+// system prompt entirely. Used by Venture Scope (FLOW.AI) to pass its own
+// synthesis contract so the model doesn't get two competing instruction sets.
+export function openChatWithMessage(text, conceptTarget = null, systemOverride = null) {
+  window.dispatchEvent(new CustomEvent('fm-chat-inject', { detail: { message: text, conceptTarget, systemOverride } }))
 }

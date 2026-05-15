@@ -1,3 +1,5 @@
+import { formatClusterName } from '../../venture-scope/utils/formatClusterName.js'
+
 // Horizontal bar chart ranking multiple opportunities by composite score.
 export default function OpportunityRankChart({ opportunities, onSelect, selectedId }) {
   if (!opportunities?.length) return null
@@ -19,7 +21,7 @@ export default function OpportunityRankChart({ opportunities, onSelect, selected
               : { border: '1px solid transparent' }}
           >
             <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[12px] font-medium truncate pr-4">{opp.clusterName ?? opp.title}</span>
+              <span className="text-[12px] font-medium truncate pr-4">{formatClusterName(opp.clusterName) || opp.title}</span>
               <span className="text-[11px] font-mono text-[color:var(--color-text-tertiary)] shrink-0">
                 {opp.opportunityScore ?? 0}
               </span>

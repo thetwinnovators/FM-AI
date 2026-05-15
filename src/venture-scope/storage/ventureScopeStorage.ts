@@ -23,7 +23,47 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value))
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (err: unknown) {
+    // QuotaExceededError — rethrow with a clear message so the scan UI shows
+    // something actionable rather than the raw DOMException.
+    if (err instanceof DOMException && (
+      err.name === 'QuotaExceededError' ||
+      err.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+      err.code === 22
+    )) {
+      throw new Error(
+        'Storage full — click "Reset" in the header to clear old scan data, then run the scan again.',
+      )
+    }
+    throw err
+  }
+}
+
+/** Maximum number of signals to keep in localStorage.
+ *  Keeps the highest-intensity signals to stay within browser storage limits. */
+const MAX_VS_SIGNALS = 200
+
+/** Strip heavy text fields from a signal before persisting.
+ *  Only the fields actually read after the scan are kept.
+ *  painText is truncated to 280 chars — enough for evidence display. */
+function slimSignal(s: PainSignal): PainSignal {
+  return {
+    id:               s.id,
+    source:           s.source,
+    sourceUrl:        s.sourceUrl,
+    painText:         (s.painText ?? '').slice(0, 280),
+    painPoint:        s.painPoint ? (s.painPoint as string).slice(0, 200) : s.painPoint,
+    intensityScore:   s.intensityScore,
+    detectedAt:       s.detectedAt,
+    corpusSourceId:   s.corpusSourceId,
+    corpusSourceType: s.corpusSourceType,
+    corpusTopicId:    s.corpusTopicId,
+    documentId:       (s as Record<string, unknown>).documentId as string | undefined,
+    entities:         s.entities,
+    // intentionally dropped: rawText, content, author, body, summary
+  } as PainSignal
 }
 
 // ── Signals (corpus-only) ─────────────────────────────────────────────────────
@@ -39,12 +79,25 @@ export function saveVsSignals(signals: PainSignal[]): void {
   write(KEYS.signals, signals)
 }
 
-/** Append new signals, deduplicating by id. */
+/** Append new signals, deduplicating by id.
+ *  Each signal is slimmed (heavy text fields stripped/truncated) and the
+ *  merged set is capped to MAX_VS_SIGNALS highest-intensity signals so
+ *  repeated scans on large corpora never overflow localStorage. */
 export function appendVsSignals(incoming: PainSignal[]): void {
   const existing = loadVsSignals()
   const seen = new Set(existing.map((s) => s.id))
-  const merged = [...existing, ...incoming.filter((s) => !seen.has(s.id))]
-  write(KEYS.signals, merged)
+  const merged = [
+    ...existing,
+    ...incoming.filter((s) => !seen.has(s.id)).map(slimSignal),
+  ]
+
+  const pruned = merged.length > MAX_VS_SIGNALS
+    ? [...merged]
+        .sort((a, b) => (b.intensityScore ?? 0) - (a.intensityScore ?? 0))
+        .slice(0, MAX_VS_SIGNALS)
+    : merged
+
+  write(KEYS.signals, pruned)
 }
 
 // ── Clusters (corpus-only) ────────────────────────────────────────────────────
@@ -150,15 +203,27 @@ export function saveVsMeta(meta: VentureScanMeta): void {
   write(KEYS.meta, meta)
 }
 
-// ── Reset (scan data only — never wipes archived/saved concepts) ──────────────
+// ── Reset ─────────────────────────────────────────────────────────────────────
 
+/** Wipe clusters, entity graph AND non-archived concepts.
+ *  Called from the manual "Reset" button.
+ *  Signals are memory-only so no localStorage entry to clear. */
 export function clearVsScanData(): void {
-  // Wipe signals, clusters, entity graph (all re-derived from corpus on next scan)
-  write(KEYS.signals, [])
+  try { localStorage.removeItem(KEYS.signals) } catch {} // remove legacy key if present
   write(KEYS.clusters, [])
   write(KEYS.entityGraph, EMPTY_GRAPH)
   // Only remove non-archived auto-generated concepts; archived ones are user-preserved
   const all = read<VentureConceptCandidate[]>(KEYS.concepts, [])
   const preserved = all.filter((c) => c.status === 'archived')
   write(KEYS.concepts, preserved)
+}
+
+/** Wipe clusters and entity graph — but keep ALL concepts intact.
+ *  Signals are never persisted (memory-only), so no need to clear them.
+ *  Called automatically at the start of every scan. */
+export function clearVsScanDataOnly(): void {
+  // Remove any legacy fm_vs_signals key left from before this change
+  try { localStorage.removeItem(KEYS.signals) } catch {}
+  write(KEYS.clusters, [])
+  write(KEYS.entityGraph, EMPTY_GRAPH)
 }

@@ -9,6 +9,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "ship": "vite build && vite preview",
     "test": "vitest",
     "test:run": "vitest run",
     "daemon": "cd daemon && npm start",
