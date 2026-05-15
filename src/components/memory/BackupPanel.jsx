@@ -63,7 +63,7 @@ export default function BackupPanel() {
     setPulling(true)
     setStatus(null)
     try {
-      await pullSyncedState()
+      await pullSyncedState(true)
       const s = syncState
       if (s.status === 'synced') {
         setStatus({ kind: 'ok', message: 'Restored from disk — your data is now up to date.' })

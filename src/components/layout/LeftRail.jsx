@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass,
-  Plug, Activity, Radar, GraduationCap, Code2,
+  Plug, Activity, GraduationCap, Code2,
   TrendingUp, Globe, ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -14,7 +14,6 @@ const NAV_GROUPS = [
   [
     { to: '/discover', label: 'Discover',          icon: Compass         },
     { to: '/signals',  label: 'Latest Signals',    icon: Activity        },
-    { to: '/radar',    label: 'Opportunity Radar', icon: Radar           },
   ],
   [
     { to: '/topics',    label: 'My Topics',    icon: BookOpen  },

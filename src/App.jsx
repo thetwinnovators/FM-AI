@@ -29,7 +29,6 @@ const Documents              = lazy(() => import('./views/Documents.jsx'))
 const Document               = lazy(() => import('./views/Document.jsx'))
 const Chat                   = lazy(() => import('./views/Chat.jsx'))
 const Signals                = lazy(() => import('./views/Signals.jsx'))
-const OpportunityRadar       = lazy(() => import('./views/OpportunityRadar.jsx'))
 const MCPIntegrationsPage    = lazy(() => import('./mcp/pages/MCPIntegrationsPage.jsx'))
 const MCPIntegrationDetailPage = lazy(() => import('./mcp/pages/MCPIntegrationDetailPage.jsx'))
 const MCPToolCatalogPage     = lazy(() => import('./mcp/pages/MCPToolCatalogPage.jsx'))
@@ -72,7 +71,6 @@ function AnimatedRoutes({ isWorkspace }) {
           <Route path="/flow"                          element={<FlowMap />} />
           <Route path="/discover"                      element={<Discover />} />
           <Route path="/signals"                       element={<Signals />} />
-          <Route path="/radar"                         element={<OpportunityRadar />} />
           <Route path="/search"                        element={<Search />} />
           <Route path="/topics"                        element={<Topics />} />
           <Route path="/topic/:slug"                   element={<Topic />} />

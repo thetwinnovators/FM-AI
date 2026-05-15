@@ -1172,7 +1172,7 @@ export default function KnowledgeOverview() {
     setRestoring(true)
     setRestoreMsg(null)
     try {
-      await pullSyncedState()
+      await pullSyncedState(true)
       const s = syncState
       if (s.status === 'synced') {
         setRestoreMsg({ kind: 'ok', text: 'Data restored from disk.' })

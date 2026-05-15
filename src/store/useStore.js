@@ -140,17 +140,31 @@ function looksLikeFlowMapState(obj) {
 
 // Pull from disk and replace memoryState if the file is newer than our last
 // pull. Used on app mount and on window focus so cross-browser changes propagate.
+//
+// Pass force=true to bypass the lastPulledModified timestamp guard and always
+// apply disk data regardless. Used by the manual "Restore from disk" button
+// and on startup when local state appears empty while disk has content.
 let lastPulledModified = 0
 let pullInFlight = null
-export async function pullSyncedState() {
+export async function pullSyncedState(force = false) {
   if (pullInFlight) return pullInFlight
   setSyncStatus({ status: 'pulling', error: null })
   pullInFlight = (async () => {
     const res = await pullFromDisk()
     if (res?.exists && looksLikeFlowMapState(res.data)) {
-      // Only replace if the file is newer than what we already pulled —
-      // avoids fighting our own freshly-pushed state.
-      if (res.lastModified > lastPulledModified) {
+      // Force-pull when: (a) caller explicitly requests it, (b) local state
+      // looks empty while disk clearly has content, or (c) file is newer.
+      // Case (b) catches the most common data-loss symptom: localStorage was
+      // cleared/expired while ~/.flowmap/state.json still holds the full state.
+      const localIsEmpty =
+        Object.keys(memoryState.saves       || {}).length === 0 &&
+        Object.keys(memoryState.userTopics  || {}).length === 0 &&
+        Object.keys(memoryState.documents   || {}).length === 0
+      const diskHasContent =
+        Object.keys((res.data).saves       || {}).length > 0 ||
+        Object.keys((res.data).userTopics  || {}).length > 0 ||
+        Object.keys((res.data).documents   || {}).length > 0
+      if (force || (localIsEmpty && diskHasContent) || res.lastModified > lastPulledModified) {
         lastPulledModified = res.lastModified
         memoryState = { ...EMPTY, ...res.data }
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(memoryState)) } catch {}
@@ -220,7 +234,15 @@ let syncInitialized = false
 function initSync() {
   if (syncInitialized) return
   syncInitialized = true
-  pullSyncedState()
+
+  // Initial pull — retry once after 2 s if the Vite server wasn't ready yet.
+  // The force=true on retry ensures data is applied even if lastPulledModified
+  // was set by a previous session's stale mtime cached in the module scope.
+  pullSyncedState().then(() => {
+    if (syncState.status === 'offline') {
+      setTimeout(() => pullSyncedState(true), 2000)
+    }
+  })
 
   // Pull (and push if previously offline) on tab focus / visibility restore.
   // The push here catches any writes that failed while the Vite server was
