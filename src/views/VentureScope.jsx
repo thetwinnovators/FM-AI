@@ -281,13 +281,9 @@ export default function VentureScope() {
         )}
         {activeTab === 'Brief' && (
           <BriefTab
-            concept={leadingConcept}
-            candidates={clusterCandidates}
-            onSelectCandidate={setSelectedCandidate}
+            concepts={vsConcepts}
+            clusters={clusters}
             storeSlice={storeSlice}
-            selectedCluster={selectedCluster}
-            entityGraph={entityGraph}
-            allSignals={signals}
             onRegenerateConcept={handleRegenerateConcept}
             isRegenerating={regenerating}
           />
