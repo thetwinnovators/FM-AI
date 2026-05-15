@@ -10,6 +10,7 @@ const _FIELDS_EXHAUSTIVE: { [K in keyof VentureScopeLLMOutput]: true } = {
   buyerVsUser: true, currentAlternatives: true, existingWorkarounds: true,
   keyAssumptions: true, successMetrics: true, pricingHypothesis: true,
   defensibility: true, goToMarketAngle: true, mvpScope: true, risks: true,
+  solutionModality: true, aiRoleInSolution: true,
 }
 const REQUIRED_FIELDS = Object.keys(_FIELDS_EXHAUSTIVE) as Array<keyof VentureScopeLLMOutput>
 
@@ -28,8 +29,12 @@ const SUPPLEMENTARY_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
   'buyerVsUser', 'currentAlternatives', 'existingWorkarounds',
   'keyAssumptions', 'successMetrics', 'pricingHypothesis',
   'defensibility', 'goToMarketAngle', 'mvpScope', 'risks',
+  'solutionModality', 'aiRoleInSolution',
 ]
 const SUPPLEMENTARY_FALLBACK = '—'
+// Typed fallbacks for guardrail fields — more meaningful than '—'
+const MODALITY_FALLBACK = 'ai_optional'   // safe default: AI is optional
+const AI_ROLE_FALLBACK  = 'N/A'           // no specific AI role identified
 
 // ── Parser ────────────────────────────────────────────────────────────────────
 
@@ -55,6 +60,25 @@ export function parseVentureScopeLLMOutput(
 
   const obj = raw as Record<string, unknown>
 
+  // ── Score protection ──────────────────────────────────────────────────────
+  // Opportunity scores, confidence, and dimension scores are computed
+  // deterministically from the evidence graph. If the LLM hallucinated any
+  // score-like fields, strip them before validation so they never pollute
+  // the deterministic record.
+  const SCORE_KEYS = [
+    'opportunityScore', 'confidenceScore', 'score', 'rank',
+    'painSeverity', 'frequency', 'urgency', 'willingnessToPay',
+    'marketBreadth', 'poorSolutionFit', 'feasibility',
+    'whyNow_score', 'defensibility_score', 'gtmClarity',
+    'dimensionScores',
+  ] as const
+  for (const key of SCORE_KEYS) {
+    if (key in obj) {
+      console.warn('[VS-LLM] Score protection: stripping LLM-returned score field:', key)
+      delete obj[key]
+    }
+  }
+
   // Core fields — hard reject if any are missing
   for (const field of CORE_FIELDS) {
     const val = obj[field]
@@ -68,9 +92,16 @@ export function parseVentureScopeLLMOutput(
   let supplementaryMissing = 0
   for (const field of SUPPLEMENTARY_FIELDS) {
     const val = obj[field]
-    if (typeof val !== 'string' || val.trim().length === 0) {
+    const isEmpty = typeof val !== 'string' || val.trim().length === 0
+    if (isEmpty) {
       console.warn('[VS-LLM] parseVentureScopeLLMOutput: missing supplementary field (using fallback):', field)
-      obj[field] = SUPPLEMENTARY_FALLBACK
+      if (field === 'solutionModality') {
+        obj[field] = MODALITY_FALLBACK
+      } else if (field === 'aiRoleInSolution') {
+        obj[field] = AI_ROLE_FALLBACK
+      } else {
+        obj[field] = SUPPLEMENTARY_FALLBACK
+      }
       supplementaryMissing++
     }
   }
@@ -133,6 +164,12 @@ export function validateLLMOutput(
         break  // one warning per field, avoid duplicate entries
       }
     }
+  }
+
+  // solutionModality must be one of the four valid literals
+  const VALID_MODALITIES = new Set(['ai_native', 'ai_assisted', 'ai_optional', 'non_ai'])
+  if (!VALID_MODALITIES.has(output.solutionModality)) {
+    warnings.push(`solutionModality "${output.solutionModality}" is not a valid value — expected ai_native | ai_assisted | ai_optional | non_ai`)
   }
 
   // Internal ID leak check — cluster IDs must never appear in narrative text
