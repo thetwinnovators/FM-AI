@@ -39,10 +39,11 @@ const PAPER_CARD = {
 
 // ── Angle config ──────────────────────────────────────────────────────────────
 
+// color: text/border hue  |  bg: pill fill (low opacity for readability on dark glass)
 const ANGLE_CONFIG = {
-  persona_first:         { label: 'Persona-First'  },
-  workflow_first:        { label: 'Workflow-First'  },
-  technology_enablement: { label: 'Tech Enablement' },
+  persona_first:         { label: 'Persona-First',  color: '#d946ef', bg: 'rgba(217,70,239,0.10)'  }, // --color-topic purple
+  workflow_first:        { label: 'Workflow-First',  color: '#14b8a6', bg: 'rgba(20,184,166,0.10)'  }, // --color-creator teal
+  technology_enablement: { label: 'Tech Enablement', color: '#f59e0b', bg: 'rgba(245,158,11,0.10)'  }, // amber — matches CompareTab gold
 }
 
 const GENERATED_BY_LABELS = {
@@ -154,9 +155,17 @@ function downloadConceptMd(concept, clusterName) {
 
 function buildRegeneratePrompt(concept) {
   const lines = [
-    `You are FLOW.AI, an opportunity synthesis engine.`,
+    `You are FLOW.AI, an opportunity synthesis engine built into FlowMap.`,
     ``,
-    `Below is a venture concept from FlowMap Venture Scope. Your task is to significantly expand and enhance this concept by reasoning through it from multiple angles. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling that would strengthen and differentiate this concept.`,
+    `GUARDRAILS — apply before generating anything:`,
+    `• GROUND EVERY CLAIM. Use only what is present in the concept data below. Prefix invented content with "Assumption:".`,
+    `• CLASSIFY MODALITY FIRST. Begin your response with: solutionModality: [ai_native|ai_assisted|ai_optional|non_ai] and aiRoleInSolution: [specific sentence or "N/A"].`,
+    `• NO AI-FIRST BIAS. Match the solution to the evidence — not to a default "AI-powered" framing.`,
+    `• NEVER RETURN SCORES. Do not output opportunityScore, confidenceScore, or dimension scores.`,
+    `• MVP EXCLUSIONS REQUIRED. In your MVP Scope section, include an explicit "What does NOT ship in v1" list.`,
+    `• NO GENERIC FLUFF. No "seamlessly integrates", no "cutting-edge AI", no "robust platform".`,
+    ``,
+    `Below is a venture concept from FlowMap Venture Scope. Significantly expand and enhance it by reasoning through each workflow dimension. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling that strengthen and differentiate the concept.`,
     ``,
     `For each dimension below, provide specific, actionable enhancements:`,
     ``,
@@ -177,10 +186,11 @@ function buildRegeneratePrompt(concept) {
     `METRICS OF SUCCESS — How will the user know this is working? List leading indicators, lagging indicators, and the single north star metric.`,
     ``,
     `After working through each dimension, synthesise into an enhanced venture brief with:`,
-    `- A sharpened problem statement (specific, not broad)`,
-    `- A concrete proposed solution (narrow wedge, not a platform)`,
-    `- A realistic MVP scope (what ships in 6 weeks)`,
-    `- A reinforced "why now" grounded in specific enabling technology shifts`,
+    `- A sharpened problem statement (specific, not broad — name the exact failure point)`,
+    `- A concrete proposed solution (narrow wedge: one step, one persona, one tool gap)`,
+    `- A realistic MVP scope: what ships in 6 weeks AND a "What does NOT ship in v1" exclusions list`,
+    `- A reinforced "why now" grounded in a specific enabling technology shift or regulatory change`,
+    `- A solutionModality declaration and aiRoleInSolution statement (see guardrails above)`,
     ``,
     `---`,
     ``,
@@ -213,7 +223,14 @@ function buildRegeneratePrompt(concept) {
 function AnglePill({ angleType }) {
   const cfg = ANGLE_CONFIG[angleType] ?? ANGLE_CONFIG.persona_first
   return (
-    <span className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0 bg-white/[0.06] border border-white/[0.12] text-[color:var(--color-text-secondary)]">
+    <span
+      className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+      style={{
+        color:           cfg.color,
+        background:      cfg.bg,
+        border:          `1px solid ${cfg.color}40`,   // 25% opacity border
+      }}
+    >
       {cfg.label}
     </span>
   )
@@ -434,7 +451,11 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
   }, [onClose])
 
   const handleEnhance = useCallback(() => {
-    openChatWithMessage(buildRegeneratePrompt(concept))
+    openChatWithMessage(buildRegeneratePrompt(concept), {
+      conceptId: concept.id,
+      clusterId: concept.clusterId,
+      displayName: concept.title,
+    })
     onClose()
   }, [concept, onClose])
 
@@ -704,7 +725,11 @@ export default function BriefTab({
               concept={c}
               clusterName={lookupCluster(c.clusterId)}
               onClick={() => setActiveConcept(c)}
-              onRegenerate={() => openChatWithMessage(buildRegeneratePrompt(c))}
+              onRegenerate={() => openChatWithMessage(buildRegeneratePrompt(c), {
+                conceptId: c.id,
+                clusterId: c.clusterId,
+                displayName: c.title,
+              })}
             />
           ))}
         </div>
