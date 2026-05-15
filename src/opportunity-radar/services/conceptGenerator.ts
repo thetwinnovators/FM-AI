@@ -3,8 +3,11 @@ import type {
   VentureConceptCandidate,
   EvidenceTraceEntry,
   OpportunityFrame,
+  VentureScopeLLMOutput,
 } from '../../venture-scope/types.js'
-import { generateResponse } from '../../lib/llm/ollama.js'
+import { generateResponse, chatJson } from '../../lib/llm/ollama.js'
+import { buildVentureScopeLLMInput } from '../../venture-scope/services/llmInputBuilder.js'
+import { parseVentureScopeLLMOutput, validateLLMOutput } from '../../venture-scope/services/llmOutputParser.js'
 
 // ── Section parser ────────────────────────────────────────────────────────────
 
@@ -510,75 +513,82 @@ function buildEvidenceTrace(
   }))
 }
 
-// ── Graph-structured Ollama prompt ────────────────────────────────────────────
+// ── Graph-structured Ollama prompt (JSON-mode contract) ───────────────────────
+//
+// Replaces the legacy markdown-section format:
+//   OLD: generateResponse() → parseSections() → Partial<Record<SectionKey, string>>
+//   NEW: chatJson() → parseVentureScopeLLMOutput() → VentureScopeLLMOutput | null
+//
+// Input packet is built deterministically — no raw IDs or signal text reach the
+// model. Returns null on any failure → callers use deterministic template values.
 
 async function generateWithOllamaFrame(
   frame: OpportunityFrame,
   angleType: 'persona_first' | 'workflow_first' | 'technology_enablement',
   coreWedge: string,
-): Promise<Partial<Record<SectionKey, string>> | null> {
-  const {
-    cluster, signals,
-    personas, workflows, workarounds, technologies,
-    bottlenecks, platformShifts, emergingTech, existingSolutions, industries,
-  } = frame
-
-  const angleLabel = {
-    persona_first:         "Persona-First — who has this problem, what breaks in their workflow",
-    workflow_first:        "Workflow-First — what process is broken and where it specifically fails",
-    technology_enablement: "Technology-Enablement — what new capability makes this solvable now",
-  }[angleType]
-
-  // Evidence lines: prefer signals with corpus lineage and a meaningful snippet
-  const evidenceLines = signals
-    .filter((s) => s.corpusSourceId && s.painText.length > 40)
-    .slice(0, 5)
-    .map(
-      (s, i) =>
-        `${i + 1}. "${s.painText.slice(0, 200)}" [${s.corpusSourceType ?? 'corpus'}: ${s.corpusSourceId}]`,
-    )
-    .join('\n')
-
-  const lines: string[] = [
-    `You are a venture intelligence analyst. Generate a focused venture brief from this structured opportunity frame.`,
-    ``,
-    `ANALYSIS LENS: ${angleLabel}`,
-    `CLUSTER: "${cluster.clusterName}"`,
-    `PROPOSED WEDGE: "${coreWedge}"`,
-    ``,
-    `GRAPH CONTEXT (derived from user's research corpus):`,
-  ]
-
-  if (personas.length)          lines.push(`Personas affected: ${personas.slice(0, 3).map((e) => e.value).join(', ')}`)
-  if (workflows.length)         lines.push(`Workflows involved: ${workflows.slice(0, 3).map((e) => e.value).join(', ')}`)
-  if (workarounds.length)       lines.push(`Current workarounds: ${workarounds.slice(0, 2).map((e) => e.value).join(', ')}`)
-  if (bottlenecks.length)       lines.push(`Bottlenecks identified: ${bottlenecks.slice(0, 2).map((e) => e.value).join(', ')}`)
-  if ([...emergingTech, ...platformShifts].length)
-    lines.push(`Platform / technology shifts: ${[...emergingTech, ...platformShifts].slice(0, 2).map((e) => e.value).join(', ')}`)
-  if (technologies.length)      lines.push(`Technologies in context: ${technologies.slice(0, 3).map((e) => e.value).join(', ')}`)
-  if (existingSolutions.length) lines.push(`Existing solutions with gaps: ${existingSolutions.slice(0, 2).map((e) => e.value).join(', ')}`)
-  if (industries.length)        lines.push(`Industries: ${industries.slice(0, 2).map((e) => e.value).join(', ')}`)
-
-  lines.push(
-    ``,
-    `SOURCE EVIDENCE (from user's research corpus):`,
-    evidenceLines || '(corpus lineage not available for these signals)',
-    ``,
-    `Return EXACTLY these sections in this order. No extra sections. No skipped sections.`,
-    `## OPPORTUNITY_SUMMARY`,
-    `## PROBLEM_STATEMENT`,
-    `## TARGET_USER`,
-    `## PROPOSED_SOLUTION`,
-    `## VALUE_PROPOSITION`,
-    `## MVP_SCOPE`,
-    `## RISKS`,
-    `## IMPLEMENTATION_PLAN`,
+): Promise<VentureScopeLLMOutput | null> {
+  const input = buildVentureScopeLLMInput(
+    frame.cluster,
+    frame,
+    coreWedge,
+    angleType,
   )
 
+  const systemPrompt =
+    `You are a venture intelligence analyst. You receive a structured opportunity frame as JSON ` +
+    `and return a venture brief as JSON.\n\n` +
+    `STRICT RULES — enforce in every field:\n` +
+    `1. Reference ONLY entity values listed in graphContext — do not invent personas, tools, workflows, or companies\n` +
+    `2. Ground every claim in the evidenceSnippets provided — do not invent user behaviours or quotes\n` +
+    `3. Do not use generic filler: no "AI can solve this", no "cutting-edge technology", no "seamlessly integrate"\n` +
+    `4. Every field must be specific to THIS opportunity — not a generic startup template\n` +
+    `5. Return ONLY valid JSON — no markdown wrapper, no prose outside the JSON object\n\n` +
+    `REQUIRED OUTPUT SCHEMA (all fields required, all strings, none empty):\n` +
+    `{\n` +
+    `  "title": "3-8 words",\n` +
+    `  "tagline": "one sentence — the product's core promise",\n` +
+    `  "opportunitySummary": "2-3 sentences — what is the opportunity and why it matters",\n` +
+    `  "problemStatement": "2-3 sentences — what is broken, who is affected, and how badly",\n` +
+    `  "targetUser": "1-2 sentences — specific persona and context from graphContext",\n` +
+    `  "proposedSolution": "2-3 sentences — what to build and what workaround it replaces",\n` +
+    `  "valueProp": "1-2 sentences — measurable benefit to the user",\n` +
+    `  "whyNow": "1-2 sentences — timing argument grounded in the evidence",\n` +
+    `  "buyerVsUser": "1-2 sentences — who pays vs who uses this tool",\n` +
+    `  "currentAlternatives": "1-2 sentences — what exists today and where it falls short",\n` +
+    `  "existingWorkarounds": "1 sentence — how people cope with the problem right now",\n` +
+    `  "keyAssumptions": "2-3 bullet points starting with dashes",\n` +
+    `  "successMetrics": "2-3 bullet points starting with dashes",\n` +
+    `  "pricingHypothesis": "1-2 sentences — pricing model and rationale",\n` +
+    `  "defensibility": "1-2 sentences — why this is hard to copy once traction exists",\n` +
+    `  "goToMarketAngle": "1-2 sentences — first customers and acquisition channel",\n` +
+    `  "mvpScope": "2-3 sentences — what to build in v1 and what to exclude",\n` +
+    `  "risks": "2-3 sentences — the most likely failure modes"\n` +
+    `}`
+
   try {
-    const response = await generateResponse(lines.join('\n'), { temperature: 0.6 })
-    if (!response || typeof response !== 'string') return null
-    return parseSections(response)
+    const raw = await chatJson(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: JSON.stringify(input, null, 2) },
+      ],
+      { temperature: 0.6, num_ctx: 16384 },
+    )
+    if (!raw) return null
+
+    const output = parseVentureScopeLLMOutput(raw)
+    if (!output) return null
+
+    const warnings = validateLLMOutput(output, input)
+    if (warnings.length > 0) {
+      console.warn('[VS-LLM] Output warnings:', warnings)
+    }
+    // Hard reject on >= 3 warnings — output is likely low-quality or hallucinatory
+    if (warnings.length >= 3) {
+      console.warn('[VS-LLM] Too many warnings — falling back to deterministic')
+      return null
+    }
+
+    return output
   } catch {
     return null
   }
@@ -882,14 +892,14 @@ export async function generateConcepts(
   const rank1Det = buildPersonaFirstCandidate(frame, now, 1, null)
 
   // Attempt Ollama synthesis for rank-1 with graph-structured prompt
-  const ollamaSections = await generateWithOllamaFrame(
+  const ollamaOutput = await generateWithOllamaFrame(
     frame,
     'persona_first',
     rank1Det.coreWedge,
   )
 
   const candidates: VentureConceptCandidate[] = [
-    buildPersonaFirstCandidate(frame, now, 1, ollamaSections ?? null),
+    buildPersonaFirstCandidate(frame, now, 1, ollamaOutput ?? null),
     buildWorkflowFirstCandidate(frame, now, 2),
     buildTechEnablementCandidate(frame, now, 3),
   ]
