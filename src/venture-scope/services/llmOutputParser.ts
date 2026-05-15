@@ -13,11 +13,39 @@ const _FIELDS_EXHAUSTIVE: { [K in keyof VentureScopeLLMOutput]: true } = {
 }
 const REQUIRED_FIELDS = Object.keys(_FIELDS_EXHAUSTIVE) as Array<keyof VentureScopeLLMOutput>
 
+// Core fields — any missing field triggers immediate rejection.
+// These form the identity of the brief and cannot be synthesised deterministically.
+const CORE_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
+  'title', 'tagline', 'opportunitySummary', 'problemStatement',
+  'targetUser', 'proposedSolution', 'valueProp', 'whyNow',
+]
+
+// Supplementary fields — small local models (llama3.2:3b) sometimes truncate
+// JSON output before reaching these tail fields. If ≤ 3 are missing they get
+// a placeholder rather than rejecting the whole output. If > 3 are missing the
+// model didn't follow the schema at all and the output is discarded.
+const SUPPLEMENTARY_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
+  'buyerVsUser', 'currentAlternatives', 'existingWorkarounds',
+  'keyAssumptions', 'successMetrics', 'pricingHypothesis',
+  'defensibility', 'goToMarketAngle', 'mvpScope', 'risks',
+]
+const SUPPLEMENTARY_FALLBACK = '—'
+
 // ── Parser ────────────────────────────────────────────────────────────────────
 
 /**
  * Structural validation of a raw chatJson() response.
- * Returns null if any required field is missing or is not a non-empty string.
+ *
+ * Core fields (title, tagline, opportunitySummary, problemStatement, targetUser,
+ * proposedSolution, valueProp, whyNow) must all be present and non-empty — any
+ * missing core field returns null immediately.
+ *
+ * Supplementary fields (buyerVsUser, currentAlternatives, existingWorkarounds,
+ * keyAssumptions, successMetrics, pricingHypothesis, defensibility,
+ * goToMarketAngle, mvpScope, risks) tolerate up to 3 missing values: missing
+ * ones are filled with a "—" placeholder and a warning is logged. More than 3
+ * missing supplementary fields indicates the model ignored the schema — returns null.
+ *
  * Content-level validation is handled separately by validateLLMOutput().
  */
 export function parseVentureScopeLLMOutput(
@@ -27,15 +55,31 @@ export function parseVentureScopeLLMOutput(
 
   const obj = raw as Record<string, unknown>
 
-  for (const field of REQUIRED_FIELDS) {
+  // Core fields — hard reject if any are missing
+  for (const field of CORE_FIELDS) {
     const val = obj[field]
     if (typeof val !== 'string' || val.trim().length === 0) {
-      console.warn('[VS-LLM] parseVentureScopeLLMOutput: missing or empty field:', field)
+      console.warn('[VS-LLM] parseVentureScopeLLMOutput: missing core field:', field)
       return null
     }
   }
 
-  // All fields present and non-empty — cast is safe
+  // Supplementary fields — fill with placeholder if missing (tolerate up to 3)
+  let supplementaryMissing = 0
+  for (const field of SUPPLEMENTARY_FIELDS) {
+    const val = obj[field]
+    if (typeof val !== 'string' || val.trim().length === 0) {
+      console.warn('[VS-LLM] parseVentureScopeLLMOutput: missing supplementary field (using fallback):', field)
+      obj[field] = SUPPLEMENTARY_FALLBACK
+      supplementaryMissing++
+    }
+  }
+  if (supplementaryMissing > 3) {
+    console.warn('[VS-LLM] parseVentureScopeLLMOutput: too many missing supplementary fields:', supplementaryMissing, '— model likely ignored schema')
+    return null
+  }
+
+  // All required fields present (or patched) — cast is safe
   return obj as unknown as VentureScopeLLMOutput
 }
 
