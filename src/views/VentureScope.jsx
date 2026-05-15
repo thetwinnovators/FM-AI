@@ -8,13 +8,14 @@ import { scoreOpportunity } from '../opportunity-radar/services/opportunityScore
 import { buildEntityRegistry } from '../opportunity-radar/services/entityNormalizer.js'
 import { buildEntityGraph } from '../opportunity-radar/services/entityGraphBuilder.js'
 import { generateConcepts } from '../opportunity-radar/services/conceptGenerator.js'
+// VS uses its own isolated storage — never touches fm_radar_* keys which
+// may contain externally-scraped signals from the old Opportunity Radar.
 import {
-  loadSignals, saveSignals, appendSignals,
-  loadClusters, saveClusters,
-  loadEntityGraph, saveEntityGraph,
-} from '../opportunity-radar/storage/radarStorage.js'
-import {
-  loadVsConcepts, saveVsConcept, loadVsMeta, saveVsMeta,
+  loadVsSignals, appendVsSignals,
+  loadVsClusters, saveVsClusters,
+  loadVsConcepts, saveVsConcept,
+  loadVsMeta, saveVsMeta,
+  loadVsEntityGraph, saveVsEntityGraph,
 } from '../venture-scope/storage/ventureScopeStorage.js'
 
 import OverviewTab from '../components/venture-scope/tabs/OverviewTab.jsx'
@@ -29,9 +30,9 @@ const TABS = ['Overview', 'Signals', 'Scores', 'Evidence', 'Brief', 'Compare']
 export default function VentureScope() {
   const store = useStore()
 
-  const [signals,     setSignals]     = useState(() => loadSignals())
-  const [clusters,    setClusters]    = useState(() => loadClusters())
-  const [entityGraph, setEntityGraph] = useState(() => loadEntityGraph())
+  const [signals,     setSignals]     = useState(() => loadVsSignals())
+  const [clusters,    setClusters]    = useState(() => loadVsClusters())
+  const [entityGraph, setEntityGraph] = useState(() => loadVsEntityGraph())
   const [vsConcepts,  setVsConcepts]  = useState(() => loadVsConcepts())
   const [meta,        setMeta]        = useState(() => loadVsMeta())
   const [activeTab,   setActiveTab]   = useState('Overview')
@@ -60,18 +61,20 @@ export default function VentureScope() {
       }
       const rawItems = ingestCorpus(storeSlice)
 
-      // Step 2: Convert raw items to signals
-      setScanMsg(`Extracting signals from ${rawItems.length} items…`)
+      // Step 2: Convert corpus items to signals.
+      // Corpus signals bypass the intensity-3 threshold (they're curated research,
+      // not raw social posts). All signals here have source='corpus'.
+      setScanMsg(`Extracting signals from ${rawItems.length} corpus items…`)
       const newSignals = extractSignals(rawItems, 'corpus_scan')
 
-      // Merge with existing signals (appendSignals dedupes by id)
-      appendSignals(newSignals)
-      const allSignals = loadSignals()
+      // Merge into VS-only signal store (fm_vs_signals) — never touches fm_radar_signals
+      appendVsSignals(newSignals)
+      const allSignals = loadVsSignals()
       setSignals(allSignals)
 
-      // Step 3: Cluster signals
+      // Step 3: Cluster signals (incremental — preserves existing VS clusters)
       setScanMsg('Clustering signals…')
-      const existingClusters = loadClusters()
+      const existingClusters = loadVsClusters()
       const clusterer = new KeywordClusterer()
       const updatedClusters = clusterer.cluster(allSignals, existingClusters)
 
@@ -90,14 +93,14 @@ export default function VentureScope() {
           isBuildable:       result.dimensionScores.feasibility > 0,
         }
       })
-      saveClusters(scoredClusters)
+      saveVsClusters(scoredClusters)
       setClusters(scoredClusters)
 
-      // Step 5: Build entity graph from signals
+      // Step 5: Build entity graph from corpus signals only
       setScanMsg('Building entity graph…')
       const registry = buildEntityRegistry(allSignals)
       const graph = buildEntityGraph(registry)
-      saveEntityGraph(graph)
+      saveVsEntityGraph(graph)
       setEntityGraph(graph)
 
       // Step 6: Generate VentureConceptCandidates for top 5 clusters
