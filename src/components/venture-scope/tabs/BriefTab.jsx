@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import ScoreBar from '../ScoreBar.jsx'
-import { resolveSourceLink } from '../../../venture-scope/utils/sourceResolver.js'
+import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
 
 function Section({ title, children }) {
   if (!children) return null
@@ -16,13 +16,6 @@ function Section({ title, children }) {
   )
 }
 
-const SOURCE_TYPE_LABEL = {
-  save:           'Saved item',
-  document:       'Document',
-  manual_content: 'Added URL',
-  topic_summary:  'Topic summary',
-  brief:          'Brief',
-}
 
 function EvidenceTraceSection({ entries, storeSlice }) {
   const navigate = useNavigate()
@@ -50,7 +43,7 @@ function EvidenceTraceSection({ entries, storeSlice }) {
               )}
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-[color:var(--color-text-tertiary)]">
                 <span className="px-1.5 py-0.5 rounded bg-white/5">
-                  {SOURCE_TYPE_LABEL[e.sourceType] ?? e.sourceType}
+                  {SOURCE_TYPE_LABELS[e.sourceType] ?? e.sourceType}
                 </span>
                 {e.topicId && (
                   <span>topic: {e.topicId.slice(0, 16)}{e.topicId.length > 16 ? '…' : ''}</span>

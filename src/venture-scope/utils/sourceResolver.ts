@@ -1,6 +1,6 @@
 import type { ResolvedSourceLink } from '../types.js'
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
+export const SOURCE_TYPE_LABELS: Record<string, string> = {
   save:           'Saved item',
   document:       'Document',
   manual_content: 'Added URL',
