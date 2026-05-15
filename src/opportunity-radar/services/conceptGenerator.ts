@@ -608,7 +608,7 @@ function buildPersonaFirstCandidate(
   frame: OpportunityFrame,
   now: string,
   rank: number,
-  ollama: Partial<Record<SectionKey, string>> | null,
+  ollama: VentureScopeLLMOutput | null,
 ): VentureConceptCandidate {
   const {
     cluster, signals,
@@ -630,74 +630,122 @@ function buildPersonaFirstCandidate(
       ? `${cap(persona)} can't rely on ${incumbent} for ${workflow} — the gap is real and unaddressed`
       : `${cap(persona)} lacks a purpose-built tool for ${workflow}`
 
-  const whyNow = shift
-    ? `${cap(shift)} creates a new window for ${workflow} tooling that didn't exist before`
-    : workaround
-      ? `Active workaround use confirms unmet demand — the workaround is a product waiting to be built`
-      : `Signal frequency across the corpus confirms recurring unsolved friction, not a one-off frustration`
-
   const titleFallback = `${cap(persona)} ${cap(workflow)} Tool`
-  const title =
-    ollama?.OPPORTUNITY_SUMMARY
-      ? ollama.OPPORTUNITY_SUMMARY.split('\n')[0].slice(0, 80) || titleFallback
-      : titleFallback
 
   return {
-    id:                     makeConceptId(cluster.id, 'persona_first'),
-    clusterId:              cluster.id,
+    id:        makeConceptId(cluster.id, 'persona_first'),
+    clusterId: cluster.id,
     rank,
-    angleType:              'persona_first',
-    title,
-    tagline:                `The focused tool for ${persona} who still struggle with ${workflow}`,
+    angleType: 'persona_first',
+
+    title:   ollama?.title   ?? titleFallback,
+    tagline: ollama?.tagline ?? `The focused tool for ${persona} who still struggle with ${workflow}`,
     coreWedge,
-    primaryUser:            persona,
+
+    primaryUser:         persona,
     buyer,
-    workflowImprovement:    workaround
+    workflowImprovement: workaround
       ? `Eliminates the ${workaround} workaround from the ${workflow} process`
       : `Streamlines ${workflow} for ${persona} without manual steps`,
-    whyNow,
+
     complexityEstimate:     'medium',
     revenueModelHypothesis: 'Monthly SaaS subscription charged to the team that owns the workflow',
-    opportunityScore:       cluster.opportunityScore ?? 50,
-    confidenceScore:        Math.min(0.95, cluster.dimensionScores?.confidence ?? 0.6),
-    generatedBy:            ollama ? 'ollama' : 'graph',
-    status:                 'active',
-    createdAt:              now,
-    updatedAt:              now,
-    evidenceTrace:          buildEvidenceTrace(signals, ev(personas) || ev(workflows) || cluster.clusterName),
-    opportunitySummary:     ollama?.OPPORTUNITY_SUMMARY ?? (
+
+    opportunityScore: cluster.opportunityScore ?? 50,
+    confidenceScore:  Math.min(0.95, cluster.dimensionScores?.confidence ?? 0.6),
+    generatedBy:      ollama ? 'ollama' : 'graph',
+    status:           'active',
+    createdAt:        now,
+    updatedAt:        now,
+
+    evidenceTrace: buildEvidenceTrace(
+      signals,
+      ev(personas) || ev(workflows) || cluster.clusterName,
+    ),
+
+    // ── LLM-synthesised fields (deterministic fallback for each) ─────────────
+    opportunitySummary: ollama?.opportunitySummary ?? (
       `${cap(persona)} consistently encounter friction with ${workflow}` +
       (industry ? ` in ${industry}` : '') +
       (workaround ? `. Current workaround: ${workaround}.` : '.') +
       ` ${cluster.signalCount} corpus items confirm this pattern.`
     ),
-    problemStatement:       ollama?.PROBLEM_STATEMENT ?? (
+    problemStatement: ollama?.problemStatement ?? (
       `${cap(persona)} performing ${workflow}` +
       (workaround ? ` must use ${workaround} to compensate for missing tooling.` : ' lack dedicated tooling.') +
       (incumbent ? ` ${cap(incumbent)} doesn't address this specific need.` : '')
     ),
-    targetUser:             ollama?.TARGET_USER ?? (
+    targetUser: ollama?.targetUser ?? (
       `${cap(persona)}` +
       (industry ? ` in ${industry}` : '') +
       ` who regularly perform ${workflow} and need a better path than current workarounds.`
     ),
-    proposedSolution:       ollama?.PROPOSED_SOLUTION ?? (
+    proposedSolution: ollama?.proposedSolution ?? (
       `A focused tool that handles ${workflow} end-to-end for ${persona}.` +
       (workaround ? ` Replaces ${workaround} with a purpose-built workflow.` : '')
     ),
-    valueProp:              ollama?.VALUE_PROPOSITION ?? (
+    valueProp: ollama?.valueProp ?? (
       `${cap(persona)} complete ${workflow} faster, with less manual effort` +
       (workaround ? ` and without maintaining ${workaround}` : '') + '.'
     ),
-    mvpScope:               ollama?.MVP_SCOPE ?? (
+    whyNow: ollama?.whyNow ?? (
+      shift
+        ? `${cap(shift)} creates a new window for ${workflow} tooling that didn't exist before`
+        : workaround
+          ? `Active workaround use confirms unmet demand — the workaround is a product waiting to be built`
+          : `Signal frequency across the corpus confirms recurring unsolved friction, not a one-off frustration`
+    ),
+    mvpScope: ollama?.mvpScope ?? (
       `Core: solve the ${workflow} problem for ${persona}. Single flow, no sign-up required.` +
       (workaround ? ` Replaces ${workaround}.` : '')
     ),
-    risks:                  ollama?.RISKS ?? (
+    risks: ollama?.risks ?? (
       `Signals may represent a vocal minority — validate with real users before building. ` +
-      (incumbent ? `Watch for ${incumbent} shipping a focused mode for this use case.` : 'Watch for incumbents closing the gap.')
+      (incumbent
+        ? `Watch for ${incumbent} shipping a focused mode for this use case.`
+        : 'Watch for incumbents closing the gap.')
     ),
-    implementationPlan:     ollama?.IMPLEMENTATION_PLAN ?? buildImplementationPlan(cluster),
+    buyerVsUser: ollama?.buyerVsUser ?? (
+      buyer !== persona
+        ? `${cap(buyer)} purchases; ${persona} uses — sell to the buyer, design for the user.`
+        : `${cap(persona)} is both buyer and user — optimise for self-serve adoption.`
+    ),
+    currentAlternatives: ollama?.currentAlternatives ?? (
+      incumbent
+        ? `${cap(incumbent)} is the closest alternative but misses the ${workflow} use case specifically.`
+        : `No dedicated tool exists — users rely on general-purpose tools and manual workarounds.`
+    ),
+    existingWorkarounds: ollama?.existingWorkarounds ?? (
+      workaround
+        ? `${cap(persona)} currently use ${workaround} as a manual substitute for a real tool.`
+        : `Users rely on manual effort or general tools to fill the gap.`
+    ),
+    keyAssumptions: ollama?.keyAssumptions ?? (
+      `- The problem affects enough ${persona} to sustain a focused product\n` +
+      `- ${cap(persona)} will switch from ${workaround || 'their current approach'} given a better alternative\n` +
+      (incumbent ? `- ${cap(incumbent)} will not ship a focused fix before we reach initial traction` : '')
+    ),
+    successMetrics: ollama?.successMetrics ?? (
+      `- Users complete the core ${workflow} flow without returning to ${workaround || 'manual steps'}\n` +
+      `- Week-2 retention ≥ 40 %\n` +
+      `- First paying customer within 90 days of launch`
+    ),
+    pricingHypothesis: ollama?.pricingHypothesis ?? (
+      (cluster.dimensionScores?.willingnessToPay ?? 0) >= 60
+        ? `Free tier for solo users; paid plan (~$20/month) for teams who rely on it daily.`
+        : `Start free to validate adoption; introduce a paid tier once weekly active users reach 100.`
+    ),
+    defensibility: ollama?.defensibility ?? (
+      `Workflow depth and accumulated user data create switching costs once the tool becomes part of the ${persona} daily routine.`
+    ),
+    goToMarketAngle: ollama?.goToMarketAngle ?? (
+      industry
+        ? `Target ${persona} communities in ${industry} first — niche audiences validate faster and generate denser word-of-mouth.`
+        : `Target the communities where these corpus signals originated — the research itself maps the distribution channel.`
+    ),
+
+    // Implementation plan stays deterministic — not a narrative LLM task
+    implementationPlan: buildImplementationPlan(cluster),
   }
 }
 
@@ -708,7 +756,7 @@ function buildWorkflowFirstCandidate(
 ): VentureConceptCandidate {
   const {
     cluster, signals,
-    workflows, bottlenecks, existingSolutions, personas, buyerRoles, industries,
+    workflows, bottlenecks, workarounds, existingSolutions, personas, buyerRoles, industries,
   } = frame
 
   // Prefer the second workflow to differentiate from persona-first (same data, different angle)
@@ -718,6 +766,7 @@ function buildWorkflowFirstCandidate(
   const persona    = ev(personas, 1) || ev(personas) || 'practitioners'
   const buyer      = ev(buyerRoles) || 'operations or product lead'
   const industry   = ev(industries)
+  const workaround = ev(workarounds)
 
   const coreWedge =
     bottleneck && incumbent
@@ -787,6 +836,39 @@ function buildWorkflowFirstCandidate(
     risks:
       `Workflow tooling can suffer from scope creep — keep the MVP narrow. ` +
       (incumbent ? `${cap(incumbent)} could ship a focused mode for this use case.` : ''),
+
+    // ── New narrative fields — deterministic for workflow_first ──────────────
+    buyerVsUser:
+      buyer !== persona
+        ? `${cap(buyer)} purchases; ${cap(persona)} uses — position around workflow ROI for the buyer.`
+        : `${cap(persona)} is both buyer and user — keep onboarding self-serve.`,
+    currentAlternatives:
+      incumbent
+        ? `${cap(incumbent)} handles adjacent use cases but skips the ${bottleneck || workflow} step that causes the most friction.`
+        : `No dedicated tool targets this exact workflow — users patch it together from general-purpose tools.`,
+    existingWorkarounds:
+      workaround
+        ? `${cap(persona)} currently use ${workaround} to bridge the gap in the ${workflow} process.`
+        : `Users manually handle the ${bottleneck || workflow} step, often with spreadsheets or ad-hoc scripts.`,
+    keyAssumptions:
+      `- The ${bottleneck || workflow} breakpoint is specific enough to support a focused product\n` +
+      `- Buyers will fund a point solution once the ROI of removing this step is clear\n` +
+      (incumbent ? `- ${cap(incumbent)} won't ship a dedicated fix before we reach initial traction` : ''),
+    successMetrics:
+      `- Users complete ${workflow} end-to-end without manual intervention at the critical step\n` +
+      `- Time-to-complete ${workflow} drops ≥ 30 % vs. current baseline\n` +
+      `- Net Promoter Score ≥ 40 after first 30 days`,
+    pricingHypothesis:
+      `Per-seat team pricing (~$20/seat/month) — sold to the ${buyer} who owns the ${workflow} workflow.`,
+    defensibility:
+      bottleneck
+        ? `Deep specialisation in the ${bottleneck} step creates a moat: incumbents won't rebuild for a sub-task, and users develop muscle memory.`
+        : `Workflow specialisation is hard to replicate without deep user research; early users become the product's most credible advocates.`,
+    goToMarketAngle:
+      industry
+        ? `Start with ${persona} in ${industry} where signal volume is highest, then expand to adjacent sectors once the core workflow is proven.`
+        : `Direct outreach to the ${persona} communities that generated the corpus signals; offer a free import of their existing ${workaround || 'workflow data'}.`,
+
     implementationPlan:     buildImplementationPlan(cluster),
   }
 }
@@ -799,7 +881,7 @@ function buildTechEnablementCandidate(
   const {
     cluster, signals,
     emergingTech, platformShifts, technologies, workflows,
-    existingSolutions, personas, buyerRoles, industries,
+    workarounds, bottlenecks, existingSolutions, personas, buyerRoles, industries,
   } = frame
 
   // Anchor on the most forward-looking technology signal available
@@ -812,6 +894,8 @@ function buildTechEnablementCandidate(
   const persona   = ev(personas)   || 'early adopters'
   const buyer     = ev(buyerRoles) || 'technical lead or architect'
   const industry  = ev(industries)
+  const workaround = ev(workarounds)
+  const bottleneck = ev(bottlenecks)
 
   const coreWedge = isForwardTech
     ? `${cap(techValue)} makes ${workflow} automation tractable — existing tools were built before this capability existed`
@@ -869,6 +953,39 @@ function buildTechEnablementCandidate(
     risks:
       `Early-stage technology carries adoption risk — validate ${techValue} maturity with target users. ` +
       (incumbent ? `${cap(incumbent)} may ship native ${techValue} support.` : ''),
+
+    // ── New narrative fields — deterministic for technology_enablement ────────
+    buyerVsUser:
+      buyer !== persona
+        ? `${cap(buyer)} purchases; ${cap(persona)} evaluates and adopts — lead with capability proof for the buyer.`
+        : `${cap(persona)} is both buyer and technical evaluator — design for a fast, self-directed trial.`,
+    currentAlternatives:
+      incumbent
+        ? `${cap(incumbent)} is the category incumbent but predates ${techValue} — it has structural gaps a native approach can close.`
+        : `No tool has applied ${techValue} to ${workflow} yet — the field is clear for a native entrant.`,
+    existingWorkarounds:
+      workaround
+        ? `${cap(persona)} use ${workaround} to compensate for the lack of ${techValue}-native tooling.`
+        : `Users rely on pre-${techValue} tools and accept the capability ceiling as unavoidable.`,
+    keyAssumptions:
+      `- ${cap(techValue)} is stable and accessible enough for a production product today\n` +
+      `- ${cap(persona)} will adopt early if the tool demonstrates a clear capability improvement\n` +
+      (incumbent ? `- ${cap(incumbent)} will not ship native ${techValue} support before we reach traction` : ''),
+    successMetrics:
+      `- Users complete ${workflow} in ways not possible with pre-${techValue} tools\n` +
+      `- Technical evaluation to production adoption within 30 days for early customers\n` +
+      `- ${bottleneck ? `The ${bottleneck} step` : 'The hardest step'} is automated end-to-end in the MVP`,
+    pricingHypothesis: isForwardTech
+      ? `Usage-based pricing — charge on the value delivered via the new capability, not a flat seat fee.`
+      : `Monthly SaaS subscription with a generous free tier for technical evaluation; upgrade on demonstrated value.`,
+    defensibility: isForwardTech
+      ? `First-mover depth in applying ${techValue} to ${workflow} is hard to replicate; the data and model quality accumulated early become the moat.`
+      : `${cap(techValue)} infrastructure knowledge compounds — teams that build on it first accumulate irreplaceable implementation depth.`,
+    goToMarketAngle:
+      industry
+        ? `Target ${persona} in ${industry} who are already experimenting with ${techValue} — they understand the capability gap and need the least convincing.`
+        : `Developer or technical communities where ${techValue} adoption is earliest; a working demo that shows the capability gap is the most effective first touchpoint.`,
+
     implementationPlan:     buildImplementationPlan(cluster),
   }
 }
