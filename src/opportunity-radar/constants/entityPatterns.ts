@@ -111,8 +111,8 @@ export const KNOWN_TECHNOLOGIES: readonly string[] = [
 
 /** Context phrases that precede or follow a technology mention. */
 export const TECH_CONTEXT_RE = [
-  /(?:using|use|tried?|migrated? (?:from|to)|switched? (?:from|to)|moved? (?:from|to)|integrat(?:e|ing|ed) with?|connect(?:ing)? to?|replac(?:e|ing|ed))\s+([A-Z][a-zA-Z0-9.+\s]{1,30}?)(?=\s|,|;|\.|$)/g,
-  /([A-Z][a-zA-Z0-9.+\s]{1,30}?)\s+(?:doesn't|does not|can't|won't|fails? to|lacks?|missing)/g,
+  /(?:using|use|tried?|migrated? (?:from|to)|switched? (?:from|to)|moved? (?:from|to)|integrat(?:e|ing|ed) with?|connect(?:ing)? to?|replac(?:e|ing|ed))\s+([a-zA-Z][a-zA-Z0-9.+\s]{1,30}?)(?=\s|,|;|\.|$)/g,
+  /([a-zA-Z][a-zA-Z0-9.+\s]{1,30}?)\s+(?:doesn't|does not|can't|won't|fails? to|lacks?|missing)/g,
 ]
 
 // ─── Industries ───────────────────────────────────────────────────────────────
