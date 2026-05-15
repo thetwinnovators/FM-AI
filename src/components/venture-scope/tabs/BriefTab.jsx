@@ -166,6 +166,7 @@ export default function BriefTab({ concept, candidates, onSelectCandidate, store
               onClick={() => onRegenerateConcept(concept.clusterId)}
               disabled={isRegenerating}
               title="Regenerate brief from graph"
+              aria-label="Regenerate brief from graph"
               className="p-1 rounded text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
