@@ -6,6 +6,11 @@ const STOPWORDS = new Set([
   'was','were','have','has','had','do','does','did','will','would','could',
   'should','not','no','my','me','i','you','he','she','our','your','his','her',
   'as','up','so','if','by','from','than','then','when','there','what','how',
+  // Corpus-template noise: words that appear in every topic-summary / brief
+  // header and would produce false clusters if left as key terms.
+  'summary','overview','collection','revolves','topic','around','focused',
+  'primarily','mostly','appears','items','these','also','many','more',
+  'most','user','users','content','includes','including','included',
 ])
 
 /**

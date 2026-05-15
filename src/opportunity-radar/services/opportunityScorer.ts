@@ -68,11 +68,23 @@ export function scoreCluster(
 
 function qualifies(cluster: OpportunityCluster, signals: PainSignal[]): boolean {
   if (!cluster.isBuildable) return false
-  if (cluster.signalCount < 10) return false
-  if (cluster.sourceDiversity < 2) return false
 
   const clusterSignals = signals.filter((s) => cluster.signalIds.includes(s.id))
-  if (clusterSignals.filter((s) => s.intensityScore >= 7).length < 3) return false
+  const isCorpusOnly   = clusterSignals.length > 0 && clusterSignals.every((s) => s.source === 'corpus')
+
+  if (isCorpusOnly) {
+    // Corpus clusters: signals are curated research, not raw social posts.
+    // sourceDiversity is measured by corpusSourceType (save/document/brief/etc).
+    // A large single-type cluster (≥5) is still meaningful research signal.
+    if (cluster.signalCount < 3)                                  return false
+    if (cluster.signalCount < 5 && cluster.sourceDiversity < 2)  return false
+    // No high-intensity-signal gate — corpus content is analytical, not emotional.
+  } else {
+    // External clusters: original strict gates apply.
+    if (cluster.signalCount < 10)         return false
+    if (cluster.sourceDiversity < 2)      return false
+    if (clusterSignals.filter((s) => s.intensityScore >= 7).length < 3) return false
+  }
 
   const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000
   const lastMs = new Date(cluster.lastDetected).getTime()

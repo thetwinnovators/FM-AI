@@ -59,25 +59,30 @@ export default function OpportunityRadar() {
       setProgress([{ source: 'corpus', status: 'done', resultCount: corpusResults.length }])
 
       // ── Secondary: external web search (optional enrichment, 20 s max) ────────
-      // AbortController lets us cancel all in-flight CORS fetches when the
-      // timeout fires instead of leaving them hanging in the background.
-      const EXTERNAL_TIMEOUT_MS = 20_000
-      const extAbort = new AbortController()
-      const externalResults = await Promise.race([
-        runPainSearch(
-          ALL_SOURCES,
-          (p) => setProgress((prev) => {
-            const existing = prev.findIndex((x) => x.source === p.source)
-            if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
-            return [...prev, p]
-          }),
-          extAbort.signal,
-        ),
-        new Promise((resolve) => setTimeout(() => {
-          extAbort.abort()   // cancel all pending fetch calls immediately
-          resolve([])
-        }, EXTERNAL_TIMEOUT_MS)),
-      ]).catch(() => [])
+      // Disabled by default: external sources all fail with TLS/CORS errors in
+      // the current dev environment and would saturate the event loop.
+      // Re-enable by setting VITE_ENABLE_EXTERNAL_SCAN=true in .env.local
+      const EXTERNAL_ENABLED = import.meta.env.VITE_ENABLE_EXTERNAL_SCAN === 'true'
+      const externalResults = EXTERNAL_ENABLED
+        ? await (async () => {
+            const extAbort = new AbortController()
+            return Promise.race([
+              runPainSearch(
+                ALL_SOURCES,
+                (p) => setProgress((prev) => {
+                  const existing = prev.findIndex((x) => x.source === p.source)
+                  if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
+                  return [...prev, p]
+                }),
+                extAbort.signal,
+              ),
+              new Promise((resolve) => setTimeout(() => {
+                extAbort.abort()
+                resolve([])
+              }, 20_000)),
+            ]).catch(() => [])
+          })()
+        : []
 
       const rawResults = [...corpusResults, ...externalResults]
       const newSignals = extractSignals(rawResults, '')
@@ -237,44 +242,56 @@ export default function OpportunityRadar() {
       </div>
 
       {/* ── Scan progress ──────────────────────────────────────────────────── */}
-      {scanning && (
-        <div className="mb-5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-teal-400/70 transition-all duration-500"
-                style={{
-                  width: `${ALL_SOURCES.length === 0 ? 0 : Math.round(
-                    (progress.filter(p => p.status === 'done' || p.status === 'error').length / ALL_SOURCES.length) * 100
-                  )}%`
-                }}
-              />
+      {scanning && (() => {
+        const EXTERNAL_ENABLED = import.meta.env.VITE_ENABLE_EXTERNAL_SCAN === 'true'
+        // Corpus chip always shown; external chips only when that path is active
+        const corpusP  = progress.find(x => x.source === 'corpus')
+        const extDone  = progress.filter(p => p.source !== 'corpus' && (p.status === 'done' || p.status === 'error')).length
+        const total    = EXTERNAL_ENABLED ? ALL_SOURCES.length + 1 : 1
+        const done     = (corpusP ? 1 : 0) + (EXTERNAL_ENABLED ? extDone : 0)
+        return (
+          <div className="mb-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-teal-400/70 transition-all duration-500"
+                  style={{ width: `${total === 0 ? 0 : Math.round((done / total) * 100)}%` }}
+                />
+              </div>
+              <span className="text-xs text-white/40 flex-shrink-0">
+                {done} / {total} source{total !== 1 ? 's' : ''}
+              </span>
             </div>
-            <span className="text-xs text-white/40 flex-shrink-0">
-              {progress.filter(p => p.status === 'done' || p.status === 'error').length} / {ALL_SOURCES.length} sources
-            </span>
+            <div className="flex gap-2 flex-wrap">
+              {/* Corpus chip */}
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                corpusP?.status === 'done' ? 'bg-teal-400/10 text-teal-300' : 'bg-white/5 text-white/20 animate-pulse'
+              }`}>
+                {SOURCE_LABELS.corpus}
+                {corpusP?.status === 'done' ? ` ✓${corpusP.resultCount ? ` ${corpusP.resultCount}` : ''}` : ' …'}
+              </span>
+              {/* External source chips — only rendered when enabled */}
+              {EXTERNAL_ENABLED && ALL_SOURCES.map((src) => {
+                const p = progress.find(x => x.source === src)
+                const status = p?.status ?? 'pending'
+                return (
+                  <span key={src} className={`text-xs px-2 py-1 rounded-full ${
+                    status === 'done'    ? 'bg-green-400/10 text-green-400' :
+                    status === 'error'  ? 'bg-red-400/10 text-red-400' :
+                    status === 'running' ? 'bg-teal-400/10 text-teal-300 animate-pulse' :
+                    'bg-white/5 text-white/20'
+                  }`}>
+                    {SOURCE_LABELS[src] ?? src}
+                    {status === 'done'    ? ` ✓${p?.resultCount ? ` ${p.resultCount}` : ''}` :
+                     status === 'error'   ? ' ✗' :
+                     status === 'running' ? ' …' : ''}
+                  </span>
+                )
+              })}
+            </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {ALL_SOURCES.map((src) => {
-              const p = progress.find(x => x.source === src)
-              const status = p?.status ?? 'pending'
-              return (
-                <span key={src} className={`text-xs px-2 py-1 rounded-full ${
-                  status === 'done'    ? 'bg-green-400/10 text-green-400' :
-                  status === 'error'  ? 'bg-red-400/10 text-red-400' :
-                  status === 'running' ? 'bg-teal-400/10 text-teal-300 animate-pulse' :
-                  'bg-white/5 text-white/20'
-                }`}>
-                  {SOURCE_LABELS[src] ?? src}
-                  {status === 'done'    ? ` ✓${p?.resultCount ? ` ${p.resultCount}` : ''}` :
-                   status === 'error'   ? ' ✗' :
-                   status === 'running' ? ' …' : ''}
-                </span>
-              )
-            })}
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {aiValidating && (
         <div className="mb-5 flex items-center gap-2 text-xs text-purple-300/80">

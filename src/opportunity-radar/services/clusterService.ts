@@ -49,7 +49,13 @@ function computeAvgIntensity(signals: PainSignal[], signalIds: string[]): number
 
 function computeSourceDiversity(signals: PainSignal[], signalIds: string[]): number {
   const relevant = signals.filter((s) => signalIds.includes(s.id))
-  return new Set(relevant.map((s) => s.source)).size
+  // For corpus signals the meaningful diversity axis is corpusSourceType
+  // (saves vs documents vs topic_summaries vs briefs), not the 'corpus' literal.
+  return new Set(
+    relevant.map((s) =>
+      s.source === 'corpus' ? (s.corpusSourceType ?? 'corpus') : s.source,
+    ),
+  ).size
 }
 
 function overlapRatio(idsA: string[], idsB: string[]): number {

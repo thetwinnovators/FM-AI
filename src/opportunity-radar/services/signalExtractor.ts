@@ -91,7 +91,10 @@ export function extractSignal(
 ): PainSignal | null {
   const combined  = `${result.title} ${result.body}`.trim()
   const intensity = scoreIntensity(combined)
-  if (intensity < 3) return null
+  // Corpus signals are pre-curated by the user — they bypass the raw-post
+  // intensity threshold that filters noise from Reddit/HN scraping.
+  // The corpusIngestor's MIN_BODY_CHARS gate already ensures minimum quality.
+  if (intensity < 3 && result.source !== 'corpus') return null
 
   const normalizedText = normalizeText(combined)
   const keyTerms       = extractKeyTerms(normalizedText)
