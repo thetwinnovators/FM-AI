@@ -3,6 +3,7 @@ import type {
   PainSignal,
   ExtractedEntity,
   EntityRelationship,
+  CorpusSourceType,
 } from '../opportunity-radar/types.js'
 
 // ─── Record state machine ─────────────────────────────────────────────────────
@@ -91,6 +92,12 @@ export interface EvidenceTraceEntry {
   entityType?:     string          // which entity type made this signal relevant
 }
 
+// ─── Evidence snippet ────────────────────────────────────────────────────────
+export interface EvidenceSnippet {
+  text:       string            // up to 200 chars of painText
+  sourceType: CorpusSourceType  // corpus source category
+}
+
 // ─── LLM contract types ───────────────────────────────────────────────────────
 // VentureScopeLLMInput is the ONLY packet the LLM receives — every value is
 // derived deterministically from the entity graph and dimension scores.
@@ -122,10 +129,7 @@ export interface VentureScopeLLMInput {
   }
 
   // Plaintext evidence excerpts — no corpusSourceIds exposed to the model
-  evidenceSnippets: Array<{
-    text:       string   // up to 200 chars of painText
-    sourceType: string   // e.g. 'save', 'document'
-  }>
+  evidenceSnippets: EvidenceSnippet[]
 }
 
 // The LLM writes ONLY these narrative synthesis fields.
