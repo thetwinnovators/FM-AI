@@ -1,5 +1,4 @@
-import ScoreBar from '../ScoreBar.jsx'
-import ConfidenceBadge from '../ConfidenceBadge.jsx'
+import { Trophy } from 'lucide-react'
 
 const DIMENSIONS = [
   { key: 'painSeverity',     label: 'Pain Severity'      },
@@ -14,11 +13,20 @@ const DIMENSIONS = [
   { key: 'gtmClarity',       label: 'GTM Clarity'        },
 ]
 
+// Stable accent per rank position
+const RANK_ACCENT  = ['#f59e0b', '#94a3b8', '#b45309', '#64748b']  // gold, silver, bronze, slate
+const CLUSTER_DOT  = [
+  'rgba(217,70,239,0.9)',   // topic purple — 1st
+  'rgba(56,189,248,0.9)',   // sky — 2nd
+  'rgba(52,211,153,0.9)',   // emerald — 3rd
+  'rgba(251,191,36,0.9)',   // amber — 4th
+]
+
 export default function CompareTab({ clusters }) {
   const scored = (clusters ?? [])
     .filter((c) => c.dimensionScores != null)
     .sort((a, b) => (b.opportunityScore ?? 0) - (a.opportunityScore ?? 0))
-    .slice(0, 4) // compare top 4
+    .slice(0, 4)
 
   if (scored.length < 2) {
     return (
@@ -33,52 +41,119 @@ export default function CompareTab({ clusters }) {
     )
   }
 
+  // Count dimension wins per cluster (index in scored array)
+  const winCounts = scored.map(() => 0)
+  const dimensionLeaders = DIMENSIONS.map(({ key, label }) => {
+    const byScore = scored
+      .map((c, i) => ({ cluster: c, score: c.dimensionScores?.[key] ?? 0, idx: i }))
+      .sort((a, b) => b.score - a.score)
+    if (byScore[0].score > 0) winCounts[byScore[0].idx]++
+    return { key, label, leader: byScore[0], runnerUp: byScore[1] ?? null }
+  })
+
+  const maxScore = Math.max(...scored.map((c) => c.opportunityScore ?? 0))
+
   return (
-    <div className="overflow-x-auto max-w-5xl">
-      <table className="w-full min-w-[600px] text-sm border-collapse">
-        <thead>
-          <tr>
-            <th className="text-left py-2 pr-4 text-[11px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] w-36">
-              Dimension
-            </th>
-            {scored.map((c) => (
-              <th key={c.id} className="text-left py-2 px-3 text-[12px] font-medium min-w-[160px]">
-                <div className="truncate" title={c.clusterName}>{c.clusterName}</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="font-mono text-[11px]" style={{ color: 'rgba(217,70,239,0.8)' }}>{c.opportunityScore}</span>
-                  {c.dimensionScores?.confidence != null && (
-                    <ConfidenceBadge confidence={c.dimensionScores.confidence} />
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {DIMENSIONS.map(({ key, label }) => {
-            const scores = scored.map((c) => c.dimensionScores?.[key] ?? 0)
-            const maxScore = Math.max(...scores)
+    <div className="space-y-5 max-w-3xl">
+
+      {/* ── Leaderboard ─────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Trophy className="w-3.5 h-3.5 text-[color:var(--color-text-secondary)]" />
+          <span className="text-[11px] font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wider">
+            Overall Rankings
+          </span>
+        </div>
+        <div className="glass-panel divide-y divide-white/[0.06]">
+          {scored.map((cluster, i) => {
+            const pct = maxScore > 0 ? ((cluster.opportunityScore ?? 0) / maxScore) * 100 : 0
             return (
-              <tr key={key} className="border-t border-white/5">
-                <td className="py-2 pr-4 text-[11px] text-[color:var(--color-text-tertiary)]">{label}</td>
-                {scored.map((c) => {
-                  const score = c.dimensionScores?.[key] ?? 0
-                  const isWinner = score === maxScore && score > 0
-                  return (
-                    <td key={c.id} className="py-2 px-3">
-                      <ScoreBar
-                        score={score}
-                        color={isWinner ? 'topic' : 'sky'}
-                        showValue
-                      />
-                    </td>
-                  )
-                })}
-              </tr>
+              <div key={cluster.id} className="flex items-center gap-4 px-4 py-3">
+                {/* Rank number */}
+                <span
+                  className="text-sm font-bold font-mono w-4 text-center flex-shrink-0"
+                  style={{ color: RANK_ACCENT[i] }}
+                >
+                  {i + 1}
+                </span>
+                {/* Name + wins */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium leading-tight truncate">
+                    {cluster.clusterName}
+                  </p>
+                  <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
+                    Leads {winCounts[i]}/{DIMENSIONS.length} dimensions
+                  </p>
+                </div>
+                {/* Score bar + value */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="w-24 h-1.5 rounded-full bg-white/8 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${pct}%`, backgroundColor: CLUSTER_DOT[i] }}
+                    />
+                  </div>
+                  <span
+                    className="text-xs font-mono tabular-nums w-6 text-right"
+                    style={{ color: RANK_ACCENT[i] }}
+                  >
+                    {cluster.opportunityScore ?? '—'}
+                  </span>
+                </div>
+              </div>
             )
           })}
-        </tbody>
-      </table>
+        </div>
+      </div>
+
+      {/* ── Dimension Leaders ───────────────────────────────────── */}
+      <div>
+        <div className="mb-3">
+          <span className="text-[11px] font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wider">
+            Dimension Leaders
+          </span>
+          <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
+            Which opportunity leads each scoring category
+          </p>
+        </div>
+        <div className="glass-panel divide-y divide-white/[0.06]">
+          {dimensionLeaders.map(({ key, label, leader, runnerUp }) => (
+            <div key={key} className="flex items-center gap-3 px-4 py-2.5">
+              {/* Dimension name */}
+              <span className="text-[11px] text-[color:var(--color-text-tertiary)] w-36 flex-shrink-0">
+                {label}
+              </span>
+              {/* Winner */}
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: CLUSTER_DOT[leader.idx] }}
+                />
+                <span className="text-xs font-medium truncate">
+                  {leader.cluster.clusterName}
+                </span>
+                <span className="text-[11px] font-mono tabular-nums text-[color:var(--color-text-secondary)] flex-shrink-0">
+                  {leader.score}
+                </span>
+              </div>
+              {/* Runner-up (muted) */}
+              {runnerUp && runnerUp.score > 0 && (
+                <div className="flex items-center gap-1 flex-shrink-0 opacity-35">
+                  <span
+                    className="w-1 h-1 rounded-full"
+                    style={{ backgroundColor: CLUSTER_DOT[runnerUp.idx] }}
+                  />
+                  <span className="text-[10px] truncate max-w-[90px]">
+                    {runnerUp.cluster.clusterName}
+                  </span>
+                  <span className="text-[10px] font-mono tabular-nums">{runnerUp.score}</span>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   )
 }
