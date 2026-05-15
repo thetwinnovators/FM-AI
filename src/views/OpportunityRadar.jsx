@@ -12,6 +12,8 @@ import { applyBuildabilityFilter, scoreOpportunity, getTop3 } from '../opportuni
 import { aiValidateClusters }  from '../opportunity-radar/services/aiOpportunityFilter.js'
 import { generateConcept }     from '../opportunity-radar/services/conceptGenerator.js'
 import { ALL_SOURCES, SOURCE_LABELS } from '../opportunity-radar/services/painSearchService.js'
+import { buildEntityRegistry, summariseClusterEntities, mergeRegistries } from '../opportunity-radar/services/entityNormalizer.js'
+import { buildEntityGraph } from '../opportunity-radar/services/entityGraphBuilder.js'
 
 const SCAN_STALE_MS = 6 * 60 * 60 * 1000
 
@@ -80,12 +82,25 @@ export default function OpportunityRadar() {
         }
       })
 
+      // ── Schema v1: build entity graph from all signals ─────────────────────
+      const newRegistry    = buildEntityRegistry(allSignals)
+      const existingGraph  = radarStorage.loadEntityGraph()
+      const mergedRegistry = mergeRegistries(existingGraph.entities, newRegistry)
+      const entityGraph    = buildEntityGraph(mergedRegistry)
+      radarStorage.saveEntityGraph(entityGraph)
+
+      // Attach entity summaries to each scored cluster
+      const scoredWithEntities = scored.map((c) => ({
+        ...c,
+        entitySummary: summariseClusterEntities(c.signalIds, mergedRegistry),
+      }))
+
       setAiValidating(true)
-      let validated = scored
+      let validated = scoredWithEntities
       try {
-        const validations = await aiValidateClusters(scored, allSignals)
+        const validations = await aiValidateClusters(scoredWithEntities, allSignals)
         const validationMap = new Map(validations.map((v) => [v.clusterId, v]))
-        validated = scored.map((c) => {
+        validated = scoredWithEntities.map((c) => {
           const v = validationMap.get(c.id)
           return {
             ...c,

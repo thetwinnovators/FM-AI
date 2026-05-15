@@ -1,5 +1,6 @@
 import type { PainSignal, PainType } from '../types.js'
 import { normalizeText, extractKeyTerms } from './normalizationService.js'
+import { extractEntities } from './entityExtractor.js'
 
 // ── Intensity scoring keyword lists ──────────────────────────────────────────
 
@@ -103,6 +104,8 @@ export function extractSignal(
     painType,
     intensityScore: intensity,
     queryUsed,
+    // Schema v1: entity extraction — runs deterministically, never throws
+    entities:       extractEntities(combined),
   }
 }
 

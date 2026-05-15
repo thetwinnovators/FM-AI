@@ -1,4 +1,4 @@
-import type { PainSignal, OpportunityCluster, AppConcept, RadarScanMeta, CategoryChart, WinningApp } from '../types.js'
+import type { PainSignal, OpportunityCluster, AppConcept, RadarScanMeta, CategoryChart, WinningApp, EntityGraph } from '../types.js'
 import { pullFromDisk, pushToDisk } from '../../lib/sync/fileSync.js'
 import { enqueue } from '../../memory-index/syncQueue.js'
 
@@ -9,7 +9,10 @@ const KEYS = {
   meta:        'fm_radar_meta',
   charts:      'fm_radar_charts',
   winningApps: 'fm_radar_winning_apps',
+  entityGraph: 'fm_radar_entity_graph',   // Schema v1: living entity graph
 } as const
+
+const EMPTY_GRAPH: EntityGraph = { entities: {}, relationships: {}, updatedAt: '' }
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -135,12 +138,23 @@ export function saveWinningApps(apps: WinningApp[]): void {
   scheduleSync()
 }
 
+// ── Entity graph (Schema v1) ──────────────────────────────────────────────────
+
+export function loadEntityGraph(): EntityGraph {
+  return read<EntityGraph>(KEYS.entityGraph, EMPTY_GRAPH)
+}
+
+export function saveEntityGraph(graph: EntityGraph): void {
+  write(KEYS.entityGraph, graph)
+  scheduleSync()
+}
+
 // ── Reset ─────────────────────────────────────────────────────────────────────
 
 export function clearAll(): void {
   // Only clear scan data — charts and winning apps survive reset.
   // Note: removals bypass write(), so enqueue() must be called explicitly here.
-  ;[KEYS.signals, KEYS.clusters, KEYS.concepts, KEYS.meta].forEach((k) => localStorage.removeItem(k))
+  ;[KEYS.signals, KEYS.clusters, KEYS.concepts, KEYS.meta, KEYS.entityGraph].forEach((k) => localStorage.removeItem(k))
   enqueue()
   scheduleSync()
 }
@@ -152,6 +166,7 @@ const radarStorage = {
   loadMeta, saveMeta,
   loadCharts, saveCharts,
   loadWinningApps, saveWinningApps,
+  loadEntityGraph, saveEntityGraph,
   clearAll,
 }
 

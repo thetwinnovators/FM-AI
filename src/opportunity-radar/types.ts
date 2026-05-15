@@ -2,6 +2,72 @@ export type PainType =
   | 'workflow' | 'cost' | 'feature' | 'complexity'
   | 'speed'    | 'workaround' | 'integration' | 'privacy'
 
+// ─── Schema v1: Entity types ──────────────────────────────────────────────────
+// Seven entity types extracted from raw signals. Each type maps to a distinct
+// discovery layer: who is affected, what they do, what they use, where they work,
+// how they work around gaps, and what already exists in the market.
+
+export type EntityType =
+  | 'persona'           // who experiences the problem (role / segment)
+  | 'pain_point'        // the core friction (problem space)
+  | 'workflow'          // the process or task being done
+  | 'technology'        // tools, platforms, or APIs mentioned
+  | 'industry'          // sector or market context
+  | 'workaround'        // how people currently solve the gap
+  | 'existing_solution' // named products / services already in use
+
+/** A single entity extracted from a signal. Stored inline with the signal. */
+export interface SignalEntity {
+  type:       EntityType
+  value:      string    // normalized canonical form
+  rawText:    string    // exact text from source (for tracing)
+  confidence: number    // 0–1: extraction certainty
+}
+
+/** Aggregated entity record built from many signals — the entity registry. */
+export interface ExtractedEntity {
+  id:             string          // stable hash of type+value
+  type:           EntityType
+  value:          string          // canonical form
+  frequency:      number          // how many signals mention this entity
+  confidence:     number          // mean confidence across mentions
+  sourceSignalIds: string[]       // which signal IDs contain this entity
+  lastSeen:       string          // ISO timestamp
+  firstSeen:      string          // ISO timestamp
+}
+
+// ─── Relationships ────────────────────────────────────────────────────────────
+
+export type RelationshipType =
+  | 'experiences'     // persona  → pain_point
+  | 'performs'        // persona  → workflow
+  | 'has_friction'    // workflow → pain_point
+  | 'uses'            // persona  → existing_solution
+  | 'signals_gap'     // workaround → pain_point  (workaround = unmet need evidence)
+  | 'enables'         // technology → workflow
+  | 'operates_in'     // persona  → industry
+  | 'substitutes'     // workaround → existing_solution
+
+export interface EntityRelationship {
+  id:               string
+  fromId:           string            // entity id
+  toId:             string            // entity id
+  relationshipType: RelationshipType
+  strength:         number            // 0–1 (based on co-occurrence count)
+  evidenceCount:    number
+  lastSeen:         string
+  contradicted:     boolean           // flag for contradictory evidence
+}
+
+/** The living entity graph produced from a full scan. */
+export interface EntityGraph {
+  entities:      Record<string, ExtractedEntity>
+  relationships: Record<string, EntityRelationship>
+  updatedAt:     string
+}
+
+// ─── PainSignal (extended — backward compatible) ──────────────────────────────
+
 export interface PainSignal {
   id:             string
   detectedAt:     string         // ISO timestamp
@@ -15,6 +81,8 @@ export interface PainSignal {
   intensityScore: number         // 0–10
   clusterId?:     string
   queryUsed:      string
+  // Schema v1: extracted entities (undefined on legacy signals)
+  entities?:      SignalEntity[]
 }
 
 export interface OpportunityCluster {
@@ -41,6 +109,15 @@ export interface OpportunityCluster {
   // Three states: undefined = not yet scored, null = scored but no category matched,
   // string = matched category slug (e.g. 'productivity')
   inferredCategory?:  string | null
+  // Schema v1: aggregated entity summary for this cluster (undefined on legacy)
+  entitySummary?: {
+    personas:          string[]   // top persona values seen in cluster signals
+    workflows:         string[]   // top workflow values
+    technologies:      string[]   // top technology values
+    workarounds:       string[]   // workaround values — strongest unmet-need evidence
+    existingSolutions: string[]   // existing product/service names
+    industries:        string[]   // sector context
+  }
   createdAt:        string
   updatedAt:        string
 }
