@@ -130,6 +130,15 @@ export interface VentureScopeLLMInput {
 
   // Plaintext evidence excerpts — no corpusSourceIds exposed to the model
   evidenceSnippets: EvidenceSnippet[]
+
+  // Optional ambiguity hint — populated by assessConceptAmbiguity() before the
+  // LLM call. Present when level is 'medium' or 'high'. The LLM is instructed
+  // to select the narrowest plausible interpretation rather than hallucinating.
+  ambiguityHint?: {
+    level: 'medium' | 'high'
+    flags: string[]
+    recommendedInterpretations: string[]
+  }
 }
 
 // ─── Solution modality ────────────────────────────────────────────────────────
@@ -220,6 +229,7 @@ export interface VentureConceptCandidate {
   inputsOutputs?:          string   // what enters/exits the system
   dependencies?:           string   // APIs, integrations, upstream systems
   handoffs?:               string   // human/system transition points
+  bottlenecks?:            string   // failure points and adoption blockers (narrative)
   enhancementNotes?:       string   // unstructured FLOW.AI additions
 
   // ── Ambiguity assessment (set by assessConceptAmbiguity before prompt dispatch) ─

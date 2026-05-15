@@ -194,19 +194,19 @@ function buildImplementationPlan(cluster: OpportunityCluster): string {
   const name = cluster.clusterName.split(' ').slice(0, 2).join(' ')
   return `## Implementation Plan
 
-**Phase 1: Core MVP (Week 1)**
-- [ ] Input interface for ${name}
-- [ ] Local storage persistence
-- [ ] Basic display/management UI
+**Phase 1: Core MVP**
+- [ ] Primary ${name} workflow — end-to-end for the lead persona
+- [ ] Data model, persistence layer, and basic API
+- [ ] Role/access separation if multi-user (operator vs admin)
 
-**Phase 2: Enhancement (Week 2)**
-- [ ] Export functionality (CSV, clipboard)
-- [ ] Search/filter within saved items
-- [ ] Keyboard shortcuts
+**Phase 2: Depth**
+- [ ] Audit log or activity history
+- [ ] Export / reporting functionality
+- [ ] Search and filter across saved items
 
-**Phase 3: Polish (Week 3)**
-- [ ] Mobile responsive layout
-- [ ] Dark mode
+**Phase 3: Production-Readiness**
+- [ ] Role-based access control for team members
+- [ ] Integration with primary tool in the user's stack
 - [ ] Onboarding empty state`
 }
 
@@ -537,12 +537,34 @@ async function generateWithOllamaFrame(
   const systemPrompt =
     `You are a venture intelligence analyst. You receive a structured opportunity frame as JSON ` +
     `and return a venture brief as JSON.\n\n` +
-    `STRICT RULES — enforce in every field:\n` +
+    `GROUNDING RULES — every field must satisfy all five:\n` +
     `1. Reference ONLY entity values listed in graphContext — do not invent personas, tools, workflows, or companies\n` +
     `2. Ground every claim in the evidenceSnippets provided — do not invent user behaviours or quotes\n` +
-    `3. Do not use generic filler: no "AI can solve this", no "cutting-edge technology", no "seamlessly integrate"\n` +
+    `3. Reject filler phrases — never use: "AI can solve this", "cutting-edge technology", "seamlessly integrate", "revolutionize", "game-changer", "transforms how teams"\n` +
     `4. Every field must be specific to THIS opportunity — not a generic startup template\n` +
     `5. Return ONLY valid JSON — no markdown wrapper, no prose outside the JSON object\n\n` +
+    `PRODUCT FRAMING RULES — read before writing any field:\n` +
+    `6. Match solution architecture to opportunity scope: B2B / enterprise / team opportunities ` +
+    `need multi-user access, team roles, backend infrastructure, integrations, or compliance features. ` +
+    `Do NOT default every solution to "single-page app" or "localStorage only" — those constraints ` +
+    `are appropriate only for personal consumer tools, and only when evidence explicitly supports it.\n` +
+    `7. Distinguish buyer from user: if evidence mentions enterprise teams, governance, compliance, ` +
+    `operational workflows, procurement, or professional buyer titles (CTO, VP, Director), treat this ` +
+    `as a B2B product. Name who pays (economic buyer) and who operates (daily user) separately in ` +
+    `buyerVsUser — these are often different personas with different success criteria.\n` +
+    `8. Name a specific, credible monetisation model: per-seat SaaS, usage-based, workflow licensing, ` +
+    `or enterprise contract — grounded in the buyer persona and implied deal size from the evidence. ` +
+    `Do not default to "freemium with in-app purchases" for professional or enterprise opportunities.\n` +
+    `9. The mvpScope field MUST include explicit exclusions — state at least two things NOT in v1 ` +
+    `(e.g. "v1 excludes multi-tenant admin, third-party integrations, and mobile"). ` +
+    `A scope without exclusions will be rejected.\n` +
+    `10. Anti-pattern block — NEVER produce: "AI wrapper app" as a product description, ` +
+    `"single-page app" or "no backend" as constraints for platform or team-facing opportunities, ` +
+    `"solo developer" as the target persona unless evidence explicitly describes individual consumer use, ` +
+    `or shallow agent/LLM definitions (e.g. "an AI that helps users with X" with no specifics).\n` +
+    `11. SOLUTION MODALITY REQUIRED: Your JSON output MUST include solutionModality (one of: ai_native, ai_assisted, ai_optional, non_ai) and aiRoleInSolution (one sentence describing the AI's specific role, or "N/A" if non_ai).\n` +
+    `12. NEVER RETURN SCORES: Do not include opportunityScore, confidenceScore, or dimension scores in your JSON output. These are computed externally and will be stripped if present.\n` +
+    `13. IF AMBIGUITY HINT IS PROVIDED: Select the narrowest interpretation from the recommendedInterpretations list. State your chosen interpretation in the title/tagline.\n\n` +
     `REQUIRED OUTPUT SCHEMA (all fields required, all strings, none empty):\n` +
     `{\n` +
     `  "title": "3-8 words",\n` +
@@ -562,14 +584,31 @@ async function generateWithOllamaFrame(
     `  "defensibility": "1-2 sentences — why this is hard to copy once traction exists",\n` +
     `  "goToMarketAngle": "1-2 sentences — first customers and acquisition channel",\n` +
     `  "mvpScope": "2-3 sentences — what to build in v1 and what to exclude",\n` +
-    `  "risks": "2-3 sentences — the most likely failure modes"\n` +
+    `  "risks": "2-3 sentences — the most likely failure modes",\n` +
+    `  "solutionModality": "one of: ai_native | ai_assisted | ai_optional | non_ai",\n` +
+    `  "aiRoleInSolution": "one sentence — AI's specific role, or N/A if non_ai"\n` +
     `}`
+
+  // Build user prompt — append ambiguity section when hint is present
+  let userPrompt = JSON.stringify(input, null, 2)
+  if (input.ambiguityHint) {
+    const hint = input.ambiguityHint
+    const ambiguitySection = [
+      '',
+      `AMBIGUITY LEVEL: ${hint.level.toUpperCase()}`,
+      `FLAGS: ${hint.flags.join(' | ')}`,
+      `RECOMMENDED INTERPRETATIONS (select the narrowest):`,
+      ...hint.recommendedInterpretations.map((r) => `  • ${r}`),
+      '',
+    ].join('\n')
+    userPrompt = userPrompt + ambiguitySection
+  }
 
   try {
     const raw = await chatJson(
       [
         { role: 'system', content: systemPrompt },
-        { role: 'user',   content: JSON.stringify(input, null, 2) },
+        { role: 'user',   content: userPrompt },
       ],
       { temperature: 0.6, num_ctx: 16384 },
     )
@@ -602,6 +641,29 @@ async function generateWithOllamaFrame(
   }
 }
 
+// ── Entity value sanitiser ────────────────────────────────────────────────────
+//
+// Entity values extracted from corpus text often end mid-phrase when the NER
+// captures a clause fragment: "Collection Appears To Be", "Building Effective
+// Agents With", "Reviewer Wants Me To". These fragments produce incoherent
+// titles and taglines when used raw.
+//
+// cleanEV() strips trailing prepositions, conjunctions, articles, auxiliary
+// verbs, and common incomplete verb phrases so "Building Effective Agents With"
+// becomes "Building Effective Agents" and "Reviewer Wants Me To" becomes
+// "Reviewer".
+
+function cleanEV(raw: string): string {
+  if (!raw) return raw
+  return raw
+    .trim()
+    // Multi-word verb phrases: "appears to be", "wants me to", "needs to", etc.
+    .replace(/\s+(appears?\s+to\s+be|seems?\s+to\s+be|wants?\s+(?:me\s+)?to|needs?\s+to|has\s+to|is\s+(?:a|an|the|not))\s*$/i, '')
+    // Trailing single stop words: prepositions, conjunctions, articles, aux verbs
+    .replace(/\s+(on|in|to|for|with|by|of|and|or|a|an|the|be|is|are|was|that|which|this|when|where|how)\s*$/i, '')
+    .trim()
+}
+
 // ── Candidate builders ────────────────────────────────────────────────────────
 
 function buildPersonaFirstCandidate(
@@ -616,13 +678,13 @@ function buildPersonaFirstCandidate(
     buyerRoles, industries, emergingTech, platformShifts,
   } = frame
 
-  const persona    = ev(personas)   || 'practitioners'
-  const workflow   = ev(workflows)  || cluster.clusterName
-  const workaround = ev(workarounds)
-  const incumbent  = ev(existingSolutions)
-  const buyer      = ev(buyerRoles) || ev(personas, 1) || 'team lead or manager'
-  const industry   = ev(industries)
-  const shift      = ev([...emergingTech, ...platformShifts])
+  const persona    = cleanEV(ev(personas))   || 'practitioners'
+  const workflow   = cleanEV(ev(workflows))  || cluster.clusterName
+  const workaround = cleanEV(ev(workarounds))
+  const incumbent  = cleanEV(ev(existingSolutions))
+  const buyer      = cleanEV(ev(buyerRoles)) || cleanEV(ev(personas, 1)) || 'team lead or manager'
+  const industry   = cleanEV(ev(industries))
+  const shift      = cleanEV(ev([...emergingTech, ...platformShifts]))
 
   const coreWedge = workaround
     ? `${cap(persona)} doing ${workflow} still resort to ${workaround} — no focused tool closes this gap`
@@ -630,7 +692,7 @@ function buildPersonaFirstCandidate(
       ? `${cap(persona)} can't rely on ${incumbent} for ${workflow} — the gap is real and unaddressed`
       : `${cap(persona)} lacks a purpose-built tool for ${workflow}`
 
-  const titleFallback = `${cap(persona)} ${cap(workflow)} Tool`
+  const titleFallback = `${cap(workflow)} Platform for ${cap(persona)}s`
 
   return {
     id:        makeConceptId(cluster.id, 'persona_first'),
@@ -696,8 +758,9 @@ function buildPersonaFirstCandidate(
           : `Signal frequency across the corpus confirms recurring unsolved friction, not a one-off frustration`
     ),
     mvpScope: ollama?.mvpScope ?? (
-      `Core: solve the ${workflow} problem for ${persona}. Single flow, no sign-up required.` +
-      (workaround ? ` Replaces ${workaround}.` : '')
+      `Core: the primary ${workflow} use case for ${persona}, delivered end-to-end.` +
+      (workaround ? ` Replaces ${workaround}.` : '') +
+      ` V1 excludes advanced reporting, multi-tenant admin, third-party integrations, and mobile.`
     ),
     risks: ollama?.risks ?? (
       `Signals may represent a vocal minority — validate with real users before building. ` +
@@ -760,13 +823,13 @@ function buildWorkflowFirstCandidate(
   } = frame
 
   // Prefer the second workflow to differentiate from persona-first (same data, different angle)
-  const workflow   = ev(workflows, 1) || ev(workflows) || cluster.clusterName
-  const bottleneck = ev(bottlenecks)
-  const incumbent  = ev(existingSolutions)
-  const persona    = ev(personas, 1) || ev(personas) || 'practitioners'
-  const buyer      = ev(buyerRoles) || 'operations or product lead'
-  const industry   = ev(industries)
-  const workaround = ev(workarounds)
+  const workflow   = cleanEV(ev(workflows, 1) || ev(workflows)) || cluster.clusterName
+  const bottleneck = cleanEV(ev(bottlenecks))
+  const incumbent  = cleanEV(ev(existingSolutions))
+  const persona    = cleanEV(ev(personas, 1) || ev(personas)) || 'practitioners'
+  const buyer      = cleanEV(ev(buyerRoles)) || 'operations or product lead'
+  const industry   = cleanEV(ev(industries))
+  const workaround = cleanEV(ev(workarounds))
 
   const coreWedge =
     bottleneck && incumbent
@@ -790,7 +853,7 @@ function buildWorkflowFirstCandidate(
     angleType:              'workflow_first',
     title:                  bottleneck
       ? `${cap(workflow)} ${cap(bottleneck)} Solver`
-      : `${cap(workflow)} Workflow Tool`,
+      : `${cap(workflow)} Workflow Platform`,
     tagline:                `Fix the ${bottleneck || workflow} step that ${cap(incumbent) || 'every tool'} leaves broken`,
     coreWedge,
     primaryUser:            persona,
@@ -830,9 +893,10 @@ function buildWorkflowFirstCandidate(
       `${cap(workflow)} completes without the manual intervention currently required` +
       (bottleneck ? ` at ${bottleneck}` : '') + '.',
     mvpScope:
-      `Single-workflow tool covering ${workflow}` +
-      (bottleneck ? `, prioritising ${bottleneck}` : '') +
-      '. No sign-up, local-first, exports on demand.',
+      `Purpose-built for the ${workflow} workflow` +
+      (bottleneck ? `, with priority focus on the ${bottleneck} step` : '') +
+      '. V1 covers the core workflow end-to-end for the lead user type.' +
+      ' Excludes multi-tenant admin, reporting dashboards, and third-party API marketplace.',
     risks:
       `Workflow tooling can suffer from scope creep — keep the MVP narrow. ` +
       (incumbent ? `${cap(incumbent)} could ship a focused mode for this use case.` : ''),
@@ -886,16 +950,16 @@ function buildTechEnablementCandidate(
 
   // Anchor on the most forward-looking technology signal available
   const techAnchorEntity = emergingTech[0] ?? platformShifts[0] ?? technologies[0]
-  const techValue        = techAnchorEntity?.value || 'new automation capabilities'
+  const techValue        = cleanEV(techAnchorEntity?.value || 'new automation capabilities')
   const isForwardTech    = emergingTech.length > 0 || platformShifts.length > 0
 
-  const workflow  = ev(workflows)  || cluster.clusterName
-  const incumbent = ev(existingSolutions)
-  const persona   = ev(personas)   || 'early adopters'
-  const buyer     = ev(buyerRoles) || 'technical lead or architect'
-  const industry  = ev(industries)
-  const workaround = ev(workarounds)
-  const bottleneck = ev(bottlenecks)
+  const workflow   = cleanEV(ev(workflows))  || cluster.clusterName
+  const incumbent  = cleanEV(ev(existingSolutions))
+  const persona    = cleanEV(ev(personas))   || 'early adopters'
+  const buyer      = cleanEV(ev(buyerRoles)) || 'technical lead or architect'
+  const industry   = cleanEV(ev(industries))
+  const workaround = cleanEV(ev(workarounds))
+  const bottleneck = cleanEV(ev(bottlenecks))
 
   const coreWedge = isForwardTech
     ? `${cap(techValue)} makes ${workflow} automation tractable — existing tools were built before this capability existed`
@@ -912,7 +976,7 @@ function buildTechEnablementCandidate(
     clusterId:              cluster.id,
     rank,
     angleType:              'technology_enablement',
-    title:                  `${cap(techValue)}-Powered ${cap(workflow)} Tool`,
+    title:                  `${cap(techValue)}-Powered ${cap(workflow)} Platform`,
     tagline:                `What ${techValue} makes possible for ${workflow} that existing tools haven't built`,
     coreWedge,
     primaryUser:            persona,

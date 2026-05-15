@@ -1,5 +1,6 @@
 import type { OpportunityCluster, DimensionScores, CorpusSourceType } from '../../opportunity-radar/types.js'
 import type { OpportunityFrame, VentureScopeLLMInput } from '../types.js'
+import { assessConceptAmbiguity } from '../utils/conceptAmbiguity.js'
 
 // ── Corpus source type validation ─────────────────────────────────────────────
 
@@ -76,7 +77,8 @@ export function buildVentureScopeLLMInput(
       sourceType: s.corpusSourceType,
     }))
 
-  return {
+  // Assess ambiguity from the LLM input — injected into prompt when medium/high
+  const baseInput: VentureScopeLLMInput = {
     clusterName:      cluster.clusterName,
     angleType,
     angleDescription: ANGLE_DESCRIPTIONS[angleType],
@@ -95,5 +97,19 @@ export function buildVentureScopeLLMInput(
       technologies:      topN(frame.technologies, 3),
     },
     evidenceSnippets,
+  }
+
+  const _ambiguityResult = assessConceptAmbiguity(baseInput)
+  const ambiguityHint = _ambiguityResult.needsDisambiguation
+    ? {
+        level: _ambiguityResult.ambiguityLevel as 'medium' | 'high',
+        flags: _ambiguityResult.ambiguityFlags,
+        recommendedInterpretations: _ambiguityResult.recommendedInterpretations,
+      }
+    : undefined
+
+  return {
+    ...baseInput,
+    ...(ambiguityHint ? { ambiguityHint } : {}),
   }
 }
