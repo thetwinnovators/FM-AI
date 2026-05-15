@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import ScoreBar from '../ScoreBar.jsx'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
+import { buildOpportunityFrame } from '../../../venture-scope/services/opportunityFrameBuilder.js'
+import OpportunityFramePanel from '../OpportunityFramePanel.jsx'
 
 function Section({ title, children }) {
   if (!children) return null
@@ -99,7 +101,11 @@ function EvidenceTraceSection({ entries, storeSlice }) {
   )
 }
 
-export default function BriefTab({ concept, candidates, onSelectCandidate, storeSlice }) {
+export default function BriefTab({ concept, candidates, onSelectCandidate, storeSlice, selectedCluster, entityGraph, allSignals }) {
+  const frame = (selectedCluster && entityGraph && allSignals)
+    ? buildOpportunityFrame(selectedCluster, allSignals, entityGraph)
+    : null
+
   if (!concept) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -212,6 +218,9 @@ export default function BriefTab({ concept, candidates, onSelectCandidate, store
           </div>
         </div>
       )}
+
+      {/* Graph context — underlying entity frame used to generate this concept */}
+      <OpportunityFramePanel frame={frame} />
     </div>
   )
 }

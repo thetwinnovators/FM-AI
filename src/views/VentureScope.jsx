@@ -262,6 +262,9 @@ export default function VentureScope() {
             candidates={clusterCandidates}
             onSelectCandidate={setSelectedCandidate}
             storeSlice={storeSlice}
+            selectedCluster={selectedCluster}
+            entityGraph={entityGraph}
+            allSignals={signals}
           />
         )}
         {activeTab === 'Compare' && (
