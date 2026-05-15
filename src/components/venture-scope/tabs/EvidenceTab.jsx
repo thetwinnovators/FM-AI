@@ -8,7 +8,7 @@ function NavigateLink({ path, label }) {
     <button
       type="button"
       onClick={() => navigate(path)}
-      className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block text-left truncate"
+      className="text-xs text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block text-left truncate"
     >
       {label}
     </button>
@@ -40,7 +40,7 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId, stor
 
   return (
     <div className="space-y-2 max-w-4xl">
-      <p className="text-[11px] text-[color:var(--color-text-tertiary)] pb-1">
+      <p className="text-xs text-[color:var(--color-text-tertiary)] pb-1">
         {sorted.length} evidence items{selectedClusterId ? ' for selected opportunity' : ''}
       </p>
       {sorted.map((s) => {
@@ -54,15 +54,15 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId, stor
                 sourceType={s.corpusSourceType ?? s.source}
                 label={s.corpusSourceType ?? s.source}
               />
-              <span className="text-[10px] text-[color:var(--color-text-tertiary)] shrink-0">
+              <span className="text-xs text-[color:var(--color-text-tertiary)] shrink-0">
                 {s.detectedAt?.slice(0, 10)}
               </span>
             </div>
-            <p className="text-[12px] text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">
+            <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">
               {s.painText}
             </p>
             {s.corpusTopicName && (
-              <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-1.5">
+              <p className="text-xs text-[color:var(--color-text-tertiary)] mt-1.5">
                 Topic: {s.corpusTopicName}
               </p>
             )}
@@ -71,7 +71,7 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId, stor
                 href={s.sourceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
+                className="text-xs text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
               >
                 {s.sourceUrl}
               </a>
@@ -81,7 +81,7 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId, stor
                 href={resolved.externalUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
+                className="text-xs text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
               >
                 {resolved.title ?? resolved.externalUrl}
               </a>
@@ -90,7 +90,7 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId, stor
               <NavigateLink path={resolved.internalPath} label={resolved.title ?? resolved.label} />
             )}
             {resolved?.notFound && (
-              <span className="text-[10px] text-red-400/60 italic mt-1 block">source deleted</span>
+              <span className="text-xs text-red-400/60 italic mt-1 block">source deleted</span>
             )}
           </div>
         )

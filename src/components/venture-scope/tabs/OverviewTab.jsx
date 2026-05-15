@@ -26,12 +26,12 @@ function EntityRow({ label, items, accent }) {
   if (!items?.length) return null
   return (
     <div className="flex items-start gap-2 flex-wrap">
-      <span className="text-[10px] text-white/30 shrink-0 pt-0.5 w-20">{label}</span>
+      <span className="text-xs text-white/30 shrink-0 pt-0.5 w-20">{label}</span>
       <div className="flex flex-wrap gap-1.5">
         {items.slice(0, 6).map((item) => (
           <span
             key={item}
-            className="px-2 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/8 capitalize"
+            className="px-2 py-0.5 rounded-full text-xs bg-white/5 border border-white/8 capitalize"
             style={accent ? { borderColor: accent } : undefined}
           >
             {item}
@@ -87,8 +87,8 @@ function ClusterDetailModal({
         {/* ── Header ── */}
         <div className="flex-shrink-0 flex items-start justify-between gap-3 px-5 py-4 border-b border-white/[0.07]">
           <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Opportunity</p>
-            <h2 className="text-[17px] font-bold text-white/90 leading-snug">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/30 mb-1">Opportunity</p>
+            <h2 className="text-base font-bold text-white/90 leading-snug">
               {formatClusterName(cluster.clusterName)}
             </h2>
           </div>
@@ -117,35 +117,35 @@ function ClusterDetailModal({
           >
             <div className="grid grid-cols-4 divide-x divide-white/[0.06]">
               <div className="px-4 pt-3.5 pb-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">Score</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/30 mb-1">Score</div>
                 <div className="text-[22px] font-bold font-mono leading-none" style={{ color: 'var(--color-topic)' }}>
                   {cluster.opportunityScore ?? '—'}
                 </div>
-                <div className="text-[10px] text-white/25 mt-0.5">/ 100</div>
+                <div className="text-xs text-white/25 mt-0.5">/ 100</div>
               </div>
               <div className="px-4 pt-3.5 pb-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">Signals</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/30 mb-1">Signals</div>
                 <div className="text-[22px] font-bold font-mono leading-none text-white/80">
                   {cluster.signalCount ?? 0}
                 </div>
-                <div className="text-[10px] text-white/25 mt-0.5">data points</div>
+                <div className="text-xs text-white/25 mt-0.5">data points</div>
               </div>
               <div className="px-4 pt-3.5 pb-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">Sources</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/30 mb-1">Sources</div>
                 <div className="text-[22px] font-bold font-mono leading-none text-white/80">
                   {cluster.sourceDiversity ?? 0}
                 </div>
-                <div className="text-[10px] text-white/25 mt-0.5">types</div>
+                <div className="text-xs text-white/25 mt-0.5">types</div>
               </div>
               <div className="px-4 pt-3.5 pb-3">
-                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">Buildable</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-white/30 mb-1">Buildable</div>
                 <div
-                  className="text-[16px] font-bold font-mono leading-none mt-1"
+                  className="text-base font-bold font-mono leading-none mt-1"
                   style={{ color: cluster.isBuildable !== false ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)' }}
                 >
                   {cluster.isBuildable !== false ? 'Yes' : 'No'}
                 </div>
-                <div className="text-[10px] text-white/25 mt-0.5">
+                <div className="text-xs text-white/25 mt-0.5">
                   {cluster.inferredCategory ?? 'opportunity'}
                 </div>
               </div>
@@ -155,7 +155,7 @@ function ClusterDetailModal({
           {/* Entity evidence chips */}
           {hasEntities && (
             <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
-              <p className="text-[10px] uppercase tracking-widest text-white/25 mb-1">
+              <p className="text-xs font-medium uppercase tracking-wide text-white/25 mb-1">
                 Evidence context
               </p>
               <EntityRow label="Personas"     items={es.personas} />
@@ -170,7 +170,7 @@ function ClusterDetailModal({
           {/* Dimension score breakdown */}
           {dim ? (
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-white/25 mb-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-white/25 mb-3">
                 Dimension breakdown
               </p>
               <DimensionScoreGrid
@@ -180,7 +180,7 @@ function ClusterDetailModal({
               />
             </div>
           ) : (
-            <p className="text-[11px] text-white/30">
+            <p className="text-xs text-white/30">
               Score dimensions not yet computed — re-run a scan.
             </p>
           )}
@@ -188,12 +188,12 @@ function ClusterDetailModal({
           {/* Linked concept preview — if generated */}
           {concept && (
             <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3.5">
-              <p className="text-[10px] uppercase tracking-widest text-white/25 mb-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-white/25 mb-1.5">
                 Generated concept
               </p>
-              <p className="text-[14px] font-semibold text-white/85">{concept.title}</p>
+              <p className="text-sm font-semibold text-white/85">{concept.title}</p>
               {concept.tagline && (
-                <p className="text-[12px] text-white/40 mt-0.5 leading-relaxed">{concept.tagline}</p>
+                <p className="text-sm text-white/40 mt-0.5 leading-relaxed">{concept.tagline}</p>
               )}
             </div>
           )}
@@ -209,7 +209,7 @@ function ClusterDetailModal({
             <button
               type="button"
               onClick={onViewBrief}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-semibold transition-opacity hover:opacity-80"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
               style={{ color: 'var(--color-creator)' }}
             >
               View concept brief →
@@ -219,7 +219,7 @@ function ClusterDetailModal({
               type="button"
               onClick={onGenerate}
               disabled={isGenerating || !canGenerate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.10] text-white/55 hover:text-white/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.10] text-white/55 hover:text-white/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Sparkles size={13} />
               {isGenerating ? 'Generating…' : 'Generate venture concept'}
@@ -255,29 +255,29 @@ function OpportunityCard({
       >
         {/* Rank + score */}
         <div className="flex items-start justify-between mb-3">
-          <span className="text-[10px] font-mono text-[color:var(--color-text-tertiary)]">#{rank}</span>
+          <span className="text-xs font-mono text-[color:var(--color-text-tertiary)]">#{rank}</span>
           <div className="flex items-baseline gap-0.5">
-            <span className="text-[18px] font-bold font-mono leading-none text-[color:var(--color-text-primary)]">
+            <span className="text-lg font-bold font-mono leading-none text-[color:var(--color-text-primary)]">
               {cluster.opportunityScore ?? '—'}
             </span>
-            <span className="text-[9px] text-[color:var(--color-text-tertiary)]">/100</span>
+            <span className="text-xs text-[color:var(--color-text-tertiary)]">/100</span>
           </div>
         </div>
 
         {/* Name */}
-        <h3 className="text-[13px] font-semibold leading-snug mb-3 group-hover:text-white transition-colors">
+        <h3 className="text-sm font-semibold leading-snug mb-3 group-hover:text-white transition-colors">
           {formatClusterName(cluster.clusterName)}
         </h3>
 
         {/* Meta */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] text-[color:var(--color-text-tertiary)]">
+          <span className="text-xs text-[color:var(--color-text-tertiary)]">
             {cluster.signalCount ?? 0} signals
           </span>
           {cluster.sourceDiversity > 0 && (
             <>
               <span className="text-[color:var(--color-border-subtle)]">·</span>
-              <span className="text-[11px] text-[color:var(--color-text-tertiary)]">
+              <span className="text-xs text-[color:var(--color-text-tertiary)]">
                 {cluster.sourceDiversity} source{cluster.sourceDiversity !== 1 ? 's' : ''}
               </span>
             </>
@@ -289,7 +289,7 @@ function OpportunityCard({
 
         {/* Concept tagline preview */}
         {concept && (concept.tagline || concept.opportunitySummary) && (
-          <p className="mt-3 text-[11px] text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-2">
+          <p className="mt-3 text-xs text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-2">
             {concept.tagline ?? (concept.opportunitySummary ?? '').slice(0, 90) + '…'}
           </p>
         )}
@@ -301,7 +301,7 @@ function OpportunityCard({
           <button
             type="button"
             onClick={onViewBrief}
-            className="text-[11px] font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
+            className="text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
             style={{ color: 'var(--color-creator)' }}
           >
             View concept brief →
@@ -311,7 +311,7 @@ function OpportunityCard({
             type="button"
             onClick={onGenerate}
             disabled={isGenerating || !canGenerate}
-            className="text-[11px] font-medium px-3 py-1.5 rounded-md border transition-colors
+            className="text-xs font-medium px-3 py-1.5 rounded-md border transition-colors
               bg-white/5 border-white/10
               hover:bg-white/10 hover:border-white/16
               text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]
@@ -340,7 +340,7 @@ function CompactRow({
       ].join(' ')}
     >
       {/* Rank */}
-      <span className="text-[10px] font-mono text-[color:var(--color-text-tertiary)] w-5 shrink-0 text-right">
+      <span className="text-xs font-mono text-[color:var(--color-text-tertiary)] w-5 shrink-0 text-right">
         {rank}
       </span>
 
@@ -350,13 +350,13 @@ function CompactRow({
         onClick={onOpenDetail}
         className="flex-1 min-w-0 text-left group flex items-center gap-3"
       >
-        <span className="text-[12px] font-medium truncate group-hover:text-white transition-colors flex-1 min-w-0">
+        <span className="text-sm font-medium truncate group-hover:text-white transition-colors flex-1 min-w-0">
           {formatClusterName(cluster.clusterName)}
         </span>
-        <span className="text-[11px] text-[color:var(--color-text-tertiary)] shrink-0">
+        <span className="text-xs text-[color:var(--color-text-tertiary)] shrink-0">
           {cluster.signalCount ?? 0} signals
         </span>
-        <span className="text-[12px] font-mono font-medium text-[color:var(--color-text-secondary)] shrink-0">
+        <span className="text-sm font-mono font-medium text-[color:var(--color-text-secondary)] shrink-0">
           {cluster.opportunityScore ?? '—'}
         </span>
       </button>
@@ -367,7 +367,7 @@ function CompactRow({
           <button
             type="button"
             onClick={onViewBrief}
-            className="text-[11px] font-medium transition-opacity hover:opacity-75"
+            className="text-xs font-medium transition-opacity hover:opacity-75"
             style={{ color: 'var(--color-creator)' }}
           >
             Brief →
@@ -377,7 +377,7 @@ function CompactRow({
             type="button"
             onClick={onGenerate}
             disabled={isGenerating || !canGenerate}
-            className="text-[11px] px-2.5 py-1 rounded-md border transition-colors
+            className="text-xs px-2.5 py-1 rounded-md border transition-colors
               bg-white/5 border-white/8
               hover:bg-white/10 hover:border-white/14
               text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)]
@@ -451,7 +451,7 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
       <div className="space-y-6 max-w-4xl">
 
         {/* Inline stats strip */}
-        <div className="flex items-center gap-3 text-[11px] text-[color:var(--color-text-tertiary)] flex-wrap">
+        <div className="flex items-center gap-3 text-xs text-[color:var(--color-text-tertiary)] flex-wrap">
           <span>
             <strong className="text-[color:var(--color-text-secondary)] font-semibold">{sorted.length}</strong>{' '}
             opportunit{sorted.length === 1 ? 'y' : 'ies'}
@@ -471,7 +471,7 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
         {/* Top 3 cards */}
         {top3.length > 0 && (
           <div>
-            <h3 className="text-[13px] font-semibold text-[color:var(--color-text-primary)] mb-3">
+            <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)] mb-3">
               Top Opportunities
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -497,7 +497,7 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
         {/* Remaining opportunities — compact rows */}
         {rest.length > 0 && (
           <div>
-            <h3 className="text-[13px] font-semibold text-[color:var(--color-text-primary)] mb-3">
+            <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)] mb-3">
               More Opportunities
             </h3>
             <div className="glass-panel overflow-hidden divide-y divide-white/5">

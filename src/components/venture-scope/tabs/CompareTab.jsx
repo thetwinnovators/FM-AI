@@ -61,7 +61,7 @@ export default function CompareTab({ clusters }) {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Trophy className="w-3.5 h-3.5 text-[color:var(--color-text-secondary)]" />
-          <span className="text-[11px] font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wider">
+          <span className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">
             Overall Rankings
           </span>
         </div>
@@ -82,7 +82,7 @@ export default function CompareTab({ clusters }) {
                   <p className="text-sm font-medium leading-tight truncate">
                     {formatClusterName(cluster.clusterName)}
                   </p>
-                  <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
+                  <p className="text-xs text-[color:var(--color-text-tertiary)] mt-0.5">
                     Leads {winCounts[i]}/{DIMENSIONS.length} dimensions
                   </p>
                 </div>
@@ -110,10 +110,10 @@ export default function CompareTab({ clusters }) {
       {/* ── Dimension Leaders ───────────────────────────────────── */}
       <div>
         <div className="mb-3">
-          <span className="text-[11px] font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wider">
+          <span className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">
             Dimension Leaders
           </span>
-          <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
+          <p className="text-xs text-[color:var(--color-text-tertiary)] mt-0.5">
             Which opportunity leads each scoring category
           </p>
         </div>
@@ -121,7 +121,7 @@ export default function CompareTab({ clusters }) {
           {dimensionLeaders.map(({ key, label, leader, runnerUp }) => (
             <div key={key} className="flex items-center gap-3 px-4 py-2.5">
               {/* Dimension name */}
-              <span className="text-[11px] text-[color:var(--color-text-tertiary)] w-36 flex-shrink-0">
+              <span className="text-xs text-[color:var(--color-text-tertiary)] w-36 flex-shrink-0">
                 {label}
               </span>
               {/* Winner */}
@@ -133,7 +133,7 @@ export default function CompareTab({ clusters }) {
                 <span className="text-xs font-medium truncate">
                   {formatClusterName(leader.cluster.clusterName)}
                 </span>
-                <span className="text-[11px] font-mono tabular-nums text-[color:var(--color-text-secondary)] flex-shrink-0">
+                <span className="text-xs font-mono tabular-nums text-[color:var(--color-text-secondary)] flex-shrink-0">
                   {leader.score}
                 </span>
               </div>
@@ -144,10 +144,10 @@ export default function CompareTab({ clusters }) {
                     className="w-1 h-1 rounded-full"
                     style={{ backgroundColor: CLUSTER_DOT[runnerUp.idx] }}
                   />
-                  <span className="text-[10px] truncate max-w-[90px]">
+                  <span className="text-xs truncate max-w-[90px]">
                     {formatClusterName(runnerUp.cluster.clusterName)}
                   </span>
-                  <span className="text-[10px] font-mono tabular-nums">{runnerUp.score}</span>
+                  <span className="text-xs font-mono tabular-nums">{runnerUp.score}</span>
                 </div>
               )}
             </div>

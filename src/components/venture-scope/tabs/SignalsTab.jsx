@@ -56,10 +56,10 @@ export default function SignalsTab({ entityGraph }) {
               {/* Section header */}
               <div className="flex items-center gap-2 mb-3">
                 <Icon className="w-3.5 h-3.5 text-[color:var(--color-text-secondary)]" />
-                <span className="text-[11px] font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wider">
+                <span className="text-xs font-medium text-[color:var(--color-text-secondary)] uppercase tracking-wide">
                   {label}
                 </span>
-                <span className="text-[10px] text-[color:var(--color-text-tertiary)]">
+                <span className="text-xs text-[color:var(--color-text-tertiary)]">
                   {Math.min(items.length, 20)}
                 </span>
               </div>
@@ -68,11 +68,11 @@ export default function SignalsTab({ entityGraph }) {
                 {items.slice(0, 20).map((e) => (
                   <div
                     key={e.id}
-                    className="flex items-center gap-1.5 text-[12px] px-2.5 py-1 rounded-full bg-white/5 border border-white/8"
+                    className="flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full bg-white/5 border border-white/8"
                     title={`Mentioned ${e.frequency}× · First seen ${e.firstSeen?.slice(0, 10) ?? '—'}`}
                   >
                     <span className="text-[color:var(--color-text-primary)]">{e.value}</span>
-                    <span className="text-[10px] text-[color:var(--color-text-tertiary)] tabular-nums">
+                    <span className="text-xs text-[color:var(--color-text-tertiary)] tabular-nums">
                       {e.frequency}
                     </span>
                   </div>
