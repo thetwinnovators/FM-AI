@@ -157,12 +157,12 @@ function ClusterDetailModal({
               <p className="text-[10px] uppercase tracking-widest text-white/25 mb-1">
                 Evidence context
               </p>
-              <EntityRow label="Personas"     items={es.personas}       accent="rgba(20,184,166,0.45)" />
+              <EntityRow label="Personas"     items={es.personas} />
               <EntityRow label="Workflows"    items={es.workflows} />
-              <EntityRow label="Workarounds"  items={es.workarounds}    accent="rgba(217,70,239,0.45)" />
+              <EntityRow label="Workarounds"  items={es.workarounds} />
               <EntityRow label="Technologies" items={es.technologies} />
-              <EntityRow label="Emerging"     items={es.emergingTech}   accent="rgba(251,191,36,0.45)" />
-              <EntityRow label="Mkt shifts"   items={es.platformShifts} accent="rgba(251,191,36,0.45)" />
+              <EntityRow label="Emerging"     items={es.emergingTech} />
+              <EntityRow label="Mkt shifts"   items={es.platformShifts} />
             </div>
           )}
 
@@ -235,7 +235,7 @@ function ClusterDetailModal({
 // ── Opportunity card (top 3) ──────────────────────────────────────────────────
 
 function OpportunityCard({
-  cluster, rank, pct, concept, hasGenerated,
+  cluster, rank, concept, hasGenerated,
   isSelected, isGenerating, canGenerate,
   onOpenDetail, onGenerate, onViewBrief,
 }) {
@@ -255,23 +255,18 @@ function OpportunityCard({
         {/* Rank + score */}
         <div className="flex items-start justify-between mb-3">
           <span className="text-[10px] font-mono text-[color:var(--color-text-tertiary)]">#{rank}</span>
-          <span className="text-2xl font-bold leading-none" style={{ color: 'var(--color-topic)' }}>
-            {cluster.opportunityScore ?? '—'}
-          </span>
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-[18px] font-bold font-mono leading-none text-[color:var(--color-text-primary)]">
+              {cluster.opportunityScore ?? '—'}
+            </span>
+            <span className="text-[9px] text-[color:var(--color-text-tertiary)]">/100</span>
+          </div>
         </div>
 
         {/* Name */}
         <h3 className="text-[13px] font-semibold leading-snug mb-3 group-hover:text-white transition-colors">
           {cluster.clusterName}
         </h3>
-
-        {/* Score bar */}
-        <div className="h-1 bg-white/5 rounded-full overflow-hidden mb-3">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, backgroundColor: 'rgba(20,184,166,0.55)' }}
-          />
-        </div>
 
         {/* Meta */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -332,42 +327,37 @@ function OpportunityCard({
 // ── Compact row (rank 4+) ─────────────────────────────────────────────────────
 
 function CompactRow({
-  cluster, rank, pct, hasGenerated,
+  cluster, rank, hasGenerated,
   isSelected, isGenerating, canGenerate,
   onOpenDetail, onGenerate, onViewBrief,
 }) {
   return (
     <div
       className={[
-        'flex items-center gap-3 px-4 py-3 transition-colors',
+        'flex items-center gap-3 px-4 py-2.5 transition-colors',
         isSelected ? 'bg-white/[0.04]' : 'hover:bg-white/[0.025]',
       ].join(' ')}
     >
       {/* Rank */}
-      <span className="text-[10px] font-mono text-[color:var(--color-text-tertiary)] w-6 shrink-0 text-right">
-        #{rank}
+      <span className="text-[10px] font-mono text-[color:var(--color-text-tertiary)] w-5 shrink-0 text-right">
+        {rank}
       </span>
 
-      {/* Name + bar — click opens detail modal */}
+      {/* Name + metadata — click opens detail modal */}
       <button
         type="button"
         onClick={onOpenDetail}
-        className="flex-1 min-w-0 text-left group"
+        className="flex-1 min-w-0 text-left group flex items-center gap-3"
       >
-        <div className="flex items-center gap-3 mb-1.5">
-          <span className="text-[12px] font-medium truncate group-hover:text-white transition-colors">
-            {cluster.clusterName}
-          </span>
-          <span className="text-[11px] font-mono text-[color:var(--color-text-tertiary)] shrink-0">
-            {cluster.opportunityScore ?? '—'}
-          </span>
-        </div>
-        <div className="h-0.5 bg-white/5 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${pct}%`, backgroundColor: 'rgba(20,184,166,0.4)' }}
-          />
-        </div>
+        <span className="text-[12px] font-medium truncate group-hover:text-white transition-colors flex-1 min-w-0">
+          {cluster.clusterName}
+        </span>
+        <span className="text-[11px] text-[color:var(--color-text-tertiary)] shrink-0">
+          {cluster.signalCount ?? 0} signals
+        </span>
+        <span className="text-[12px] font-mono font-medium text-[color:var(--color-text-secondary)] shrink-0">
+          {cluster.opportunityScore ?? '—'}
+        </span>
       </button>
 
       {/* CTA */}
@@ -419,9 +409,7 @@ export default function OverviewTab({
   const sorted = [...(clusters ?? [])].sort(
     (a, b) => (b.opportunityScore ?? 0) - (a.opportunityScore ?? 0),
   )
-  const maxScore = Math.max(...sorted.map((c) => c.opportunityScore ?? 0), 1)
-
-  const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
+const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
   const getTopConcept = (id) =>
     (concepts ?? [])
       .filter((c) => c.clusterId === id)
@@ -482,18 +470,15 @@ export default function OverviewTab({
         {/* Top 3 cards */}
         {top3.length > 0 && (
           <div>
-            <p className="text-[11px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-3">
+            <h3 className="text-[13px] font-semibold text-[color:var(--color-text-primary)] mb-3">
               Top Opportunities
-            </p>
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {top3.map((cluster, i) => {
-                const pct = Math.round(((cluster.opportunityScore ?? 0) / maxScore) * 100)
-                return (
+              {top3.map((cluster, i) => (
                   <OpportunityCard
                     key={cluster.id}
                     cluster={cluster}
                     rank={i + 1}
-                    pct={pct}
                     concept={getTopConcept(cluster.id)}
                     hasGenerated={hasConcept(cluster.id)}
                     isSelected={selectedClusterId === cluster.id}
@@ -503,8 +488,7 @@ export default function OverviewTab({
                     onGenerate={() => onGenerateConcept?.(cluster.id)}
                     onViewBrief={() => handleViewBrief(cluster.id)}
                   />
-                )
-              })}
+              ))}
             </div>
           </div>
         )}
@@ -512,28 +496,24 @@ export default function OverviewTab({
         {/* Remaining opportunities — compact rows */}
         {rest.length > 0 && (
           <div>
-            <p className="text-[11px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-3">
+            <h3 className="text-[13px] font-semibold text-[color:var(--color-text-primary)] mb-3">
               More Opportunities
-            </p>
+            </h3>
             <div className="glass-panel overflow-hidden divide-y divide-white/5">
-              {rest.map((cluster, i) => {
-                const pct = Math.round(((cluster.opportunityScore ?? 0) / maxScore) * 100)
-                return (
-                  <CompactRow
-                    key={cluster.id}
-                    cluster={cluster}
-                    rank={i + 4}
-                    pct={pct}
-                    hasGenerated={hasConcept(cluster.id)}
-                    isSelected={selectedClusterId === cluster.id}
-                    isGenerating={isGenerating}
-                    canGenerate={canGenerate}
-                    onOpenDetail={() => { onSelectCluster?.(cluster.id); setActiveClusterId(cluster.id) }}
-                    onGenerate={() => onGenerateConcept?.(cluster.id)}
-                    onViewBrief={() => handleViewBrief(cluster.id)}
-                  />
-                )
-              })}
+              {rest.map((cluster, i) => (
+                <CompactRow
+                  key={cluster.id}
+                  cluster={cluster}
+                  rank={i + 4}
+                  hasGenerated={hasConcept(cluster.id)}
+                  isSelected={selectedClusterId === cluster.id}
+                  isGenerating={isGenerating}
+                  canGenerate={canGenerate}
+                  onOpenDetail={() => { onSelectCluster?.(cluster.id); setActiveClusterId(cluster.id) }}
+                  onGenerate={() => onGenerateConcept?.(cluster.id)}
+                  onViewBrief={() => handleViewBrief(cluster.id)}
+                />
+              ))}
             </div>
           </div>
         )}

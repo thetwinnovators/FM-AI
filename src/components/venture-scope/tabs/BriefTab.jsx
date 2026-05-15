@@ -38,39 +38,18 @@ const PAPER_CARD = {
 // ── Angle config ──────────────────────────────────────────────────────────────
 
 const ANGLE_CONFIG = {
-  persona_first: {
-    label:       'Persona-First',
-    color:       'rgba(217,70,239,0.8)',
-    borderColor: 'rgba(217,70,239,0.3)',
-    bgColor:     'rgba(217,70,239,0.08)',
-  },
-  workflow_first: {
-    label:       'Workflow-First',
-    color:       'rgba(59,130,246,0.85)',
-    borderColor: 'rgba(59,130,246,0.3)',
-    bgColor:     'rgba(59,130,246,0.08)',
-  },
-  technology_enablement: {
-    label:       'Tech Enablement',
-    color:       'rgba(16,185,129,0.85)',
-    borderColor: 'rgba(16,185,129,0.3)',
-    bgColor:     'rgba(16,185,129,0.08)',
-  },
+  persona_first:         { label: 'Persona-First'  },
+  workflow_first:        { label: 'Workflow-First'  },
+  technology_enablement: { label: 'Tech Enablement' },
 }
 
 const GENERATED_BY_LABELS = {
-  ollama:   { text: 'LLM synthesised', color: 'rgba(20,184,166,0.8)'  },
-  graph:    { text: 'Graph derived',   color: 'rgba(148,163,184,0.65)' },
-  template: { text: 'Template',        color: 'rgba(148,163,184,0.45)' },
+  ollama:   'LLM synthesised',
+  graph:    'Graph derived',
+  template: 'Template',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function scoreLabel(score) {
-  if (score >= 70) return { text: 'Strong', color: 'rgba(16,185,129,0.95)' }
-  if (score >= 50) return { text: 'Good',   color: 'rgba(245,158,11,0.95)'  }
-  return                   { text: 'Fair',  color: 'rgba(148,163,184,0.8)'  }
-}
 
 // Composite rank: opportunity score + evidence weight + LLM-generation boost
 function rankScore(c) {
@@ -174,23 +153,17 @@ function downloadConceptMd(concept, clusterName) {
 function AnglePill({ angleType }) {
   const cfg = ANGLE_CONFIG[angleType] ?? ANGLE_CONFIG.persona_first
   return (
-    <span
-      className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0"
-      style={{ color: cfg.color, backgroundColor: cfg.bgColor, border: `1px solid ${cfg.borderColor}` }}
-    >
+    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0 bg-white/[0.06] border border-white/[0.12] text-[color:var(--color-text-secondary)]">
       {cfg.label}
     </span>
   )
 }
 
 function GeneratedByBadge({ generatedBy }) {
-  const cfg = GENERATED_BY_LABELS[generatedBy] ?? GENERATED_BY_LABELS.template
+  const label = GENERATED_BY_LABELS[generatedBy] ?? GENERATED_BY_LABELS.template
   return (
-    <span
-      className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
-      style={{ backgroundColor: 'rgba(255,255,255,0.05)', color: cfg.color, border: `1px solid ${cfg.color}` }}
-    >
-      {cfg.text}
+    <span className="text-[10px] px-1.5 py-0.5 rounded shrink-0 bg-white/[0.04] border border-white/[0.08] text-[color:var(--color-text-tertiary)]">
+      {label}
     </span>
   )
 }
@@ -290,7 +263,7 @@ function EvidenceBlock({ entries, storeSlice }) {
             </>
           )
           const wrap = (child) => (
-            <div key={e.signalId ?? i} className="border-l-2 pl-3" style={{ borderColor: 'rgba(20,184,166,0.35)' }}>
+            <div key={e.signalId ?? i} className="border-l-2 pl-3" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
               {child}
             </div>
           )
@@ -307,11 +280,14 @@ function EvidenceBlock({ entries, storeSlice }) {
   )
 }
 
+// ── keep angle reference available in modal (label only) ─────────────────────
+function getAngleLabel(angleType) {
+  return ANGLE_CONFIG[angleType]?.label ?? angleType ?? ''
+}
+
 // ── Concept card (grid item) ──────────────────────────────────────────────────
 
 function ConceptCard({ concept, clusterName, onClick }) {
-  const angle   = ANGLE_CONFIG[concept.angleType] ?? ANGLE_CONFIG.persona_first
-  const { text: scoreText, color: scoreColor } = scoreLabel(concept.opportunityScore ?? 0)
   const signals = concept.evidenceTrace?.length ?? 0
 
   const summary = (() => {
@@ -325,9 +301,6 @@ function ConceptCard({ concept, clusterName, onClick }) {
       onClick={onClick}
       className="glass-panel w-full text-left overflow-hidden transition-all duration-150 hover:scale-[1.015] active:scale-[0.99] group"
     >
-      {/* Angle accent stripe */}
-      <div className="h-0.5 transition-opacity group-hover:opacity-80" style={{ backgroundColor: angle.color }} />
-
       <div className="p-4">
         {/* Badges + score */}
         <div className="flex items-start justify-between gap-2 mb-3">
@@ -337,10 +310,10 @@ function ConceptCard({ concept, clusterName, onClick }) {
           </div>
           {concept.opportunityScore != null && (
             <div className="flex items-baseline gap-1 shrink-0">
-              <span className="text-[10px]" style={{ color: scoreColor }}>{scoreText}</span>
-              <span className="text-xl font-bold leading-none" style={{ color: scoreColor }}>
+              <span className="text-[16px] font-bold font-mono leading-none text-[color:var(--color-text-secondary)]">
                 {concept.opportunityScore}
               </span>
+              <span className="text-[9px] text-[color:var(--color-text-tertiary)]">/100</span>
             </div>
           )}
         </div>
@@ -361,7 +334,7 @@ function ConceptCard({ concept, clusterName, onClick }) {
         {/* Footer */}
         {signals > 0 && (
           <div className="mt-3 pt-3 border-t border-white/6 flex items-center gap-1.5 text-[10px] text-[color:var(--color-text-tertiary)]">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: 'rgba(20,184,166,0.6)' }} />
+            <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
             {signals} signal{signals !== 1 ? 's' : ''} of evidence
           </div>
         )}
@@ -375,7 +348,6 @@ function ConceptCard({ concept, clusterName, onClick }) {
 function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate, isRegenerating }) {
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
-  const angle = ANGLE_CONFIG[concept.angleType] ?? ANGLE_CONFIG.persona_first
 
   // Escape to close
   useEffect(() => {
@@ -524,7 +496,7 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
           {concept.coreWedge && (
             <p
               className="text-[13px] text-white/45 italic leading-relaxed pl-4 border-l-2"
-              style={{ borderColor: angle.color + '80' }}
+              style={{ borderColor: 'rgba(255,255,255,0.14)' }}
             >
               {concept.coreWedge}
             </p>
