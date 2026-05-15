@@ -257,7 +257,11 @@ export default function VentureScope() {
             signals={signals}
             concepts={vsConcepts}
             meta={meta}
-            onSelectCluster={(id) => { setSelectedClusterId(id); setActiveTab('Scores') }}
+            entityGraph={entityGraph}
+            onSelectCluster={setSelectedClusterId}
+            onNavigateToTab={setActiveTab}
+            onGenerateConcept={handleRegenerateConcept}
+            isGenerating={regenerating}
             selectedClusterId={selectedClusterId}
           />
         )}
