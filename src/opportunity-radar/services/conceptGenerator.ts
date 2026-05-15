@@ -582,8 +582,10 @@ async function generateWithOllamaFrame(
     if (warnings.length > 0) {
       console.warn('[VS-LLM] Output warnings:', warnings)
     }
-    // Hard reject on >= 3 warnings — output is likely low-quality or hallucinatory
-    if (warnings.length >= 3) {
+    // Hard reject on >= 5 warnings — threshold accommodates small local models that
+    // produce brief but correct answers (which trigger length checks on short fields).
+    // A single ID-leak or 4+ filler phrases still causes rejection.
+    if (warnings.length >= 5) {
       console.warn('[VS-LLM] Too many warnings — falling back to deterministic')
       return null
     }
