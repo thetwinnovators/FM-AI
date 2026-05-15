@@ -582,10 +582,16 @@ async function generateWithOllamaFrame(
     if (warnings.length > 0) {
       console.warn('[VS-LLM] Output warnings:', warnings)
     }
-    // Hard reject on >= 5 warnings — threshold accommodates small local models that
-    // produce brief but correct answers (which trigger length checks on short fields).
-    // A single ID-leak or 4+ filler phrases still causes rejection.
-    if (warnings.length >= 5) {
+    // ID-leak is an unconditional hard reject — cluster IDs in narrative output
+    // indicate prompt injection or a model that hallucinated internal references.
+    if (warnings.some((w) => w.startsWith('Internal cluster ID'))) {
+      console.warn('[VS-LLM] ID-leak detected — falling back to deterministic')
+      return null
+    }
+    // Hard reject on >= 4 combined warnings — accommodates small local models that
+    // produce brief but correct answers (up to 3 short-field warnings pass).
+    // 4+ filler phrases or any filler+short combination triggers rejection.
+    if (warnings.length >= 4) {
       console.warn('[VS-LLM] Too many warnings — falling back to deterministic')
       return null
     }

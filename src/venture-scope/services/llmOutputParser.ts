@@ -67,8 +67,9 @@ const NARRATIVE_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
 /**
  * Content-level validation of a parsed LLM output against its input context.
  * Returns a list of warning strings (empty array = clean).
- * Callers log warnings; if count >= 3 the output is discarded and the
- * deterministic fallback is used instead.
+ * Callers log warnings. ID-leak warnings are unconditional hard rejects.
+ * If total count >= 4 the output is discarded and the deterministic fallback
+ * is used instead.
  */
 export function validateLLMOutput(
   output: VentureScopeLLMOutput,
