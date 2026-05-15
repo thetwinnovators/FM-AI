@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 import {
   BookOpen, LayoutDashboard, Brain, FileText, Bot, Compass,
   Plug, Activity, GraduationCap, Code2,
-  TrendingUp, Globe, ChevronLeft, ChevronRight,
+  TrendingUp, Globe, ChevronLeft, ChevronRight, Telescope,
 } from 'lucide-react'
 
 const NAV_GROUPS = [
@@ -12,8 +12,9 @@ const NAV_GROUPS = [
     { to: '/memory',   label: 'Knowledge Base',   icon: Brain           },
   ],
   [
-    { to: '/discover', label: 'Discover',          icon: Compass         },
-    { to: '/signals',  label: 'Latest Signals',    icon: Activity        },
+    { to: '/discover',       label: 'Discover',       icon: Compass   },
+    { to: '/signals',        label: 'Latest Signals', icon: Activity  },
+    { to: '/venture-scope',  label: 'Venture Scope',  icon: Telescope },
   ],
   [
     { to: '/topics',    label: 'My Topics',    icon: BookOpen  },

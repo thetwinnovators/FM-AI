@@ -189,3 +189,87 @@ export const WORKFLOW_RE: RegExp[] = [
   // "the process of [noun phrase]"
   /(?:the process of|workflow for|process for|steps? (?:to|for))\s+([a-z][a-z\s]{3,40})/gi,
 ]
+
+// ─── Venture Scope v2: new entity pattern lists ───────────────────────────────
+
+export const KNOWN_BUYER_ROLES: readonly string[] = [
+  'cto', 'ceo', 'vp engineering', 'vp product', 'head of engineering',
+  'head of product', 'engineering manager', 'product manager', 'procurement',
+  'it manager', 'decision maker', 'budget owner', 'director of engineering',
+  'vp of engineering', 'chief technology officer', 'chief executive officer',
+]
+
+export const KNOWN_COMPANY_TYPES: readonly string[] = [
+  'smb', 'startup', 'enterprise', 'agency', 'freelancer', 'consultant',
+  'mid-market', 'scale-up', 'solopreneur', 'saas company', 'service business',
+  'small business', 'large enterprise', 'fortune 500', 'bootstrapped company',
+]
+
+export const KNOWN_EMERGING_TECHNOLOGIES: readonly string[] = [
+  'llm', 'large language model', 'gpt', 'claude', 'gemini', 'vector database',
+  'embeddings', 'rag', 'retrieval augmented generation', 'generative ai',
+  'agentic ai', 'ai agent', 'computer vision', 'edge ai', 'webassembly',
+  'wasm', 'edge computing', 'serverless', 'diffusion model',
+]
+
+export const KNOWN_PLATFORM_SHIFTS: readonly string[] = [
+  'remote work', 'hybrid work', 'work from home', 'ai adoption',
+  'cloud migration', 'digital transformation', 'no-code movement',
+  'api economy', 'mobile first', 'shift to subscription',
+  'consumerization of it', 'zero trust', 'decentralization',
+]
+
+// Bottleneck: phrases indicating a blocking step
+export const BOTTLENECK_RE = new RegExp(
+  '(?:' + [
+    'bottleneck(?:s)?',
+    'approval process',
+    'manual review',
+    'waiting for (?:approval|sign-?off|review)',
+    'blocks? (?:us|the|our|every)',
+    'slows? (?:down|everything|us|the)',
+    'held up by',
+    'stuck (?:in|on|at|waiting)',
+    'single point of failure',
+    'handoff delay',
+  ].join('|') + ')',
+  'gi',
+)
+
+// Trigger event: phrases indicating when a need arises
+export const TRIGGER_EVENT_RE = new RegExp(
+  '(?:' + [
+    'every time (?:a |an |we |they |the )',
+    'triggered by',
+    'kicked off by',
+    'onboarding',
+    'new hire',
+    'product launch',
+    'quarterly review',
+    'incident occurs',
+    'deployment',
+    'when a new',
+    'when we',
+  ].join('|') + ')',
+  'gi',
+)
+
+export const BUYER_ROLE_CONTEXT_RE: RegExp[] = [
+  /(?:the\s+|our\s+|their\s+)?(cto|ceo|vp\s+\w+|head of \w+|product manager|engineering manager|director of \w+)\b/gi,
+  /\b(?:as a|as an)\s+(cto|ceo|vp\s+\w+|head of \w+|product manager|engineering manager)\b/gi,
+]
+
+export const COMPANY_TYPE_CONTEXT_RE: RegExp[] = [
+  /\b(?:for|targeting|serving|at|in)\s+(smbs?|startups?|enterprises?|agencies|freelancers?|consultants?|mid-market)\b/gi,
+  /\b(smb|startup|enterprise|agency|freelancer|saas company|small business)\b/gi,
+]
+
+export const EMERGING_TECH_CONTEXT_RE: RegExp[] = [
+  /\b(?:using|with|via|powered by|built on|leveraging)\s+([A-Za-z0-9\s\-]{3,40})\b/gi,
+  /\b(llm|gpt|claude|gemini|vector database|embeddings|rag|generative ai|ai agent|wasm|serverless)\b/gi,
+]
+
+export const PLATFORM_SHIFT_CONTEXT_RE: RegExp[] = [
+  /\bshift (?:to|toward|towards|in)\s+([a-z\s]{4,35})\b/gi,
+  /\b(remote work|hybrid work|cloud migration|ai adoption|digital transformation|no-code movement)\b/gi,
+]

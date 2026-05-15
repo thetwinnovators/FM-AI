@@ -8,13 +8,21 @@ export type PainType =
 // how they work around gaps, and what already exists in the market.
 
 export type EntityType =
-  | 'persona'           // who experiences the problem (role / segment)
-  | 'pain_point'        // the core friction (problem space)
-  | 'workflow'          // the process or task being done
-  | 'technology'        // tools, platforms, or APIs mentioned
-  | 'industry'          // sector or market context
-  | 'workaround'        // how people currently solve the gap
-  | 'existing_solution' // named products / services already in use
+  | 'persona'              // who experiences the problem (role / segment)
+  | 'pain_point'           // the core friction (problem space)
+  | 'workflow'             // the process or task being done
+  | 'technology'           // tools, platforms, or APIs mentioned
+  | 'industry'             // sector or market context
+  | 'workaround'           // how people currently solve the gap
+  | 'existing_solution'    // named products / services already in use
+  // Venture Scope additions (v2)
+  | 'bottleneck'           // specific step that blocks progress
+  | 'buyer_role'           // who controls budget/purchase decision
+  | 'company_type'         // SMB, enterprise, startup, agency, etc.
+  | 'process_step'         // named step inside a workflow
+  | 'trigger_event'        // event that initiates a workflow or need
+  | 'emerging_technology'  // new tech that enables new approaches
+  | 'platform_shift'       // macro change creating new opportunity window
 
 /** A single entity extracted from a signal. Stored inline with the signal. */
 export interface SignalEntity {
@@ -98,6 +106,8 @@ export interface DimensionScores {
   defensibility:    number
   /** Clarity of go-to-market: named personas, industry focus, community presence. */
   gtmClarity:       number
+  /** Overall confidence in the score: 0–1. Low when signal count < 5. */
+  confidence?:      number
 }
 
 // ─── PainSignal (extended — backward compatible) ──────────────────────────────

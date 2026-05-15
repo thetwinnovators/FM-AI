@@ -4,10 +4,9 @@ import {
   Activity, Plus, Play, Pin, VolumeX, ChevronDown, ChevronUp,
   X, ExternalLink, AlertTriangle, Video, Bell, Clock, TrendingUp,
   TrendingDown, Minus, Loader2, CheckCircle, BookOpen, RefreshCw,
-  Zap, BarChart2, Sparkles, Lightbulb, ChevronLeft, ChevronRight,
+  Zap, BarChart2, Sparkles, ChevronLeft, ChevronRight,
   LayoutGrid, List,
 } from 'lucide-react'
-import NewTopicModal from '../components/topic/NewTopicModal.jsx'
 import { localSignalsStorage, hydrateSignalsFromDisk } from '../signals/storage/localSignalsStorage.js'
 import { runYoutubeScan, runYoutubeScanFromUserTopics } from '../signals/services/signalDetectionService.js'
 import { useStore } from '../store/useStore.js'
@@ -739,10 +738,6 @@ export default function Signals() {
   const [analysisText, setAnalysisText] = useState('')
   const [analysisLoading, setAnalysisLoading] = useState(false)
 
-  const [showRecommendModal, setShowRecommendModal] = useState(false)
-  const [recommendPrefill, setRecommendPrefill] = useState(null)
-  const [recommendLoading, setRecommendLoading] = useState(false)
-  const [recommendMsg, setRecommendMsg] = useState('')
 
   // load from storage on mount
   useEffect(() => {
@@ -875,68 +870,6 @@ export default function Signals() {
     }
   }, [signals, analysisText])
 
-  const handleRecommendTopic = useCallback(async () => {
-    if (recommendLoading) return
-    setRecommendLoading(true)
-    setRecommendPrefill(null)
-    setRecommendMsg('')
-    try {
-      const existingNames = new Set(Object.values(userTopics).map((t) => t.name.toLowerCase()))
-      const top = [...signals]
-        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
-        .slice(0, 20)
-
-      let prefill = null
-
-      if (top.length > 0) {
-        const lines = top.map(
-          (s, i) => `${i + 1}. [${s.category}] score:${s.score ?? '?'} — "${s.title}"`
-        ).join('\n')
-        const existing = existingNames.size
-          ? `Already tracked topics (do NOT suggest these): ${[...existingNames].join(', ')}.`
-          : ''
-        const prompt =
-          `You are a topic intelligence assistant for a solo content creator. ` +
-          `Based on the following signals, recommend ONE new topic they should track. ` +
-          `${existing} ` +
-          `The topic should emerge from the signal patterns — not be generic.\n\n` +
-          `SIGNALS:\n${lines}\n\n` +
-          `Reply with ONLY valid JSON matching this shape exactly (no explanation, no markdown):\n` +
-          `{"name":"Topic Name","summary":"2-3 sentences on why this topic is emerging and why it matters","query":"short search query for live results"}`
-
-        const raw = await generateSummary(prompt, {})
-        if (raw) {
-          try {
-            const match = raw.match(/\{[\s\S]*\}/)
-            if (match) {
-              const parsed = JSON.parse(match[0])
-              if (parsed.name && !existingNames.has(parsed.name.toLowerCase())) {
-                prefill = { name: parsed.name, summary: parsed.summary ?? '', query: parsed.query ?? parsed.name }
-              }
-            }
-          } catch { /* ignore parse errors — fall back below */ }
-        }
-      }
-
-      // Fallback: find the first signal title not already tracked
-      if (!prefill) {
-        const novel = top.find((s) => !existingNames.has(s.title.toLowerCase()))
-        if (novel) {
-          prefill = { name: novel.title, summary: novel.summary ?? '', query: novel.title }
-        }
-      }
-
-      if (prefill) {
-        setRecommendPrefill(prefill)
-        setShowRecommendModal(true)
-      } else {
-        setRecommendMsg('No topic recommendation — all signal patterns are already tracked.')
-        setTimeout(() => setRecommendMsg(''), 5000)
-      }
-    } finally {
-      setRecommendLoading(false)
-    }
-  }, [signals, userTopics, recommendLoading])
 
   // ── empty states ──────────────────────────────────────────────────────────
 
@@ -969,16 +902,6 @@ export default function Signals() {
               >
                 <BarChart2 size={14} />
                 Signal Analysis
-              </button>
-            )}
-            {hasSignals && (
-              <button
-                onClick={handleRecommendTopic}
-                disabled={recommendLoading}
-                className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-fuchsia-500/10 text-fuchsia-300/80 border border-fuchsia-500/25 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 transition-colors disabled:opacity-50"
-              >
-                {recommendLoading ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
-                Recommend Topic
               </button>
             )}
             <button
@@ -1200,13 +1123,6 @@ export default function Signals() {
           onSave={handleSaveSource}
         />
       )}
-
-      {/* ── recommend topic modal ── */}
-      <NewTopicModal
-        open={showRecommendModal}
-        onClose={() => { setShowRecommendModal(false); setRecommendPrefill(null) }}
-        prefill={recommendPrefill}
-      />
 
       {/* ── analysis drawer ── */}
       {showAnalysis && (

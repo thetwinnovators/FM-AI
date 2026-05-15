@@ -1,4 +1,5 @@
 import type { OpportunityCluster, PainSignal, AppConcept } from '../types.js'
+import type { VentureConceptCandidate } from '../../venture-scope/types.js'
 import { generateResponse } from '../../lib/llm/ollama.js'
 
 // ── Section parser ────────────────────────────────────────────────────────────
@@ -420,4 +421,99 @@ export async function generateConcept(
     ...template,
     ...merged,
   }
+}
+
+// ── Multi-candidate generation (Venture Scope) ────────────────────────────────
+
+const REVENUE_MODELS = [
+  'Free tier + one-time purchase for power features',
+  'Monthly SaaS subscription ($9–$29/mo)',
+  'Per-seat team pricing',
+  'Usage-based (documents processed or API calls)',
+  'Open source core + paid hosted version',
+]
+
+const COMPLEXITY_LEVELS: Array<'low' | 'medium' | 'high'> = ['low', 'medium', 'high']
+
+const WEDGE_TEMPLATES = [
+  (name: string) => `Eliminate the #1 manual step in ${name}`,
+  (name: string) => `One-click automation of the worst part of ${name}`,
+  (name: string) => `Browser-first tool that replaces the spreadsheet workaround for ${name}`,
+]
+
+const WHY_NOW = [
+  'LLMs now make it possible to parse and structure unstructured inputs at near-zero cost.',
+  'Recent platform shifts have left this workflow underserved by existing tools.',
+  'Growing community frustration signals the market is actively searching for a solution.',
+]
+
+/**
+ * Generate N distinct VentureConceptCandidate objects for a given cluster.
+ * Rank 1 is the leading concept (tries Ollama first); alternates use template.
+ */
+export async function generateConcepts(
+  cluster: OpportunityCluster,
+  signals: PainSignal[],
+  count: number = 3,
+): Promise<VentureConceptCandidate[]> {
+  const now      = new Date().toISOString()
+  const template = buildTemplateConcept(cluster, signals)
+  const es       = cluster.entitySummary
+
+  // Attempt Ollama only for the leading concept
+  const ollamaSections = await generateWithOllama(cluster, signals)
+
+  const candidates: VentureConceptCandidate[] = []
+
+  for (let i = 0; i < count; i++) {
+    const wedgeFn      = WEDGE_TEMPLATES[i % WEDGE_TEMPLATES.length]
+    const revenueModel = REVENUE_MODELS[i % REVENUE_MODELS.length]
+    const whyNow       = WHY_NOW[i % WHY_NOW.length]
+    const complexity   = COMPLEXITY_LEVELS[Math.min(i, COMPLEXITY_LEVELS.length - 1)]
+
+    const personaList = es?.personas ?? []
+    const primaryUser = personaList[i % Math.max(personaList.length, 1)]
+      ?? template.targetUser.split(',')[0].trim()
+
+    const isLead = i === 0
+    const title = isLead && ollamaSections?.OPPORTUNITY_SUMMARY
+      ? ollamaSections.OPPORTUNITY_SUMMARY.split('\n')[0].slice(0, 80) || template.title
+      : i === 0
+        ? template.title
+        : `${template.title} — Angle ${i + 1}`
+
+    const confidenceScore = Math.max(0.3, (template.confidenceScore / 100) - i * 0.08)
+
+    candidates.push({
+      id:                     `vs_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 5)}`,
+      clusterId:              cluster.id,
+      rank:                   i + 1,
+      title,
+      tagline:                template.tagline,
+      coreWedge:              wedgeFn(cluster.clusterName),
+      primaryUser,
+      buyer:                  personaList.find((p) => /cto|manager|director|head|vp/i.test(p)) ?? primaryUser,
+      workflowImprovement:    template.proposedSolution,
+      whyNow,
+      complexityEstimate:     complexity,
+      revenueModelHypothesis: revenueModel,
+      opportunityScore:       Math.max(20, (cluster.opportunityScore ?? 50) - i * 5),
+      confidenceScore,
+      generatedBy:            isLead && ollamaSections ? 'ollama' : 'template',
+      status:                 'active',
+      createdAt:              now,
+      updatedAt:              now,
+      // Populate brief fields from template (lead concept only gets Ollama overrides)
+      opportunitySummary:   isLead && ollamaSections?.OPPORTUNITY_SUMMARY ? ollamaSections.OPPORTUNITY_SUMMARY : template.opportunitySummary,
+      problemStatement:     isLead && ollamaSections?.PROBLEM_STATEMENT    ? ollamaSections.PROBLEM_STATEMENT    : template.problemStatement,
+      targetUser:           isLead && ollamaSections?.TARGET_USER           ? ollamaSections.TARGET_USER           : template.targetUser,
+      proposedSolution:     isLead && ollamaSections?.PROPOSED_SOLUTION    ? ollamaSections.PROPOSED_SOLUTION    : template.proposedSolution,
+      valueProp:            isLead && ollamaSections?.VALUE_PROPOSITION    ? ollamaSections.VALUE_PROPOSITION    : template.valueProp,
+      mvpScope:             isLead && ollamaSections?.MVP_SCOPE            ? ollamaSections.MVP_SCOPE            : template.mvpScope,
+      risks:                isLead && ollamaSections?.RISKS                ? ollamaSections.RISKS                : template.risks,
+      implementationPlan:   isLead && ollamaSections?.IMPLEMENTATION_PLAN  ? ollamaSections.IMPLEMENTATION_PLAN  : template.implementationPlan,
+    })
+  }
+
+  return candidates
 }

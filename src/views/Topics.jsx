@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
-import { Bookmark, BookmarkCheck, Sparkles, Trash2, Plus, BookOpen, ArrowUpDown, LayoutGrid, List } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Sparkles, Trash2, Plus, BookOpen, ArrowUpDown, LayoutGrid, List, Lightbulb, Loader2 } from 'lucide-react'
 import TopicCover from '../components/topic/TopicCover.jsx'
 import NewTopicModal from '../components/topic/NewTopicModal.jsx'
 import { getCached } from '../lib/search/cache.js'
 import { useConfirm } from '../components/ui/ConfirmProvider.jsx'
+import { localSignalsStorage } from '../signals/storage/localSignalsStorage.js'
+import { generateSummary } from '../lib/llm/ollama.js'
 
 // ─── cover gradient helper (mirrors TopicCover palette) ──────────────────────
 
@@ -102,11 +104,74 @@ export default function Topics() {
   const [viewMode, setViewMode] = useState(
     () => localStorage.getItem('flowmap.topics.viewMode') ?? 'grid',
   )
+  const [showRecommendModal, setShowRecommendModal] = useState(false)
+  const [recommendPrefill, setRecommendPrefill] = useState(null)
+  const [recommendLoading, setRecommendLoading] = useState(false)
 
   function handleViewMode(mode) {
     setViewMode(mode)
     localStorage.setItem('flowmap.topics.viewMode', mode)
   }
+
+  const handleRecommendTopic = useCallback(async () => {
+    if (recommendLoading) return
+    setRecommendLoading(true)
+    setRecommendPrefill(null)
+    try {
+      const signals = localSignalsStorage.listSignals()
+      const existingNames = new Set(Object.values(userTopics).map((t) => t.name.toLowerCase()))
+      const top = [...signals]
+        .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
+        .slice(0, 20)
+
+      let prefill = null
+
+      if (top.length > 0) {
+        const lines = top.map(
+          (s, i) => `${i + 1}. [${s.category}] score:${s.score ?? '?'} — "${s.title}"`
+        ).join('\n')
+        const existing = existingNames.size
+          ? `Already tracked topics (do NOT suggest these): ${[...existingNames].join(', ')}.`
+          : ''
+        const prompt =
+          `You are a topic intelligence assistant for a solo content creator. ` +
+          `Based on the following signals, recommend ONE new topic they should track. ` +
+          `${existing} ` +
+          `The topic should emerge from the signal patterns — not be generic.\n\n` +
+          `SIGNALS:\n${lines}\n\n` +
+          `Reply with ONLY valid JSON matching this shape exactly (no explanation, no markdown):\n` +
+          `{"name":"Topic Name","summary":"2-3 sentences on why this topic is emerging and why it matters","query":"short search query for live results"}`
+
+        const raw = await generateSummary(prompt, {})
+        if (raw) {
+          try {
+            const match = raw.match(/\{[\s\S]*\}/)
+            if (match) {
+              const parsed = JSON.parse(match[0])
+              if (parsed.name && !existingNames.has(parsed.name.toLowerCase())) {
+                prefill = { name: parsed.name, summary: parsed.summary ?? '', query: parsed.query ?? parsed.name }
+              }
+            }
+          } catch { /* ignore parse errors — fall back below */ }
+        }
+      }
+
+      // Fallback: find the first signal title not already tracked
+      if (!prefill) {
+        const novel = top.find((s) => !existingNames.has(s.title.toLowerCase()))
+        if (novel) {
+          prefill = { name: novel.title, summary: novel.summary ?? '', query: novel.title }
+        }
+      }
+
+      if (prefill) {
+        setRecommendPrefill(prefill)
+        setShowRecommendModal(true)
+      }
+    } finally {
+      setRecommendLoading(false)
+    }
+  }, [userTopics, recommendLoading])
 
   async function askRemoveUserTopic(t) {
     const ok = await confirm({
@@ -204,6 +269,14 @@ export default function Topics() {
             ))}
           </div>
 
+          <button
+            onClick={handleRecommendTopic}
+            disabled={recommendLoading}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-fuchsia-500/10 text-fuchsia-300/80 border border-fuchsia-500/25 hover:bg-fuchsia-500/20 hover:text-fuchsia-300 transition-colors disabled:opacity-50"
+          >
+            {recommendLoading ? <Loader2 size={13} className="animate-spin" /> : <Lightbulb size={13} />}
+            Recommend Topic
+          </button>
           <button onClick={() => setShowNew(true)} className="btn btn-primary text-sm">
             <Plus size={13} /> New topic
           </button>
@@ -367,6 +440,11 @@ export default function Topics() {
       )}
 
       <NewTopicModal open={showNew} onClose={() => setShowNew(false)} />
+      <NewTopicModal
+        open={showRecommendModal}
+        onClose={() => { setShowRecommendModal(false); setRecommendPrefill(null) }}
+        prefill={recommendPrefill}
+      />
     </div>
   )
 }

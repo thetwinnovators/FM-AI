@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scoreCluster, applyBuildabilityFilter, getTop3, scoreOpportunity, scoreDimensions } from '../opportunityScorer.js'
+import { scoreCluster, applyBuildabilityFilter, getTop3, scoreOpportunity, scoreDimensions, buildScoreExplanations } from '../opportunityScorer.js'
 import type { OpportunityCluster, PainSignal, CategoryChart, WinningApp } from '../../types.js'
 
 function makeCluster(overrides: Partial<OpportunityCluster> = {}): OpportunityCluster {
@@ -167,12 +167,12 @@ describe('scoreOpportunity', () => {
     expect(result.dimensionScores.feasibility).toBe(0)
   })
 
-  it('dimensionScores is present and contains all 10 keys', () => {
+  it('dimensionScores is present and contains all 11 keys (10 dimensions + confidence)', () => {
     const c = makeCluster()
     const signals = makeSignals(c)
     const result = scoreOpportunity(c, signals, [], [])
     expect(result.dimensionScores).toBeDefined()
-    expect(Object.keys(result.dimensionScores)).toHaveLength(10)
+    expect(Object.keys(result.dimensionScores)).toHaveLength(11)
   })
 })
 
@@ -245,5 +245,85 @@ describe('scoreDimensions', () => {
     expect(scoreDimensions(large, sLarge).frequency).toBeGreaterThan(
       scoreDimensions(small, sSmall).frequency,
     )
+  })
+})
+
+// ── buildScoreExplanations ────────────────────────────────────────────────────
+
+describe('buildScoreExplanations', () => {
+  it('returns 10 entries with dimension, score, explanation, and confidence', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const dim = scoreDimensions(c, signals)
+    const explanations = buildScoreExplanations(dim, c.signalCount)
+    expect(explanations).toHaveLength(10)
+    for (const entry of explanations) {
+      expect(entry.dimension).toBeTruthy()
+      expect(typeof entry.score).toBe('number')
+      expect(typeof entry.explanation).toBe('string')
+      expect(typeof entry.confidence).toBe('number')
+    }
+  })
+
+  it('includes all 10 dimensions in the correct order', () => {
+    const c = makeCluster()
+    const signals = makeSignals(c)
+    const dim = scoreDimensions(c, signals)
+    const explanations = buildScoreExplanations(dim, c.signalCount)
+    const dimensions = explanations.map((e) => e.dimension)
+    expect(dimensions).toEqual([
+      'Pain Severity',
+      'Frequency',
+      'Urgency',
+      'Willingness to Pay',
+      'Market Breadth',
+      'Weak Solution Fit',
+      'Feasibility',
+      'Why Now',
+      'Defensibility',
+      'GTM Clarity',
+    ])
+  })
+
+  it('uses provided confidence from dimensionScores when available', () => {
+    const c = makeCluster({ signalCount: 15 })
+    const signals = makeSignals(c)
+    const dim = { ...scoreDimensions(c, signals), confidence: 0.88 }
+    const explanations = buildScoreExplanations(dim, c.signalCount)
+    for (const entry of explanations) {
+      expect(entry.confidence).toBe(0.88)
+    }
+  })
+
+  it('computes confidence from signalCount when not in dimensionScores', () => {
+    const c = makeCluster({ signalCount: 25 })
+    const signals = makeSignals(c)
+    const dim = scoreDimensions(c, signals)
+    const explanations = buildScoreExplanations(dim, c.signalCount)
+    // signalCount >= 20 → confidence = 0.95
+    for (const entry of explanations) {
+      expect(entry.confidence).toBe(0.95)
+    }
+  })
+
+  it('includes signalCount in Frequency explanation when score is high', () => {
+    // Need signalCount * 2 + sourceDiversity * 5 >= 65
+    // With sourceDiversity = 2, need signalCount * 2 + 10 >= 65, so signalCount >= 28
+    const c = makeCluster({ signalCount: 30, sourceDiversity: 2, signalIds: Array.from({ length: 30 }, (_, i) => `s${i}`) })
+    const signals = makeSignals(c)
+    const dim = scoreDimensions(c, signals)
+    const explanations = buildScoreExplanations(dim, c.signalCount)
+    const freqExpl = explanations.find((e) => e.dimension === 'Frequency')
+    expect(freqExpl?.explanation).toContain('30 signals')
+  })
+
+  it('explanation changes based on score tier (high/mid/low)', () => {
+    const low = { ...scoreDimensions(makeCluster(), makeSignals(makeCluster())), painSeverity: 20 }
+    const high = { ...scoreDimensions(makeCluster(), makeSignals(makeCluster())), painSeverity: 80 }
+    const lowExpl = buildScoreExplanations(low, 10)
+    const highExpl = buildScoreExplanations(high, 10)
+    const lowPain = lowExpl.find((e) => e.dimension === 'Pain Severity')
+    const highPain = highExpl.find((e) => e.dimension === 'Pain Severity')
+    expect(lowPain?.explanation).not.toBe(highPain?.explanation)
   })
 })

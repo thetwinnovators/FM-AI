@@ -206,6 +206,13 @@ export function scoreDimensions(
   const gtmCommunities = cluster.sourceDiversity >= 2 ? 20 : 0
   const gtmClarity     = Math.min(100, Math.round(gtmPersonas + gtmIndustries + gtmCommunities))
 
+  // ── Confidence: low signal count reduces confidence significantly ──────────
+  const confidence = cluster.signalCount < 3  ? 0.30
+    : cluster.signalCount < 5  ? 0.50
+    : cluster.signalCount < 10 ? 0.70
+    : cluster.signalCount < 20 ? 0.85
+    : 0.95
+
   return {
     painSeverity,
     frequency,
@@ -217,6 +224,7 @@ export function scoreDimensions(
     whyNow,
     defensibility,
     gtmClarity,
+    confidence,
   }
 }
 
@@ -312,4 +320,112 @@ export function getTop3(
     .filter((c) => qualifies(c, signals))
     .sort((a, b) => b.opportunityScore - a.opportunityScore)
     .slice(0, 3)
+}
+
+// ── Score explanation builder ────────────────────────────────────────────────
+
+/**
+ * Converts raw DimensionScores into human-readable explanation entries.
+ * One entry per dimension. Import ScoreBreakdownEntry from venture-scope/types.
+ */
+export function buildScoreExplanations(
+  dim: DimensionScores,
+  signalCount: number,
+): Array<{ dimension: string; score: number; explanation: string; confidence: number }> {
+  const confidence = dim.confidence ?? (
+    signalCount >= 20 ? 0.95
+    : signalCount >= 10 ? 0.85
+    : signalCount >= 5  ? 0.70
+    : signalCount >= 3  ? 0.50
+    : 0.30
+  )
+
+  function explain(score: number, high: string, mid: string, low: string): string {
+    if (score >= 65) return high
+    if (score >= 40) return mid
+    return low
+  }
+
+  return [
+    {
+      dimension: 'Pain Severity', score: dim.painSeverity, confidence,
+      explanation: explain(dim.painSeverity,
+        'Strong, persistent pain reported across multiple sources with high-intensity signals.',
+        'Moderate pain — present but not universally severe.',
+        'Weak signal — pain mentioned infrequently or at low intensity.',
+      ),
+    },
+    {
+      dimension: 'Frequency', score: dim.frequency, confidence,
+      explanation: explain(dim.frequency,
+        `High recurrence — ${signalCount} signals across diverse sources confirm this is a common problem.`,
+        'Moderate frequency — problem appears repeatedly but in a narrower source set.',
+        'Low frequency — too few signals to confirm this is a widespread pattern.',
+      ),
+    },
+    {
+      dimension: 'Urgency', score: dim.urgency, confidence,
+      explanation: explain(dim.urgency,
+        'Time-pressure signals present — people want a solution now, not eventually.',
+        'Some urgency — problem is felt but not blocking critical workflows.',
+        'Low urgency — users tolerate the status quo without active urgency.',
+      ),
+    },
+    {
+      dimension: 'Willingness to Pay', score: dim.willingnessToPay, confidence,
+      explanation: explain(dim.willingnessToPay,
+        'Strong economic signal — references to budget, cost, or existing paid tools confirm WTP.',
+        'Some WTP evidence — users compare costs or mention paid alternatives.',
+        'Weak WTP signal — no clear evidence users would pay to solve this.',
+      ),
+    },
+    {
+      dimension: 'Market Breadth', score: dim.marketBreadth, confidence,
+      explanation: explain(dim.marketBreadth,
+        'Multiple distinct personas and industries affected — broad addressable market.',
+        'Moderate breadth — several segments but not universally applicable.',
+        'Narrow market — signals concentrated in a single persona or niche.',
+      ),
+    },
+    {
+      dimension: 'Weak Solution Fit', score: dim.poorSolutionFit, confidence,
+      explanation: explain(dim.poorSolutionFit,
+        'Existing tools are clearly inadequate — workarounds dominate, incumbents are frustrating.',
+        'Partial gap — some tools exist but miss key needs.',
+        'Market may be served — few workarounds and existing tools appear adequate.',
+      ),
+    },
+    {
+      dimension: 'Feasibility', score: dim.feasibility, confidence,
+      explanation: explain(dim.feasibility,
+        'MVP is realistic for a small team — no enterprise blockers, clear scope.',
+        'Buildable with care — some complexity but no hard blockers identified.',
+        'Feasibility concerns — signals suggest backend complexity or multi-user requirements.',
+      ),
+    },
+    {
+      dimension: 'Why Now', score: dim.whyNow, confidence,
+      explanation: explain(dim.whyNow,
+        'Strong timing signal — AI/automation momentum or recent platform shift creates a window.',
+        'Reasonable timing — market is active but no single catalyst identified.',
+        'Timing uncertain — problem exists but no clear "why now" driver detected.',
+      ),
+    },
+    {
+      dimension: 'Defensibility', score: dim.defensibility, confidence,
+      explanation: explain(dim.defensibility,
+        'Potential for durable advantage — deep workflow integration, data accumulation, or habit formation.',
+        'Some moat potential — workflow depth or niche focus provides limited protection.',
+        'Low defensibility signal — problem may be easily copied once validated.',
+      ),
+    },
+    {
+      dimension: 'GTM Clarity', score: dim.gtmClarity, confidence,
+      explanation: explain(dim.gtmClarity,
+        'Clear first audience — named personas, specific industries, and community presence identified.',
+        'Partial clarity — some persona signals but distribution path is vague.',
+        'GTM unclear — broad signals without a specific reachable first user segment.',
+      ),
+    },
+  ]
 }

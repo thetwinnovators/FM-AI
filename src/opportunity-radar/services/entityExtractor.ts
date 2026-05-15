@@ -22,6 +22,16 @@ import {
   WORKAROUND_RE,
   EXISTING_SOLUTION_RE,
   WORKFLOW_RE,
+  KNOWN_BUYER_ROLES,
+  KNOWN_COMPANY_TYPES,
+  KNOWN_EMERGING_TECHNOLOGIES,
+  KNOWN_PLATFORM_SHIFTS,
+  BOTTLENECK_RE,
+  TRIGGER_EVENT_RE,
+  BUYER_ROLE_CONTEXT_RE,
+  COMPANY_TYPE_CONTEXT_RE,
+  EMERGING_TECH_CONTEXT_RE,
+  PLATFORM_SHIFT_CONTEXT_RE,
 } from '../constants/entityPatterns.js'
 
 function normalize(s) {
@@ -142,6 +152,48 @@ function matchWorkflows(text) {
   return entities
 }
 
+function matchBottlenecks(text) {
+  const entities = []
+  const re = new RegExp(BOTTLENECK_RE.source, BOTTLENECK_RE.flags)
+  let m
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0].trim()
+    if (raw.length >= 4) {
+      entities.push({ type: 'bottleneck', value: normalize(raw), rawText: raw, confidence: 0.75 })
+    }
+  }
+  return entities
+}
+
+function matchTriggerEvents(text) {
+  const entities = []
+  const re = new RegExp(TRIGGER_EVENT_RE.source, TRIGGER_EVENT_RE.flags)
+  let m
+  while ((m = re.exec(text)) !== null) {
+    const raw = m[0].trim()
+    if (raw.length >= 6) {
+      entities.push({ type: 'trigger_event', value: normalize(raw), rawText: raw, confidence: 0.60 })
+    }
+  }
+  return entities
+}
+
+function matchBuyerRoles(text) {
+  return matchKnownList(text, KNOWN_BUYER_ROLES, 'buyer_role', BUYER_ROLE_CONTEXT_RE)
+}
+
+function matchCompanyTypes(text) {
+  return matchKnownList(text, KNOWN_COMPANY_TYPES, 'company_type', COMPANY_TYPE_CONTEXT_RE)
+}
+
+function matchEmergingTech(text) {
+  return matchKnownList(text, KNOWN_EMERGING_TECHNOLOGIES, 'emerging_technology', EMERGING_TECH_CONTEXT_RE)
+}
+
+function matchPlatformShifts(text) {
+  return matchKnownList(text, KNOWN_PLATFORM_SHIFTS, 'platform_shift', PLATFORM_SHIFT_CONTEXT_RE)
+}
+
 export function extractEntities(text) {
   if (!text || text.length < 20) return []
 
@@ -152,6 +204,12 @@ export function extractEntities(text) {
     ...matchWorkarounds(text),
     ...matchExistingSolutions(text, KNOWN_TECHNOLOGIES),
     ...matchWorkflows(text),
+    ...matchBottlenecks(text),
+    ...matchTriggerEvents(text),
+    ...matchBuyerRoles(text),
+    ...matchCompanyTypes(text),
+    ...matchEmergingTech(text),
+    ...matchPlatformShifts(text),
   ]
 
   return dedupe(all)

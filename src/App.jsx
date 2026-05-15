@@ -37,6 +37,7 @@ const MCPToolDetailPage      = lazy(() => import('./mcp/pages/MCPToolDetailPage.
 const MCPUseCasesPage        = lazy(() => import('./mcp/pages/MCPUseCasesPage.jsx'))
 const CodeAcademy            = lazy(() => import('./views/CodeAcademy.jsx'))
 const Briefs                 = lazy(() => import('./views/Briefs.jsx'))
+const VentureScope           = lazy(() => import('./views/VentureScope.jsx'))
 const OperatorWorkspace      = lazy(() => import('./views/OperatorWorkspace.jsx'))
 const FlowTrade              = lazy(() => import('./views/FlowTrade.jsx'))
 const GlobeView              = lazy(() => import('./views/GlobeView.jsx'))
@@ -71,6 +72,7 @@ function AnimatedRoutes({ isWorkspace }) {
           <Route path="/flow"                          element={<FlowMap />} />
           <Route path="/discover"                      element={<Discover />} />
           <Route path="/signals"                       element={<Signals />} />
+          <Route path="/venture-scope"                 element={<VentureScope />} />
           <Route path="/search"                        element={<Search />} />
           <Route path="/topics"                        element={<Topics />} />
           <Route path="/topic/:slug"                   element={<Topic />} />
