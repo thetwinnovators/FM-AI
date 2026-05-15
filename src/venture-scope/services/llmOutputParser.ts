@@ -2,13 +2,16 @@ import type { VentureScopeLLMInput, VentureScopeLLMOutput } from '../types.js'
 
 // ── Required output fields ────────────────────────────────────────────────────
 
-const REQUIRED_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
-  'title', 'tagline', 'opportunitySummary', 'problemStatement',
-  'targetUser', 'proposedSolution', 'valueProp', 'whyNow',
-  'buyerVsUser', 'currentAlternatives', 'existingWorkarounds',
-  'keyAssumptions', 'successMetrics', 'pricingHypothesis',
-  'defensibility', 'goToMarketAngle', 'mvpScope', 'risks',
-]
+// Exhaustiveness guard: TypeScript will error if any field is added to
+// VentureScopeLLMOutput but not listed here — keeps parser in sync with the type.
+const _FIELDS_EXHAUSTIVE: { [K in keyof VentureScopeLLMOutput]: true } = {
+  title: true, tagline: true, opportunitySummary: true, problemStatement: true,
+  targetUser: true, proposedSolution: true, valueProp: true, whyNow: true,
+  buyerVsUser: true, currentAlternatives: true, existingWorkarounds: true,
+  keyAssumptions: true, successMetrics: true, pricingHypothesis: true,
+  defensibility: true, goToMarketAngle: true, mvpScope: true, risks: true,
+}
+const REQUIRED_FIELDS = Object.keys(_FIELDS_EXHAUSTIVE) as Array<keyof VentureScopeLLMOutput>
 
 // ── Parser ────────────────────────────────────────────────────────────────────
 
@@ -49,13 +52,16 @@ const FILLER_PATTERNS: RegExp[] = [
   /\brobust (solution|platform|system)\b/i,
 ]
 
-// Internal cluster ID patterns should never appear in narrative output
+// Internal cluster ID patterns should never appear in narrative output.
+// Note: can false-positive on legitimate phrases like "cluster_based_approach" —
+// acceptable trade-off given the pattern requires "cluster_" + 6+ alphanumeric chars.
 const ID_PATTERN = /cluster_[a-z0-9_]{6,}/i
 
 // Narrative fields long enough to be meaningful checks
 const NARRATIVE_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
   'opportunitySummary', 'problemStatement', 'proposedSolution',
   'valueProp', 'whyNow', 'defensibility', 'goToMarketAngle',
+  'risks', 'mvpScope', 'keyAssumptions',
 ]
 
 /**
@@ -89,9 +95,10 @@ export function validateLLMOutput(
 
   // Minimum length sanity — suspiciously short narrative = likely truncated output
   for (const field of NARRATIVE_FIELDS) {
-    if (output[field].trim().length < 30) {
+    const trimmed = output[field].trim()
+    if (trimmed.length < 30) {
       warnings.push(
-        `Field "${field}" is suspiciously short (${output[field].length} chars) — likely truncated`,
+        `Field "${field}" is suspiciously short (${trimmed.length} chars) — likely truncated`,
       )
     }
   }
