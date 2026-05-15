@@ -6,6 +6,19 @@ import ScoreBar from '../ScoreBar.jsx'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
 import OpportunityFramePanel from '../OpportunityFramePanel.jsx'
 
+// ── Modal glass style (matches app-wide Liquid Glass treatment) ───────────────
+
+const LIQUID_GLASS = {
+  background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.07) 100%)',
+  backdropFilter: 'blur(40px) saturate(180%)',
+  WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+  border: '1px solid rgba(255,255,255,0.15)',
+  boxShadow:
+    '0 30px 80px rgba(0,0,0,0.65),' +
+    '0 8px 24px rgba(0,0,0,0.35),' +
+    'inset 0 1px 0 rgba(255,255,255,0.12)',
+}
+
 // ── Angle config ──────────────────────────────────────────────────────────────
 
 const ANGLE_CONFIG = {
@@ -49,6 +62,47 @@ function rankScore(c) {
   const evidence = c.evidenceTrace?.length ?? 0
   const llmBoost = c.generatedBy === 'ollama' ? 5 : 0
   return score + evidence * 2 + llmBoost
+}
+
+// ── Concept deduplication ─────────────────────────────────────────────────────
+
+/**
+ * Remove near-duplicate concepts using Jaccard similarity on title word sets.
+ * Words ≤2 chars are ignored (stop words). Two concepts are merged when their
+ * title Jaccard similarity ≥ 0.5. The highest-ranked concept in each group is
+ * kept; others are discarded.
+ */
+function deduplicateConcepts(concepts) {
+  const titleWords = (title) =>
+    new Set(
+      (title ?? '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2),
+    )
+
+  const jaccard = (setA, setB) => {
+    if (!setA.size && !setB.size) return 1
+    let intersection = 0
+    setA.forEach((w) => { if (setB.has(w)) intersection++ })
+    const union = setA.size + setB.size - intersection
+    return union === 0 ? 0 : intersection / union
+  }
+
+  // Sort highest-ranked first so first occurrence in each cluster is kept
+  const sorted = [...concepts].sort((a, b) => rankScore(b) - rankScore(a))
+  const absorbed = new Set()
+  const kept = []
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (absorbed.has(sorted[i].id)) continue
+    kept.push(sorted[i])
+    const wordsI = titleWords(sorted[i].title)
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (absorbed.has(sorted[j].id)) continue
+      if (jaccard(wordsI, titleWords(sorted[j].title)) >= 0.5) {
+        absorbed.add(sorted[j].id)
+      }
+    }
+  }
+  return kept
 }
 
 // ── Markdown export ───────────────────────────────────────────────────────────
@@ -224,8 +278,7 @@ function ConceptCard({ concept, clusterName, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left rounded-xl overflow-hidden transition-all duration-150 hover:scale-[1.015] active:scale-[0.99] group"
-      style={{ border: `1px solid ${angle.borderColor}`, backgroundColor: 'rgba(255,255,255,0.02)' }}
+      className="glass-panel w-full text-left overflow-hidden transition-all duration-150 hover:scale-[1.015] active:scale-[0.99] group"
     >
       {/* Angle accent stripe */}
       <div className="h-0.5 transition-opacity group-hover:opacity-80" style={{ backgroundColor: angle.color }} />
@@ -313,12 +366,7 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
     >
       <div
         className="relative w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
-        style={{
-          border: `1px solid ${angle.borderColor}`,
-          backgroundColor: 'var(--color-surface, #14141f)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
-          maxHeight: 'calc(100vh - 48px)',
-        }}
+        style={{ ...LIQUID_GLASS, maxHeight: 'calc(100vh - 48px)' }}
       >
         {/* Modal header */}
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
@@ -499,8 +547,8 @@ export default function BriefTab({
     ? concepts
     : ((candidates?.length ?? 0) > 0 ? candidates : (concept ? [concept] : []))
 
-  // Sort by composite rank descending
-  const ranked = [...allConcepts].sort((a, b) => rankScore(b) - rankScore(a))
+  // Deduplicate near-identical concepts, then sort by composite rank
+  const ranked = deduplicateConcepts(allConcepts)
 
   if (!ranked.length) {
     return (
@@ -518,7 +566,7 @@ export default function BriefTab({
       <div className="max-w-4xl">
         {/* Header */}
         <p className="text-[11px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-4">
-          {ranked.length} Venture {ranked.length === 1 ? 'Concept' : 'Concepts'} · Ranked by score
+          {ranked.length} Venture {ranked.length === 1 ? 'Concept' : 'Concepts'} · Ranked by score · Duplicates merged
         </p>
 
         {/* Cards grid */}
