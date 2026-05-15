@@ -1,5 +1,6 @@
 import type { OpportunityCluster, PainSignal, DimensionScores, PainType } from '../types.js'
 import type { CategoryChart, WinningApp } from '../types.js'
+import type { DimensionDriverMap, DimensionDriver } from '../../venture-scope/types.js'
 import { computeMarketScore } from './marketScorer.js'
 
 // ── Anti-pattern detection ────────────────────────────────────────────────────
@@ -16,6 +17,24 @@ const SATURATION_REGEX =
  */
 const WHY_NOW_RE =
   /\b(ai|llm|gpt|chatgpt|claude|automation|generative|openai|langchain|copilot|agent|embedding|vector)\b/i
+
+// Promoted to module scope so collectDimensionDrivers can share them without redefinition.
+
+/** Corpus urgency: analytical language indicating a pressing or time-sensitive problem. */
+const CORPUS_URGENCY_TEXT_RE =
+  /\b(?:growing|emerging|accelerat|rapidly|increasingly|critical|pressing|urgent|time-sensitive|cannot\s+wait|without\s+delay|immediate)\b/i
+
+/** Social-media urgency: behavioural markers showing the problem is felt constantly or urgently. */
+const URGENCY_RE =
+  /every day|constantly|always|waste hours|every time|all the time|urgent|asap|desperately/i
+
+/** Social-media willingness-to-pay: financial distress signals. */
+const WTP_RE =
+  /too expensive|can't afford|wasted hours|lost money|overpriced|pay for|worth paying|subscription/i
+
+/** B2B / enterprise industry context — indicates budget availability. */
+const B2B_INDUSTRY_RE =
+  /enterprise|saas|b2b|fintech|healthcare|legal|banking|insurance|cybersecurity|edtech/i
 
 // ── Buildability filter ───────────────────────────────────────────────────────
 
@@ -118,8 +137,15 @@ export function scoreDimensions(
   const ageDays             = (Date.now() - new Date(cluster.lastDetected).getTime()) / 86_400_000
   const isActuallyBuildable = applyBuildabilityFilter(cluster, signals)
 
+  // Detect corpus-only clusters — curated research content, not raw social posts.
+  // Urgency and WTP use different signals for corpus vs social-media clusters.
+  const isCorpusCluster = clusterSignals.length > 0
+    && clusterSignals.every((s) => s.source === 'corpus')
+
   // ── 1. Pain Severity ───────────────────────────────────────────────────────
   // avgIntensity (0–10) → 0–90; high-intensity signal count adds up to 10.
+  // For corpus clusters, avgIntensity is entity-density based (see signalExtractor),
+  // so this formula now reflects research richness, not just emotional complaint volume.
   const highIntensityCount = clusterSignals.filter((s) => s.intensityScore >= 7).length
   const painSeverity       = Math.min(100, Math.round(
     cluster.avgIntensity * 9 +
@@ -133,26 +159,51 @@ export function scoreDimensions(
   ))
 
   // ── 3. Urgency ─────────────────────────────────────────────────────────────
-  // Ratio of urgency-marker signals + recency bonus + pain-type bonus.
-  const URGENCY_RE  = /every day|constantly|always|waste hours|every time|all the time|urgent|asap|desperately/i
-  const urgentCount  = clusterSignals.filter((s) => URGENCY_RE.test(s.painText)).length
-  const urgencyRatio = clusterSignals.length > 0 ? urgentCount / clusterSignals.length : 0
-  const recencyBonus = ageDays < 7 ? 20 : ageDays < 30 ? 10 : ageDays < 90 ? 0 : -10
+  const recencyBonus     = ageDays < 7 ? 20 : ageDays < 30 ? 10 : ageDays < 90 ? 0 : -10
   const urgencyTypeBonus = URGENCY_PAIN_TYPES.includes(cluster.painTheme) ? 10 : 0
-  const urgency = Math.max(0, Math.min(100, Math.round(
-    urgencyRatio * 70 + recencyBonus + urgencyTypeBonus,
-  )))
+  let urgency: number
+
+  if (isCorpusCluster) {
+    // Corpus urgency: measured by blocking entities + market-timing signals, not complaint frequency.
+    // Platform shifts and emerging tech indicate an open window; bottlenecks signal active blocking.
+    const corpusUrgentCount  = clusterSignals.filter((s) => CORPUS_URGENCY_TEXT_RE.test(s.painText)).length
+    const corpusUrgentRatio  = clusterSignals.length > 0 ? corpusUrgentCount / clusterSignals.length : 0
+    const platformShiftBonus = (es?.platformShifts?.length ?? 0) > 0 ? 30 : 0
+    const emergingTechBonus  = (es?.emergingTech?.length   ?? 0) > 0 ? 20 : 0
+    const bottleneckBonus    = (es?.bottlenecks?.length    ?? 0) > 0 ? 15 : 0
+    urgency = Math.max(0, Math.min(100, Math.round(
+      corpusUrgentRatio * 35 + platformShiftBonus + emergingTechBonus + bottleneckBonus +
+      recencyBonus + urgencyTypeBonus,
+    )))
+  } else {
+    // Social-media urgency: ratio of complaint signals with urgency markers.
+    const urgentCount  = clusterSignals.filter((s) => URGENCY_RE.test(s.painText)).length
+    const urgencyRatio = clusterSignals.length > 0 ? urgentCount / clusterSignals.length : 0
+    urgency = Math.max(0, Math.min(100, Math.round(
+      urgencyRatio * 70 + recencyBonus + urgencyTypeBonus,
+    )))
+  }
 
   // ── 4. Willingness to Pay ──────────────────────────────────────────────────
-  // Financial distress signals + cost pain-type bonus + paid-solutions indicator.
-  const WTP_RE         = /too expensive|can't afford|wasted hours|lost money|overpriced|pay for|worth paying|subscription/i
-  const wtpCount       = clusterSignals.filter((s) => WTP_RE.test(s.painText)).length
-  const wtpRatio       = clusterSignals.length > 0 ? wtpCount / clusterSignals.length : 0
-  const wtpFromType      = cluster.painTheme === 'cost' ? 30 : 0
-  const wtpFromSolutions = (es?.existingSolutions?.length ?? 0) > 0 ? 20 : 0
-  const willingnessToPay = Math.min(100, Math.round(
-    wtpRatio * 50 + wtpFromType + wtpFromSolutions,
-  ))
+  let willingnessToPay: number
+
+  if (isCorpusCluster) {
+    // Corpus WTP: inferred from market context rather than individual price complaints.
+    // Existing solutions → people are already paying. Buyer roles → budget authority present.
+    // B2B / high-value industries → enterprise budgets exist.
+    const hasSolutions  = (es?.existingSolutions?.length ?? 0) > 0 ? 25 : 0
+    const hasBuyerRoles = (es?.buyerRoles?.length        ?? 0) > 0 ? 25 : 0
+    const b2bBonus      = (es?.industries ?? []).some((i) => B2B_INDUSTRY_RE.test(i)) ? 20 : 0
+    const painTypeBonus = ['cost', 'workaround', 'feature'].includes(cluster.painTheme) ? 30 : 0
+    willingnessToPay = Math.min(100, Math.round(hasSolutions + hasBuyerRoles + b2bBonus + painTypeBonus))
+  } else {
+    // Social-media WTP: financial distress signals + cost pain-type + existing paid solutions.
+    const wtpCount       = clusterSignals.filter((s) => WTP_RE.test(s.painText)).length
+    const wtpRatio       = clusterSignals.length > 0 ? wtpCount / clusterSignals.length : 0
+    const wtpFromType      = cluster.painTheme === 'cost' ? 30 : 0
+    const wtpFromSolutions = (es?.existingSolutions?.length ?? 0) > 0 ? 20 : 0
+    willingnessToPay = Math.min(100, Math.round(wtpRatio * 50 + wtpFromType + wtpFromSolutions))
+  }
 
   // ── 5. Market Breadth ──────────────────────────────────────────────────────
   // Cross-source diversity + entity-level persona / industry spread.
@@ -226,6 +277,265 @@ export function scoreDimensions(
     gtmClarity,
     confidence,
   }
+}
+
+// ── Score-driver collector ────────────────────────────────────────────────────
+
+// SYNC: collectDimensionDrivers must mirror scoreDimensions() exactly.
+// Any scoring change that affects a dimension must be reflected here.
+export function collectDimensionDrivers(
+  cluster: OpportunityCluster,
+  signals: PainSignal[],
+): DimensionDriverMap {
+  // SYNC: keep aligned with scoreDimensions()
+  const clusterSignals = signals.filter((s) => cluster.signalIds.includes(s.id))
+  const es             = cluster.entitySummary
+  const clusterText    = Object.keys(cluster.termFrequency).join(' ')
+  const ageDays        = (Date.now() - new Date(cluster.lastDetected).getTime()) / 86_400_000
+  const isActuallyBuildable = applyBuildabilityFilter(cluster, signals)
+  const isCorpusCluster = clusterSignals.length > 0 && clusterSignals.every((s) => s.source === 'corpus')
+
+  // Helper: snippet from a signal
+  const snippet = (s: PainSignal): string => s.painText.slice(0, 120)
+
+  // Helper: build entity driver
+  const entityDriver = (value: string, type: string, label: string, pts?: number): DimensionDriver => ({
+    type: 'entity', entityValue: value, entityType: type, label, contribution: 'positive', pointValue: pts,
+  })
+
+  // Helper: build flag driver
+  const flagDriver = (key: string, label: string, contribution: 'positive' | 'negative', pts?: number): DimensionDriver => ({
+    type: 'flag', flagKey: key, label, contribution, pointValue: pts,
+  })
+
+  const map: DimensionDriverMap = {}
+
+  // ── 1. painSeverity ────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const highIntensity = clusterSignals.filter((s) => s.intensityScore >= 7)
+    const drivers: DimensionDriver[] = []
+    for (const s of highIntensity.slice(0, 2)) {
+      drivers.push({ type: 'signal', signalId: s.id, signalSnippet: snippet(s),
+        label: 'High-intensity signal', contribution: 'positive' })
+    }
+    drivers.push(flagDriver('avgIntensity',
+      `Average intensity: ${cluster.avgIntensity.toFixed(1)}/10`,
+      cluster.avgIntensity >= 5 ? 'positive' : 'negative',
+    ))
+    if (highIntensity.length >= 1) {
+      drivers.push(flagDriver('highIntensityCount',
+        `${highIntensity.length} high-intensity signal${highIntensity.length > 1 ? 's' : ''}`,
+        'positive',
+        highIntensity.length >= 3 ? 10 : 5,
+      ))
+    }
+    map.painSeverity = drivers
+  }
+
+  // ── 2. frequency ───────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    map.frequency = [
+      flagDriver('signalCount',
+        `${cluster.signalCount} signals across ${cluster.sourceDiversity} source type${cluster.sourceDiversity !== 1 ? 's' : ''}`,
+        cluster.signalCount >= 5 ? 'positive' : 'negative',
+      ),
+    ]
+  }
+
+  // ── 3. urgency ─────────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const recencyContrib: 'positive' | 'negative' = ageDays < 90 ? 'positive' : 'negative'
+    const recencyLabel = `Last signal ${ageDays.toFixed(0)} days ago`
+    const urgencyTypeMatch = (['speed', 'workflow'] as string[]).includes(cluster.painTheme)
+    const drivers: DimensionDriver[] = []
+
+    if (isCorpusCluster) {
+      const matching = clusterSignals.filter((s) => CORPUS_URGENCY_TEXT_RE.test(s.painText))
+      for (const s of matching.slice(0, 3)) {
+        drivers.push({ type: 'signal', signalId: s.id, signalSnippet: snippet(s),
+          label: 'Urgency language detected', contribution: 'positive' })
+      }
+      for (const v of (es?.platformShifts ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'platform_shift', 'Platform shift detected', 30))
+      }
+      for (const v of (es?.emergingTech ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'emerging_technology', 'Emerging technology', 20))
+      }
+      for (const v of (es?.bottlenecks ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'bottleneck', 'Active bottleneck', 15))
+      }
+    } else {
+      const matching = clusterSignals.filter((s) => URGENCY_RE.test(s.painText))
+      for (const s of matching.slice(0, 3)) {
+        drivers.push({ type: 'signal', signalId: s.id, signalSnippet: snippet(s),
+          label: 'Urgency language detected', contribution: 'positive' })
+      }
+    }
+
+    drivers.push(flagDriver('recency', recencyLabel, recencyContrib))
+    if (urgencyTypeMatch) {
+      drivers.push(flagDriver('urgencyPainType',
+        `Pain type "${cluster.painTheme}" adds urgency bonus`, 'positive', 10))
+    }
+    map.urgency = drivers
+  }
+
+  // ── 4. willingnessToPay ────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+
+    if (isCorpusCluster) {
+      for (const v of (es?.existingSolutions ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'existing_solution', 'Existing paid tool identified', 25))
+      }
+      for (const v of (es?.buyerRoles ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'buyer_role', 'Budget decision-maker role present', 25))
+      }
+      const matchedB2B = (es?.industries ?? []).find((i) => B2B_INDUSTRY_RE.test(i))
+      if (matchedB2B) {
+        drivers.push(flagDriver('b2bIndustry',
+          `B2B/enterprise industry context: ${matchedB2B}`, 'positive', 20))
+      }
+      if ((['cost', 'workaround', 'feature'] as string[]).includes(cluster.painTheme)) {
+        drivers.push(flagDriver('wtpPainType',
+          `Pain type "${cluster.painTheme}" signals WTP`, 'positive', 30))
+      }
+    } else {
+      const matching = clusterSignals.filter((s) => WTP_RE.test(s.painText))
+      for (const s of matching.slice(0, 3)) {
+        drivers.push({ type: 'signal', signalId: s.id, signalSnippet: snippet(s),
+          label: 'Financial distress signal', contribution: 'positive' })
+      }
+      if (cluster.painTheme === 'cost') {
+        drivers.push(flagDriver('costPainType', 'Cost pain type', 'positive', 30))
+      }
+      for (const v of (es?.existingSolutions ?? []).slice(0, 2)) {
+        drivers.push(entityDriver(v, 'existing_solution', 'Existing paid tool', 20))
+      }
+    }
+    map.willingnessToPay = drivers
+  }
+
+  // ── 5. marketBreadth ──────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+    for (const v of (es?.personas ?? []).slice(0, 3)) {
+      drivers.push(entityDriver(v, 'persona', `Persona: ${v}`, 5))
+    }
+    for (const v of (es?.industries ?? []).slice(0, 2)) {
+      drivers.push(entityDriver(v, 'industry', `Industry: ${v}`, 5))
+    }
+    drivers.push(flagDriver('sourceDiversity',
+      `${cluster.sourceDiversity} distinct source type${cluster.sourceDiversity !== 1 ? 's' : ''}`,
+      cluster.sourceDiversity >= 2 ? 'positive' : 'negative',
+    ))
+    map.marketBreadth = drivers
+  }
+
+  // ── 6. poorSolutionFit ────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const isSaturated = SATURATION_REGEX.test(clusterText)
+    const drivers: DimensionDriver[] = []
+    for (const v of (es?.workarounds ?? []).slice(0, 3)) {
+      drivers.push(entityDriver(v, 'workaround', `Workaround: ${v}`, 15))
+    }
+    if ((['workaround', 'feature', 'integration'] as string[]).includes(cluster.painTheme)) {
+      drivers.push(flagDriver('fitPainType',
+        `Pain type "${cluster.painTheme}" confirms poor solution fit`, 'positive', 20))
+    }
+    drivers.push(flagDriver('saturation',
+      isSaturated ? 'Incumbent detected (saturation penalty)' : 'No dominant incumbent',
+      isSaturated ? 'negative' : 'positive',
+      isSaturated ? -20 : 20,
+    ))
+    map.poorSolutionFit = drivers
+  }
+
+  // ── 7. feasibility ────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+    if (!isActuallyBuildable) {
+      drivers.push(flagDriver('buildabilityFailed',
+        'Buildability filter failed — enterprise-scale or multi-user pattern detected',
+        'negative',
+      ))
+    } else {
+      drivers.push(flagDriver('buildabilityPassed', 'No enterprise-scale red flags', 'positive', 50))
+      for (const v of (es?.technologies ?? []).slice(0, 3)) {
+        drivers.push(entityDriver(v, 'technology', `Known tech: ${v}`, 5))
+      }
+      const wCount = es?.workflows?.length ?? 0
+      drivers.push(flagDriver('workflowComplexity',
+        `Workflow complexity: ${wCount} workflow${wCount !== 1 ? 's' : ''}`,
+        wCount <= 2 ? 'positive' : 'negative',
+      ))
+    }
+    map.feasibility = drivers
+  }
+
+  // ── 8. whyNow ────────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+    const hasAI = WHY_NOW_RE.test(clusterText) || clusterSignals.some((s) => WHY_NOW_RE.test(s.painText))
+    if (hasAI) {
+      drivers.push(flagDriver('aiMomentum', 'AI/automation keywords present', 'positive', 40))
+    }
+    const recencyLabel = ageDays < 7  ? `Last signal <7 days ago (${ageDays.toFixed(0)} days)`
+                       : ageDays < 30 ? `Last signal <30 days ago (${ageDays.toFixed(0)} days)`
+                       : ageDays < 90 ? `Last signal <90 days ago (${ageDays.toFixed(0)} days)`
+                       : `Last signal ${ageDays.toFixed(0)} days ago`
+    drivers.push(flagDriver('recency', recencyLabel, ageDays < 90 ? 'positive' : 'negative'))
+    map.whyNow = drivers
+  }
+
+  // ── 9. defensibility ─────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+    for (const v of (es?.workflows ?? []).slice(0, 2)) {
+      drivers.push(entityDriver(v, 'workflow', `Workflow lock-in: ${v}`, 10))
+    }
+    for (const v of (es?.technologies ?? []).slice(0, 2)) {
+      drivers.push(entityDriver(v, 'technology', `Tech entanglement: ${v}`, 5))
+    }
+    if ((es?.industries?.length ?? 0) > 1) {
+      drivers.push(flagDriver('multiIndustry',
+        `${es!.industries!.length} industries — cross-market signal`, 'positive', 20))
+    }
+    if ((['workflow', 'integration'] as string[]).includes(cluster.painTheme)) {
+      drivers.push(flagDriver('complexPainType',
+        `Pain type "${cluster.painTheme}" suggests workflow depth`, 'positive', 15))
+    }
+    map.defensibility = drivers
+  }
+
+  // ── 10. gtmClarity ────────────────────────────────────────────────────────
+  // SYNC: keep aligned with scoreDimensions()
+  {
+    const drivers: DimensionDriver[] = []
+    for (const v of (es?.personas ?? []).slice(0, 3)) {
+      drivers.push(entityDriver(v, 'persona', `First audience: ${v}`, 10))
+    }
+    for (const v of (es?.industries ?? []).slice(0, 2)) {
+      drivers.push(entityDriver(v, 'industry', `Industry focus: ${v}`, 10))
+    }
+    drivers.push(flagDriver('sourceDiversity',
+      `${cluster.sourceDiversity} source type${cluster.sourceDiversity !== 1 ? 's' : ''} confirm audience spread`,
+      cluster.sourceDiversity >= 2 ? 'positive' : 'negative',
+      cluster.sourceDiversity >= 2 ? 20 : 0,
+    ))
+    map.gtmClarity = drivers
+  }
+
+  return map
 }
 
 // ── Unified opportunity score ─────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+import type { DimensionDriverMap } from '../venture-scope/types.js'
+
 export type PainType =
   | 'workflow' | 'cost' | 'feature' | 'complexity'
   | 'speed'    | 'workaround' | 'integration' | 'privacy'
@@ -173,7 +175,10 @@ export interface OpportunityCluster {
   inferredCategory?:  string | null
   // Schema v1: 10-dimension breakdown (undefined on legacy clusters scored before this upgrade)
   dimensionScores?: DimensionScores
+  // Schema v2 (Phase 2): per-dimension driver signals (undefined on legacy clusters pre-Phase2)
+  dimensionDrivers?: DimensionDriverMap
   // Schema v1: aggregated entity summary for this cluster (undefined on legacy)
+  // Schema v2 adds optional fields for the additional entity types introduced by Venture Scope.
   entitySummary?: {
     personas:          string[]   // top persona values seen in cluster signals
     workflows:         string[]   // top workflow values
@@ -181,6 +186,11 @@ export interface OpportunityCluster {
     workarounds:       string[]   // workaround values — strongest unmet-need evidence
     existingSolutions: string[]   // existing product/service names
     industries:        string[]   // sector context
+    // Venture Scope v2 — present when clusters are built from corpus signals
+    bottlenecks?:      string[]   // blocking steps that stall progress
+    emergingTech?:     string[]   // new capabilities creating opportunity windows
+    platformShifts?:   string[]   // macro shifts opening new markets
+    buyerRoles?:       string[]   // economic decision-makers (CTO, VP Eng, etc.)
   }
   createdAt:        string
   updatedAt:        string

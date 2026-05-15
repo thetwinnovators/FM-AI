@@ -54,6 +54,28 @@ export interface ResolvedSourceLink {
   notFound:      boolean         // true if sourceId not in store
 }
 
+// ─── Dimension drivers ────────────────────────────────────────────────────────
+// Each driver explains one contribution to a dimension score.
+
+export interface DimensionDriver {
+  type:           'signal' | 'entity' | 'flag'
+  signalId?:      string        // for type='signal': the PainSignal id
+  signalSnippet?: string        // first 120 chars of painText
+  entityValue?:   string        // for type='entity': the entity value
+  entityType?:    string        // for type='entity': the entity type
+  flagKey?:       string        // for type='flag': machine key for the flag
+  label:          string        // human-readable explanation
+  contribution:   'positive' | 'negative'
+  pointValue?:    number        // approximate score impact
+}
+
+export type DimensionDriverMap = Partial<Record<
+  | 'painSeverity' | 'frequency' | 'urgency' | 'willingnessToPay'
+  | 'marketBreadth' | 'poorSolutionFit' | 'feasibility'
+  | 'whyNow' | 'defensibility' | 'gtmClarity',
+  DimensionDriver[]
+>>
+
 // ─── Evidence trace entry ─────────────────────────────────────────────────────
 // Every claim in a venture brief must trace back to a specific source item
 // in the user's research corpus. Anonymous graph data should not exist.

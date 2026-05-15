@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore.js'
 import { ingestCorpus } from '../opportunity-radar/services/corpusIngestor.js'
 import { extractSignals } from '../opportunity-radar/services/signalExtractor.js'
 import { KeywordClusterer } from '../opportunity-radar/services/clusterService.js'
-import { scoreOpportunity } from '../opportunity-radar/services/opportunityScorer.js'
+import { scoreOpportunity, collectDimensionDrivers } from '../opportunity-radar/services/opportunityScorer.js'
 import { buildEntityRegistry } from '../opportunity-radar/services/entityNormalizer.js'
 import { buildEntityGraph } from '../opportunity-radar/services/entityGraphBuilder.js'
 import { generateConcepts } from '../opportunity-radar/services/conceptGenerator.js'
@@ -91,7 +91,8 @@ export default function VentureScope() {
       // Step 4: Score each cluster
       setScanMsg('Scoring opportunities…')
       const scoredClusters = updatedClusters.map((cluster) => {
-        const result = scoreOpportunity(cluster, allSignals, [], [])
+        const result  = scoreOpportunity(cluster, allSignals, [], [])
+        const drivers = collectDimensionDrivers(cluster, allSignals)
         return {
           ...cluster,
           opportunityScore:  result.totalScore,
@@ -101,6 +102,7 @@ export default function VentureScope() {
           inferredCategory:  result.inferredCategory,
           dimensionScores:   result.dimensionScores,
           isBuildable:       result.dimensionScores.feasibility > 0,
+          dimensionDrivers:  drivers,
         }
       })
       saveVsClusters(scoredClusters)
