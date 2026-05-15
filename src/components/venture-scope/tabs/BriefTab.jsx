@@ -47,9 +47,10 @@ const ANGLE_CONFIG = {
 }
 
 const GENERATED_BY_LABELS = {
-  ollama:   'LLM synthesised',
-  graph:    'Graph derived',
-  template: 'Template',
+  ollama:           'LLM synthesised',
+  graph:            'Graph derived',
+  template:         'Template',
+  flow_ai_enhanced: 'Flow.AI enhanced',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -229,6 +230,30 @@ function AnglePill({ angleType }) {
         color:           cfg.color,
         background:      cfg.bg,
         border:          `1px solid ${cfg.color}40`,   // 25% opacity border
+      }}
+    >
+      {cfg.label}
+    </span>
+  )
+}
+
+const MODALITY_CONFIG = {
+  ai_native:    { label: 'AI Native',    color: '#14b8a6', bg: 'rgba(20,184,166,0.10)'  },
+  ai_assisted:  { label: 'AI Assisted',  color: '#3b82f6', bg: 'rgba(59,130,246,0.10)'  },
+  ai_optional:  { label: 'AI Optional',  color: '#f59e0b', bg: 'rgba(245,158,11,0.10)'  },
+  non_ai:       { label: 'Non-AI',       color: '#94a3b8', bg: 'rgba(148,163,184,0.10)' },
+}
+
+function ModalityPill({ modality }) {
+  if (!modality) return null
+  const cfg = MODALITY_CONFIG[modality] ?? MODALITY_CONFIG.ai_optional
+  return (
+    <span
+      className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
+      style={{
+        color:      cfg.color,
+        background: cfg.bg,
+        border:     `1px solid ${cfg.color}40`,
       }}
     >
       {cfg.label}
@@ -475,6 +500,7 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <AnglePill angleType={concept.angleType} />
             {concept.generatedBy && <GeneratedByBadge generatedBy={concept.generatedBy} />}
+            {concept.solutionModality && <ModalityPill modality={concept.solutionModality} />}
             {clusterName && (
               <span className="text-xs text-white/30 bg-white/5 px-1.5 py-0.5 rounded truncate max-w-[200px]">
                 {clusterName}
@@ -511,6 +537,28 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
             <h2 className="text-lg font-bold text-white/90 leading-snug">{concept.title}</h2>
             {concept.tagline && (
               <p className="text-sm text-white/45 mt-1 leading-relaxed">{concept.tagline}</p>
+            )}
+            {concept.aiRoleInSolution && concept.aiRoleInSolution !== 'N/A' && (
+              <p className="text-xs text-[color:var(--color-text-tertiary)] mt-1.5 leading-relaxed">
+                <span className="opacity-50">AI role: </span>{concept.aiRoleInSolution}
+              </p>
+            )}
+            {concept.ambiguityLevel && concept.ambiguityLevel !== 'low' && (
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <span
+                  className="text-xs px-2 py-0.5 rounded-full font-medium"
+                  style={{
+                    color: concept.ambiguityLevel === 'high' ? '#f59e0b' : '#94a3b8',
+                    background: concept.ambiguityLevel === 'high' ? 'rgba(245,158,11,0.10)' : 'rgba(148,163,184,0.08)',
+                    border: `1px solid ${concept.ambiguityLevel === 'high' ? 'rgba(245,158,11,0.30)' : 'rgba(148,163,184,0.20)'}`,
+                  }}
+                >
+                  {concept.ambiguityLevel === 'high' ? '⚠ High ambiguity' : '~ Moderate ambiguity'}
+                </span>
+                {concept.chosenInterpretation && (
+                  <span className="text-xs text-white/25 truncate">{concept.chosenInterpretation}</span>
+                )}
+              </div>
             )}
           </div>
 
@@ -598,6 +646,20 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
             <EvidenceBlock entries={concept.evidenceTrace} storeSlice={storeSlice} />
           )}
 
+          {/* ── Workflow Analysis card — set by FLOW.AI buildRegeneratePrompt ── */}
+          {(concept.workflowAnalysis || concept.processAnalysis || concept.triggerEvents ||
+            concept.inputsOutputs || concept.dependencies || concept.handoffs || concept.bottlenecks) && (
+            <PaperCard label="Workflow Analysis">
+              <PaperSection title="Workflow">{concept.workflowAnalysis}</PaperSection>
+              <PaperSection title="Process Context">{concept.processAnalysis}</PaperSection>
+              <PaperSection title="Trigger Events">{concept.triggerEvents}</PaperSection>
+              <PaperSection title="Inputs &amp; Outputs">{concept.inputsOutputs}</PaperSection>
+              <PaperSection title="Dependencies">{concept.dependencies}</PaperSection>
+              <PaperSection title="Handoffs">{concept.handoffs}</PaperSection>
+              <PaperSection title="Bottlenecks">{concept.bottlenecks}</PaperSection>
+            </PaperCard>
+          )}
+
           {/* Expand toggle */}
           <button
             type="button"
@@ -623,6 +685,9 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
               <PaperSection title="Go-to-Market Angle">{concept.goToMarketAngle}</PaperSection>
               <PaperSection title="MVP Scope">{concept.mvpScope}</PaperSection>
               <PaperSection title="Risks">{concept.risks}</PaperSection>
+              <PaperSection title="MVP Exclusions">{concept.mvpExclusions}</PaperSection>
+              <PaperSection title="Core Workflows">{concept.coreWorkflows}</PaperSection>
+              <PaperSection title="Key Metrics">{concept.metrics}</PaperSection>
               {concept.implementationPlan && (
                 <PaperSection title="Implementation Plan">{concept.implementationPlan}</PaperSection>
               )}
