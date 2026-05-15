@@ -132,6 +132,14 @@ export interface VentureScopeLLMInput {
   evidenceSnippets: EvidenceSnippet[]
 }
 
+// ─── Solution modality ────────────────────────────────────────────────────────
+// Classifies the role AI plays in the proposed solution.
+// ai_native: AI is the core capability — without it the product doesn't exist.
+// ai_assisted: AI assists a human workflow; human retains decision authority.
+// ai_optional: Problem could be solved without AI; AI is an enhancement layer.
+// non_ai: Problem is best solved with software/process only; no AI required.
+export type SolutionModality = 'ai_native' | 'ai_assisted' | 'ai_optional' | 'non_ai'
+
 // The LLM writes ONLY these narrative synthesis fields.
 // Scoring, IDs, evidence trace, rank, and structural metadata stay deterministic.
 // All fields required and non-empty — parseVentureScopeLLMOutput enforces this.
@@ -154,6 +162,10 @@ export interface VentureScopeLLMOutput {
   goToMarketAngle:     string
   mvpScope:            string
   risks:               string
+  // Guardrail fields — modality classification prevents generic "AI wrapper" concepts.
+  // LLM must classify these before writing any solution content.
+  solutionModality:    SolutionModality
+  aiRoleInSolution:    string   // Specific sentence: "AI does X in Y step", or "N/A" if non_ai
 }
 
 // ─── Multi-candidate concept ──────────────────────────────────────────────────
@@ -173,7 +185,7 @@ export interface VentureConceptCandidate {
   revenueModelHypothesis: string
   opportunityScore:       number
   confidenceScore:        number
-  generatedBy:            'ollama' | 'template' | 'graph'
+  generatedBy:            'ollama' | 'template' | 'graph' | 'flow_ai_enhanced'
   status:                 VentureRecordState
   createdAt:              string
   updatedAt:              string
@@ -197,6 +209,30 @@ export interface VentureConceptCandidate {
   defensibility?:         string
   goToMarketAngle?:       string
   roiModel?:              RoiModel
+  // ── Modality & AI role ──────────────────────────────────────────────────────
+  solutionModality?:       SolutionModality
+  aiRoleInSolution?:       string
+
+  // ── Workflow analysis fields (set by parseConceptUpdate from FLOW.AI response) ─
+  workflowAnalysis?:       string   // end-to-end workflow map
+  processAnalysis?:        string   // business process integration
+  triggerEvents?:          string   // "oh no" moments that cause product reach
+  inputsOutputs?:          string   // what enters/exits the system
+  dependencies?:           string   // APIs, integrations, upstream systems
+  handoffs?:               string   // human/system transition points
+  enhancementNotes?:       string   // unstructured FLOW.AI additions
+
+  // ── Ambiguity assessment (set by assessConceptAmbiguity before prompt dispatch) ─
+  ambiguityLevel?:             'low' | 'medium' | 'high'
+  ambiguityFlags?:             string[]   // e.g. ["vague cluster name", "low signal count"]
+  chosenInterpretation?:       string     // which interpretation was selected
+  alternateInterpretations?:   string[]   // other valid readings of the cluster
+  evidenceBoundaries?:         string     // what the evidence does/doesn't support
+
+  // ── Extended brief fields (from FLOW.AI enhancement) ───────────────────────
+  mvpExclusions?:          string   // explicitly what is OUT of MVP scope
+  coreWorkflows?:          string   // 3-5 core workflow steps
+  metrics?:                string   // north star + leading/lagging indicators
 }
 
 // ─── ROI Model ────────────────────────────────────────────────────────────────
