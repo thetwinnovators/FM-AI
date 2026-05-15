@@ -20,3 +20,9 @@ export function subscribeChatPanel(fn) {
     _listeners = _listeners.filter((l) => l !== fn)
   }
 }
+
+// Dispatch an injected message that QuickChatLauncher will pick up,
+// open the panel, and auto-send.
+export function openChatWithMessage(text) {
+  window.dispatchEvent(new CustomEvent('fm-chat-inject', { detail: { message: text } }))
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Sparkles } from 'lucide-react'
+import { X, Sparkles, ArrowRight } from 'lucide-react'
+import { openChatWithMessage } from '../../../lib/chatPanelState.js'
 import ConfidenceBadge from '../ConfidenceBadge.jsx'
 import DimensionScoreGrid from '../DimensionScoreGrid.jsx'
 import { buildScoreExplanations } from '../../../opportunity-radar/services/opportunityScorer.js'
@@ -18,6 +19,135 @@ const LIQUID_GLASS = {
     '0 8px 24px rgba(0,0,0,0.35),' +
     'inset 0 1px 0 rgba(255,255,255,0.18),' +
     'inset 0 -1px 0 rgba(255,255,255,0.05)',
+}
+
+// ── Title derivation — builds a descriptive, human-readable title ─────────────
+
+const ACRONYM_SET = new Set(['ai', 'ml', 'api', 'saas', 'b2b', 'b2c', 'crm', 'erp', 'llm', 'ui', 'ux'])
+
+function fmtWord(w) {
+  const lower = w.toLowerCase()
+  return ACRONYM_SET.has(lower) ? lower.toUpperCase() : lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
+function fmtPhrase(s) {
+  return s ? s.split(/\s+/).map(fmtWord).join(' ') : ''
+}
+
+function deriveOpportunityTitle(cluster, concept) {
+  if (concept?.title) return concept.title
+
+  const es = cluster.entitySummary
+  if (es) {
+    const p  = es.personas?.[0]
+    const w  = es.workflows?.[0]
+    const wr = es.workarounds?.[0]
+    const em = es.emergingTech?.[0]
+    const bn = es.bottlenecks?.[0]
+    const ind = es.industries?.[0]
+
+    if (w && em)  return `${fmtPhrase(em)}-Powered ${fmtPhrase(w)}`
+    if (w && bn)  return `${fmtPhrase(w)}: Eliminating ${fmtPhrase(bn)}`
+    if (w && wr)  return `${fmtPhrase(w)} Without ${fmtPhrase(wr)}`
+    if (w && p)   return `${fmtPhrase(w)} for ${fmtPhrase(p)}s`
+    if (w && ind) return `${fmtPhrase(w)} in ${fmtPhrase(ind)}`
+    if (p && wr)  return `${fmtPhrase(p)} — Replace ${fmtPhrase(wr)}`
+    if (p && em)  return `${fmtPhrase(em)} for ${fmtPhrase(p)}s`
+    if (w)        return fmtPhrase(w)
+    if (p)        return fmtPhrase(p)
+  }
+
+  return formatClusterName(cluster.clusterName)
+}
+
+// ── Prompt builder for FLOW.AI chat enhancement ───────────────────────────────
+
+const FLOW_AI_SYSTEM = `You are FLOW.AI, an opportunity synthesis engine.
+
+Your job is not to jump to product ideas immediately.
+First, map the opportunity space using the provided entities, relationships, and evidence.
+Identify recurring unmet needs, workflow bottlenecks, weak incumbent solutions, and enabling technology shifts.
+Generate multiple candidate concepts.
+Score them using desirability, viability, feasibility, defensibility, and go-to-market clarity.
+Select the strongest concept.
+Then produce a detailed opportunity brief with explicit reasoning and an evidence trace.
+Do not produce vague ideas, broad categories, or generic AI wrappers.
+Enhance the idea further and be specific, to help generate winnable concepts with a narrow wedge and strong why-now logic.`
+
+function buildEnhancePrompt(cluster, concept, signals) {
+  const es  = cluster.entitySummary
+  const dim = cluster.dimensionScores
+  const lines = [
+    FLOW_AI_SYSTEM,
+    '',
+    '---',
+    '',
+    `OPPORTUNITY: ${deriveOpportunityTitle(cluster, concept)}`,
+    `Score: ${cluster.opportunityScore ?? '—'}/100  ·  ${cluster.signalCount ?? 0} signals  ·  ${cluster.sourceDiversity ?? 0} source types`,
+    '',
+  ]
+
+  if (es) {
+    const addList = (label, items) => {
+      if (items?.length) lines.push(`${label}: ${items.slice(0, 6).join(', ')}`)
+    }
+    lines.push('CONTEXT:')
+    addList('Personas',           es.personas)
+    addList('Workflows',          es.workflows)
+    addList('Bottlenecks',        es.bottlenecks)
+    addList('Workarounds',        es.workarounds)
+    addList('Existing Solutions', es.existingSolutions)
+    addList('Technologies',       es.technologies)
+    addList('Emerging Tech',      es.emergingTech)
+    addList('Platform Shifts',    es.platformShifts)
+    addList('Buyer Roles',        es.buyerRoles)
+    addList('Industries',         es.industries)
+    lines.push('')
+  }
+
+  if (dim) {
+    lines.push('DIMENSION SCORES (out of 10):')
+    const entries = [
+      ['Pain Severity',      dim.painSeverity],
+      ['Frequency',          dim.frequency],
+      ['Urgency',            dim.urgency],
+      ['Willingness to Pay', dim.willingnessToPay],
+      ['Market Breadth',     dim.marketBreadth],
+      ['Weak Solution Fit',  dim.poorSolutionFit],
+      ['Feasibility',        dim.feasibility],
+      ['Why Now',            dim.whyNow],
+      ['Defensibility',      dim.defensibility],
+      ['GTM Clarity',        dim.gtmClarity],
+    ]
+    for (const [label, val] of entries) {
+      if (val != null) lines.push(`  ${label}: ${val}/10`)
+    }
+    lines.push('')
+  }
+
+  const clusterSignals = (signals ?? [])
+    .filter((s) => cluster.signalIds?.includes(s.id))
+    .sort((a, b) => (b.intensityScore ?? 0) - (a.intensityScore ?? 0))
+    .slice(0, 5)
+
+  if (clusterSignals.length) {
+    lines.push('TOP EVIDENCE:')
+    for (const s of clusterSignals) {
+      const text = (s.painPoint ?? s.rawText ?? s.content ?? '').slice(0, 140)
+      if (text) lines.push(`  • "${text}"`)
+    }
+    lines.push('')
+  }
+
+  if (concept) {
+    lines.push('DRAFT CONCEPT:')
+    if (concept.title)              lines.push(`  Title: ${concept.title}`)
+    if (concept.tagline)            lines.push(`  Tagline: ${concept.tagline}`)
+    if (concept.opportunitySummary) lines.push(`  Summary: ${concept.opportunitySummary}`)
+    lines.push('')
+  }
+
+  return lines.join('\n')
 }
 
 // ── EntityRow — compact chips for persona / workflow evidence ─────────────────
@@ -52,6 +182,7 @@ function ClusterDetailModal({
   onClose,
   onGenerate,
   onViewBrief,
+  onEnhance,
 }) {
   const dim          = cluster.dimensionScores
   const explanations = dim ? buildScoreExplanations(dim, cluster.signalCount) : []
@@ -202,29 +333,41 @@ function ClusterDetailModal({
 
         {/* ── Footer — frosted glass, pinned ── */}
         <div
-          className="flex-shrink-0 px-5 py-4 border-t border-white/[0.07] flex items-center gap-3"
+          className="flex-shrink-0 px-5 py-4 border-t border-white/[0.07] flex items-center justify-between gap-3"
           style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(8px)' }}
         >
-          {concept ? (
-            <button
-              type="button"
-              onClick={onViewBrief}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
-              style={{ color: 'var(--color-creator)' }}
-            >
-              View concept brief →
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={isGenerating || !canGenerate}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.10] text-white/55 hover:text-white/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <Sparkles size={13} />
-              {isGenerating ? 'Generating…' : 'Generate venture concept'}
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {concept ? (
+              <button
+                type="button"
+                onClick={onViewBrief}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-80"
+                style={{ color: 'var(--color-creator)' }}
+              >
+                View concept brief →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={isGenerating || !canGenerate}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.10] text-white/55 hover:text-white/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Sparkles size={13} />
+                {isGenerating ? 'Generating…' : 'Generate venture concept'}
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onEnhance}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors
+              bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/16
+              text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+          >
+            <Sparkles size={11} />
+            Enhance with Flow.AI
+          </button>
         </div>
 
       </div>
@@ -237,8 +380,8 @@ function ClusterDetailModal({
 
 function OpportunityCard({
   cluster, rank, concept, hasGenerated,
-  isSelected, isGenerating, canGenerate,
-  onOpenDetail, onGenerate, onViewBrief,
+  isSelected,
+  onOpenDetail, onEnhance, onViewBrief,
 }) {
   return (
     <div
@@ -266,7 +409,7 @@ function OpportunityCard({
 
         {/* Name */}
         <h3 className="text-sm font-semibold leading-snug mb-3 group-hover:text-white transition-colors">
-          {formatClusterName(cluster.clusterName)}
+          {deriveOpportunityTitle(cluster, concept)}
         </h3>
 
         {/* Meta */}
@@ -296,28 +439,26 @@ function OpportunityCard({
       </button>
 
       {/* Action footer */}
-      <div className="px-4 py-3 border-t border-white/6 shrink-0">
-        {hasGenerated ? (
+      <div className="px-4 py-3 border-t border-white/6 shrink-0 flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={onEnhance}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors
+            bg-white/5 border-white/10
+            hover:bg-white/10 hover:border-white/16
+            text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+        >
+          <Sparkles size={11} />
+          Enhance with Flow.AI
+        </button>
+        {hasGenerated && (
           <button
             type="button"
             onClick={onViewBrief}
-            className="text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
+            className="text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80 shrink-0"
             style={{ color: 'var(--color-creator)' }}
           >
-            View concept brief →
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={isGenerating || !canGenerate}
-            className="text-xs font-medium px-3 py-1.5 rounded-md border transition-colors
-              bg-white/5 border-white/10
-              hover:bg-white/10 hover:border-white/16
-              text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]
-              disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? 'Generating…' : 'Generate venture concept'}
+            Brief <ArrowRight size={11} />
           </button>
         )}
       </div>
@@ -329,8 +470,8 @@ function OpportunityCard({
 
 function CompactRow({
   cluster, rank, hasGenerated,
-  isSelected, isGenerating, canGenerate,
-  onOpenDetail, onGenerate, onViewBrief,
+  isSelected,
+  onOpenDetail, onEnhance, onViewBrief,
 }) {
   return (
     <div
@@ -351,7 +492,7 @@ function CompactRow({
         className="flex-1 min-w-0 text-left group flex items-center gap-3"
       >
         <span className="text-sm font-medium truncate group-hover:text-white transition-colors flex-1 min-w-0">
-          {formatClusterName(cluster.clusterName)}
+          {deriveOpportunityTitle(cluster, null)}
         </span>
         <span className="text-xs text-[color:var(--color-text-tertiary)] shrink-0">
           {cluster.signalCount ?? 0} signals
@@ -362,8 +503,8 @@ function CompactRow({
       </button>
 
       {/* CTA */}
-      <div className="shrink-0">
-        {hasGenerated ? (
+      <div className="shrink-0 flex items-center gap-2">
+        {hasGenerated && (
           <button
             type="button"
             onClick={onViewBrief}
@@ -372,20 +513,19 @@ function CompactRow({
           >
             Brief →
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={isGenerating || !canGenerate}
-            className="text-xs px-2.5 py-1 rounded-md border transition-colors
-              bg-white/5 border-white/8
-              hover:bg-white/10 hover:border-white/14
-              text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)]
-              disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {isGenerating ? '…' : 'Generate'}
-          </button>
         )}
+        <button
+          type="button"
+          onClick={onEnhance}
+          className="text-xs px-2.5 py-1 rounded-md border flex items-center gap-1 transition-colors
+            bg-white/5 border-white/8
+            hover:bg-white/10 hover:border-white/14
+            text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)]"
+          title="Enhance with Flow.AI"
+        >
+          <Sparkles size={10} />
+          Enhance
+        </button>
       </div>
     </div>
   )
@@ -431,6 +571,14 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
     onSelectCluster?.(clusterId)
     onNavigateToTab?.('Brief')
     setActiveClusterId(null)
+  }
+
+  const handleEnhanceWithAI = (clusterId) => {
+    const cluster = sorted.find((c) => c.id === clusterId)
+    if (!cluster) return
+    const concept = getTopConcept(clusterId)
+    const prompt = buildEnhancePrompt(cluster, concept, signals)
+    openChatWithMessage(prompt)
   }
 
   if (!sorted.length) {
@@ -483,10 +631,8 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
                     concept={getTopConcept(cluster.id)}
                     hasGenerated={hasConcept(cluster.id)}
                     isSelected={selectedClusterId === cluster.id}
-                    isGenerating={isGenerating}
-                    canGenerate={canGenerate}
                     onOpenDetail={() => { onSelectCluster?.(cluster.id); setActiveClusterId(cluster.id) }}
-                    onGenerate={() => onGenerateConcept?.(cluster.id)}
+                    onEnhance={() => handleEnhanceWithAI(cluster.id)}
                     onViewBrief={() => handleViewBrief(cluster.id)}
                   />
               ))}
@@ -508,10 +654,8 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
                   rank={i + 4}
                   hasGenerated={hasConcept(cluster.id)}
                   isSelected={selectedClusterId === cluster.id}
-                  isGenerating={isGenerating}
-                  canGenerate={canGenerate}
                   onOpenDetail={() => { onSelectCluster?.(cluster.id); setActiveClusterId(cluster.id) }}
-                  onGenerate={() => onGenerateConcept?.(cluster.id)}
+                  onEnhance={() => handleEnhanceWithAI(cluster.id)}
                   onViewBrief={() => handleViewBrief(cluster.id)}
                 />
               ))}
@@ -534,6 +678,11 @@ const hasConcept    = (id) => (concepts ?? []).some((c) => c.clusterId === id)
             setActiveClusterId(null)
           }}
           onViewBrief={() => handleViewBrief(activeCluster.id)}
+          onEnhance={() => {
+            const prompt = buildEnhancePrompt(activeCluster, activeConcept, signals)
+            openChatWithMessage(prompt)
+            setActiveClusterId(null)
+          }}
         />
       )}
     </>

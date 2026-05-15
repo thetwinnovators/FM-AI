@@ -44,6 +44,8 @@ export default function QuickChatLauncher() {
   const modelPickerRef = useRef(null)
   const abortRef = useRef(null)
   const daemonToolMapRef = useRef(new Map())
+  const pendingInjectRef = useRef(null)   // message injected from another page (VS "Enhance with Flow.AI")
+  const sendRef = useRef(null)            // mirror of send() so effects can call it without stale closure
   const inputRef = useRef(null)
   const scrollRef = useRef(null)
   const atBottomRef = useRef(true) // true while the scroll container is near the bottom
@@ -418,6 +420,25 @@ export default function QuickChatLauncher() {
     setChatPanelState({ open, mode: panelMode, sideWidth })
   }, [open, panelMode, sideWidth])
 
+  // Listen for messages injected from other pages (e.g. Venture Scope "Enhance with Flow.AI")
+  useEffect(() => {
+    function handleInject(e) {
+      pendingInjectRef.current = e.detail?.message ?? ''
+      setOpen(true)
+    }
+    window.addEventListener('fm-chat-inject', handleInject)
+    return () => window.removeEventListener('fm-chat-inject', handleInject)
+  }, [])
+
+  // When the panel opens, flush any pending injected message and auto-send
+  useEffect(() => {
+    if (!open || !pendingInjectRef.current) return
+    const text = pendingInjectRef.current
+    pendingInjectRef.current = null
+    const timer = setTimeout(() => sendRef.current?.(text), 200)
+    return () => clearTimeout(timer)
+  }, [open])
+
   // Resize handle for side panel mode — drag left edge to adjust width
   function onResizePointerDown(e) {
     e.preventDefault()
@@ -439,6 +460,8 @@ export default function QuickChatLauncher() {
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
   }
+
+  sendRef.current = send
 
   // Rendered inline as an absolute child — the host (network section in
   // FlowMap.jsx) provides `position: relative`. The wrapper covers the canvas
