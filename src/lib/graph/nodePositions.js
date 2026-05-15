@@ -1,4 +1,4 @@
-const SPHERE_RADIUS = 2.6
+const SPHERE_RADIUS = 3.5
 const MEMORY_CLUSTER_RADIUS = 0.55
 
 function pseudoRandom(seedStr) {

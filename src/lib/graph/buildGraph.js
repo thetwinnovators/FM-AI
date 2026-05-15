@@ -33,19 +33,7 @@ function pushImplicit(map, from, to, contentId, kind = 'derived', weight = 0.5, 
   map.set(k1, { from, to, kind, weight, evidence: [contentId], lastReinforced })
 }
 
-/**
- * Build the relational graph from seed data, live user state, and optionally
- * the VS entity graph produced by VentureScope scans.
- *
- * VS entities are injected as 'signal' nodes (intelligence tier, innermost shell)
- * so they appear in the 3D graph on the main FlowMap page without touching any
- * of the fm_radar_* keys used by the old Opportunity Radar.
- *
- * @param {object} seed       - Seed entities (topics, tools, creators, etc.)
- * @param {object} userState  - Live user state (saves, views, follows, …)
- * @param {object|null} vsEntityGraph - Parsed fm_vs_entity_graph or null
- */
-export function buildGraph(seed, userState = {}, vsEntityGraph = null) {
+export function buildGraph(seed, userState = {}) {
   const {
     userTopics = {},
     documents = {},
@@ -94,24 +82,6 @@ export function buildGraph(seed, userState = {}, vsEntityGraph = null) {
     existingIds.add(entry.id)
   }
 
-  // ── VS entity graph injection ────────────────────────────────────────────
-  // Each VS entity becomes a 'signal' node (intelligence tier — innermost shell,
-  // radius ≈ 0.68 in nodePositions.js, rendered in rose-red #f43f5e).
-  // Entity IDs are prefixed by the registry (e.g. entity_persona_*) so they
-  // never collide with seed node IDs.
-  if (vsEntityGraph?.entities) {
-    for (const entity of Object.values(vsEntityGraph.entities)) {
-      if (existingIds.has(entity.id)) continue
-      nodes.push({
-        id: entity.id,
-        label: entity.value,
-        type: 'signal',
-        summary: `${(entity.type ?? '').replace(/_/g, ' ')} · ${entity.frequency ?? 1} occurrences`,
-      })
-      existingIds.add(entity.id)
-    }
-  }
-
   const topicById = Object.fromEntries(seed.topics.map((t) => [t.id, t]))
   const topicBySlug = Object.fromEntries(
     seed.topics.filter((t) => t.slug).map((t) => [t.slug, t])
@@ -155,24 +125,6 @@ export function buildGraph(seed, userState = {}, vsEntityGraph = null) {
       if (resolved && existingIds.has(resolved.id)) {
         pushImplicit(implicit, doc.id, resolved.id, doc.id, 'covers', 0.6, doc.updatedAt || null)
       }
-    }
-  }
-
-  // ── VS entity co-occurrence edges ────────────────────────────────────────
-  // Only wired between entities that were successfully added above (existingIds
-  // guard prevents dangling references if the entity graph is stale).
-  if (vsEntityGraph?.edges) {
-    for (const edge of vsEntityGraph.edges) {
-      if (!existingIds.has(edge.source) || !existingIds.has(edge.target)) continue
-      pushImplicit(
-        implicit,
-        edge.source,
-        edge.target,
-        'vs_scan',
-        'co_mentioned',
-        Math.min(1.0, edge.weight ?? 0.3),
-        null,
-      )
     }
   }
 

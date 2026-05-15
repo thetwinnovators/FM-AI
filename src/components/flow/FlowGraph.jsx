@@ -194,7 +194,7 @@ export default function FlowGraph({
         b.vel *= Math.exp(-DAMP * dt)
         b.amp += b.vel * dt
         bounce.set(n.id, b)
-        const baseR = 7.5 * dpr * Math.max(0.65, 1 + r.z * 0.13)
+        const baseR = 5.0 * dpr * Math.max(0.65, 1 + r.z * 0.13)
         const r_ = baseR * (1 + b.amp * 0.45)
         let sx = p.sx + (p.sx - (W / 2) * dpr) * b.amp * 0.12
         let sy = p.sy
@@ -361,7 +361,7 @@ export default function FlowGraph({
           ctx.beginPath(); ctx.arc(p.sx, p.sy, p.r + 6 * dpr, 0, Math.PI * 2); ctx.stroke()
         }
 
-        const fs = 9 * Math.max(0.65, 1 + p.depth * 0.13) * dpr
+        const fs = 10.5 * Math.max(0.65, 1 + p.depth * 0.13) * dpr
         ctx.fillStyle = dim ? `rgba(${MUTED[0]},${MUTED[1]},${MUTED[2]},0.55)` : `rgba(255,255,255,${0.55 * dofAlpha})`
         ctx.font = `500 ${fs}px Montserrat, system-ui, sans-serif`
         ctx.textAlign = 'center'
