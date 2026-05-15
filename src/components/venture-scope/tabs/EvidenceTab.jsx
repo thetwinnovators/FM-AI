@@ -1,6 +1,21 @@
+import { useNavigate } from 'react-router-dom'
 import EvidenceChip from '../EvidenceChip.jsx'
+import { resolveSourceLink } from '../../../venture-scope/utils/sourceResolver.js'
 
-export default function EvidenceTab({ signals, clusters, selectedClusterId }) {
+function NavigateLink({ path, label }) {
+  const navigate = useNavigate()
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(path)}
+      className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block text-left truncate"
+    >
+      {label}
+    </button>
+  )
+}
+
+export default function EvidenceTab({ signals, clusters, selectedClusterId, storeSlice }) {
   const relevantSignals = selectedClusterId
     ? (signals ?? []).filter((s) => {
         const cluster = (clusters ?? []).find((c) => c.id === selectedClusterId)
@@ -28,37 +43,58 @@ export default function EvidenceTab({ signals, clusters, selectedClusterId }) {
       <p className="text-[11px] text-[color:var(--color-text-tertiary)] pb-1">
         {sorted.length} evidence items{selectedClusterId ? ' for selected opportunity' : ''}
       </p>
-      {sorted.map((s) => (
-        <div key={s.id} className="glass-panel px-4 py-3">
-          <div className="flex items-start justify-between gap-3 mb-1.5">
-            <EvidenceChip
-              sourceType={s.corpusSourceType ?? s.source}
-              label={s.corpusSourceType ?? s.source}
-            />
-            <span className="text-[10px] text-[color:var(--color-text-tertiary)] shrink-0">
-              {s.detectedAt?.slice(0, 10)}
-            </span>
-          </div>
-          <p className="text-[12px] text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">
-            {s.painText}
-          </p>
-          {s.corpusTopicName && (
-            <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-1.5">
-              Topic: {s.corpusTopicName}
+      {sorted.map((s) => {
+        const resolved = (storeSlice && s.corpusSourceId)
+          ? resolveSourceLink(s.corpusSourceId, s.corpusSourceType ?? s.source, storeSlice)
+          : null
+        return (
+          <div key={s.id} className="glass-panel px-4 py-3">
+            <div className="flex items-start justify-between gap-3 mb-1.5">
+              <EvidenceChip
+                sourceType={s.corpusSourceType ?? s.source}
+                label={s.corpusSourceType ?? s.source}
+              />
+              <span className="text-[10px] text-[color:var(--color-text-tertiary)] shrink-0">
+                {s.detectedAt?.slice(0, 10)}
+              </span>
+            </div>
+            <p className="text-[12px] text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">
+              {s.painText}
             </p>
-          )}
-          {s.sourceUrl && s.sourceUrl !== '' && (
-            <a
-              href={s.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[10px] text-fuchsia-400/60 hover:text-fuchsia-400/90 mt-1 block truncate"
-            >
-              {s.sourceUrl}
-            </a>
-          )}
-        </div>
-      ))}
+            {s.corpusTopicName && (
+              <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-1.5">
+                Topic: {s.corpusTopicName}
+              </p>
+            )}
+            {s.sourceUrl && s.sourceUrl !== '' && (
+              <a
+                href={s.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
+              >
+                {s.sourceUrl}
+              </a>
+            )}
+            {resolved?.canNavigate && resolved.externalUrl && resolved.externalUrl !== s.sourceUrl && (
+              <a
+                href={resolved.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-[color:var(--color-creator)] opacity-60 hover:opacity-90 mt-1 block truncate"
+              >
+                {resolved.title ?? resolved.externalUrl}
+              </a>
+            )}
+            {resolved?.canNavigate && resolved.internalPath && (
+              <NavigateLink path={resolved.internalPath} label={resolved.title ?? resolved.label} />
+            )}
+            {resolved?.notFound && (
+              <span className="text-[10px] text-red-400/60 italic mt-1 block">source deleted</span>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

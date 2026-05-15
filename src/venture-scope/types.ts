@@ -1,3 +1,10 @@
+import type {
+  OpportunityCluster,
+  PainSignal,
+  ExtractedEntity,
+  EntityRelationship,
+} from '../opportunity-radar/types.js'
+
 // ─── Record state machine ─────────────────────────────────────────────────────
 export type VentureRecordState =
   | 'active'        // current live record
@@ -6,11 +13,68 @@ export type VentureRecordState =
   | 'deleted'       // user-requested, reversible within recovery window
   | 'hard_deleted'  // permanently removed after explicit confirmation
 
+// ─── Opportunity frame ────────────────────────────────────────────────────────
+// The structured packet built from the entity graph before concept generation.
+// Replaces raw cluster + pain signals as the primary input to generateConcepts().
+// Every field is derived deterministically from the graph — no invented content.
+
+export interface OpportunityFrame {
+  cluster:           OpportunityCluster
+
+  // Entities from the cluster's signals, sorted by frequency descending
+  personas:          ExtractedEntity[]   // who experiences the problem
+  workflows:         ExtractedEntity[]   // what processes are affected
+  workarounds:       ExtractedEntity[]   // what people do instead of a real tool
+  technologies:      ExtractedEntity[]   // platforms and tools in context
+  bottlenecks:       ExtractedEntity[]   // specific steps that block progress
+  platformShifts:    ExtractedEntity[]   // macro changes creating new windows
+  emergingTech:      ExtractedEntity[]   // new capabilities enabling new approaches
+  buyerRoles:        ExtractedEntity[]   // who controls budget
+  existingSolutions: ExtractedEntity[]   // named tools with known gaps
+  industries:        ExtractedEntity[]   // sector context
+
+  // Relationships where both endpoints exist in the cluster entity set
+  relationships:     EntityRelationship[]
+
+  // Signals from this cluster with full corpus lineage
+  signals:           PainSignal[]
+}
+
+// ─── Resolved source link ─────────────────────────────────────────────────────
+// Produced by sourceResolver.ts — maps a (sourceId, sourceType) pair to
+// navigable display metadata for rendering in the evidence trace.
+
+export interface ResolvedSourceLink {
+  label:         string          // e.g. "Saved item", "Document"
+  title?:        string          // item title from the store
+  date?:         string          // ISO date from savedAt / createdAt
+  externalUrl?:  string          // open in new tab
+  internalPath?: string          // React Router path to navigate to
+  canNavigate:   boolean         // false if record deleted or type unsupported
+  notFound:      boolean         // true if sourceId not in store
+}
+
+// ─── Evidence trace entry ─────────────────────────────────────────────────────
+// Every claim in a venture brief must trace back to a specific source item
+// in the user's research corpus. Anonymous graph data should not exist.
+
+export interface EvidenceTraceEntry {
+  signalId?:       string          // the PainSignal that produced this evidence
+  sourceId:        string          // corpusSourceId — save/document/topic/brief ID
+  sourceType:      string          // CorpusSourceType: save | document | topic_summary | brief
+  topicId?:        string          // primary topic this content belongs to
+  documentId?:     string          // populated when sourceType === 'document'
+  evidenceSnippet: string          // the actual text from the source item
+  extractedAt:     string          // ISO timestamp
+  entityType?:     string          // which entity type made this signal relevant
+}
+
 // ─── Multi-candidate concept ──────────────────────────────────────────────────
 export interface VentureConceptCandidate {
   id:                     string
   clusterId:              string
   rank:                   number          // 1 = leading concept
+  angleType?:             'persona_first' | 'workflow_first' | 'technology_enablement'
   title:                  string
   tagline:                string
   coreWedge:              string
@@ -22,11 +86,13 @@ export interface VentureConceptCandidate {
   revenueModelHypothesis: string
   opportunityScore:       number
   confidenceScore:        number
-  generatedBy:            'ollama' | 'template'
+  generatedBy:            'ollama' | 'template' | 'graph'
   status:                 VentureRecordState
   createdAt:              string
   updatedAt:              string
-  // Optional expanded brief fields (populated by generateConcepts when available)
+  // Evidence trace — every candidate carries source lineage for its claims
+  evidenceTrace?:         EvidenceTraceEntry[]
+  // Optional expanded brief fields
   opportunitySummary?:    string
   problemStatement?:      string
   targetUser?:            string
@@ -56,16 +122,6 @@ export interface RoiModel {
   revenuePotentialScenarios: string
   paybackPeriod:             string
   confidenceBand:            'low' | 'medium' | 'high'
-}
-
-// ─── Evidence trace entry ─────────────────────────────────────────────────────
-export interface EvidenceTraceEntry {
-  sourceId:        string
-  sourceType:      string
-  topicId?:        string
-  documentId?:     string
-  evidenceSnippet: string
-  extractedAt:     string
 }
 
 // ─── Score breakdown entry ────────────────────────────────────────────────────

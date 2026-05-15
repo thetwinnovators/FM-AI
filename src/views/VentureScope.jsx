@@ -8,6 +8,7 @@ import { scoreOpportunity } from '../opportunity-radar/services/opportunityScore
 import { buildEntityRegistry } from '../opportunity-radar/services/entityNormalizer.js'
 import { buildEntityGraph } from '../opportunity-radar/services/entityGraphBuilder.js'
 import { generateConcepts } from '../opportunity-radar/services/conceptGenerator.js'
+import { buildOpportunityFrame } from '../venture-scope/services/opportunityFrameBuilder.js'
 // VS uses its own isolated storage — never touches fm_radar_* keys which
 // may contain externally-scraped signals from the old Opportunity Radar.
 import {
@@ -29,6 +30,15 @@ const TABS = ['Overview', 'Signals', 'Scores', 'Evidence', 'Brief', 'Compare']
 
 export default function VentureScope() {
   const store = useStore()
+
+  const storeSlice = {
+    saves:          store.saves          ?? {},
+    documents:      store.documents      ?? {},
+    manualContent:  store.manualContent  ?? {},
+    topicSummaries: store.topicSummaries ?? {},
+    userTopics:     store.userTopics     ?? {},
+    briefs:         store.briefs         ?? {},
+  }
 
   const [signals,     setSignals]     = useState(() => loadVsSignals())
   const [clusters,    setClusters]    = useState(() => loadVsClusters())
@@ -103,7 +113,9 @@ export default function VentureScope() {
       saveVsEntityGraph(graph)
       setEntityGraph(graph)
 
-      // Step 6: Generate VentureConceptCandidates for top 5 clusters
+      // Step 6: Generate VentureConceptCandidates for top 5 clusters.
+      // Each cluster gets an OpportunityFrame built from the entity graph so
+      // candidates reason over structured graph context, not raw signal text.
       const top5 = [...scoredClusters]
         .sort((a, b) => (b.opportunityScore ?? 0) - (a.opportunityScore ?? 0))
         .slice(0, 5)
@@ -111,8 +123,8 @@ export default function VentureScope() {
       setScanMsg(`Generating concepts for ${top5.length} opportunities…`)
       let generatedCount = 0
       for (const cluster of top5) {
-        const clusterSignals = allSignals.filter((s) => cluster.signalIds.includes(s.id))
-        const candidates = await generateConcepts(cluster, clusterSignals, 3)
+        const frame = buildOpportunityFrame(cluster, allSignals, graph)
+        const candidates = await generateConcepts(frame, 3)
         for (const candidate of candidates) {
           saveVsConcept(candidate)
           generatedCount++
@@ -161,7 +173,7 @@ export default function VentureScope() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
         <div className="flex items-center gap-3">
-          <Telescope className="w-5 h-5 text-fuchsia-400" />
+          <Telescope className="w-5 h-5 text-[color:var(--color-creator)]" />
           <div>
             <h1 className="text-base font-semibold leading-tight">Venture Scope</h1>
             <p className="text-xs text-[color:var(--color-text-tertiary)]">
@@ -176,7 +188,7 @@ export default function VentureScope() {
           <button
             onClick={runScan}
             disabled={scanning}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-fuchsia-600 hover:bg-fuchsia-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-teal-500 hover:bg-teal-400 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${scanning ? 'animate-spin' : ''}`} />
             {scanning ? 'Scanning…' : 'Run scan'}
@@ -206,7 +218,7 @@ export default function VentureScope() {
           >
             {tab}
             {activeTab === tab && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-fuchsia-500 rounded-t" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t" style={{ backgroundColor: 'var(--color-topic)' }} />
             )}
           </button>
         ))}
@@ -239,6 +251,7 @@ export default function VentureScope() {
             signals={signals}
             clusters={clusters}
             selectedClusterId={selectedClusterId}
+            storeSlice={storeSlice}
           />
         )}
         {activeTab === 'Brief' && (
@@ -246,6 +259,7 @@ export default function VentureScope() {
             concept={leadingConcept}
             candidates={clusterCandidates}
             onSelectCandidate={setSelectedCandidate}
+            storeSlice={storeSlice}
           />
         )}
         {activeTab === 'Compare' && (
