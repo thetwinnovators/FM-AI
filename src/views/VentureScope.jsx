@@ -21,12 +21,11 @@ import {
 
 import OverviewTab from '../components/venture-scope/tabs/OverviewTab.jsx'
 import SignalsTab  from '../components/venture-scope/tabs/SignalsTab.jsx'
-import ScoresTab   from '../components/venture-scope/tabs/ScoresTab.jsx'
 import EvidenceTab from '../components/venture-scope/tabs/EvidenceTab.jsx'
 import BriefTab    from '../components/venture-scope/tabs/BriefTab.jsx'
 import CompareTab  from '../components/venture-scope/tabs/CompareTab.jsx'
 
-const TABS = ['Overview', 'Signals', 'Scores', 'Evidence', 'Brief', 'Compare']
+const TABS = ['Overview', 'Signals', 'Evidence', 'Brief', 'Compare']
 
 export default function VentureScope() {
   const store = useStore()
@@ -50,7 +49,6 @@ export default function VentureScope() {
   const [regenerating, setRegenerating] = useState(false)
   const [scanMsg,     setScanMsg]     = useState(null)
   const [selectedClusterId, setSelectedClusterId] = useState(null)
-  const [selectedCandidate, setSelectedCandidate] = useState(null)
 
   const scanRef = useRef(false)
 
@@ -68,7 +66,6 @@ export default function VentureScope() {
       }
       const allConcepts = loadVsConcepts()
       setVsConcepts(allConcepts)
-      setSelectedCandidate(null)  // reset to rank-1 so the regenerated brief shows
     } catch (err) {
       console.error('[VentureScope] regenerate failed', err)
     } finally {
@@ -180,15 +177,6 @@ export default function VentureScope() {
     }
   }, [store])
 
-  // Derived state
-  const selectedCluster = clusters.find((c) => c.id === selectedClusterId) ?? clusters[0] ?? null
-  const leadingConcept = selectedCandidate
-    ?? vsConcepts.find((c) => c.clusterId === selectedCluster?.id && c.rank === 1)
-    ?? null
-  const clusterCandidates = selectedCluster
-    ? vsConcepts.filter((c) => c.clusterId === selectedCluster.id)
-    : []
-
   const lastScanLabel = meta?.lastScanAt
     ? new Date(meta.lastScanAt).toLocaleString()
     : 'Never'
@@ -267,13 +255,6 @@ export default function VentureScope() {
         )}
         {activeTab === 'Signals' && (
           <SignalsTab entityGraph={entityGraph} />
-        )}
-        {activeTab === 'Scores' && (
-          <ScoresTab
-            clusters={clusters}
-            onSelectCluster={setSelectedClusterId}
-            selectedClusterId={selectedClusterId}
-          />
         )}
         {activeTab === 'Evidence' && (
           <EvidenceTab
