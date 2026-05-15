@@ -61,7 +61,7 @@ export default function VentureScope() {
 
     try {
       // Step 1: Ingest corpus — pass the store slice so it reads live state
-      const storeSlice = {
+      const ingestSlice = {
         saves:            store.saves,
         documents:        store.documents,
         documentContents: store.documentContents,
@@ -69,7 +69,7 @@ export default function VentureScope() {
         topicSummaries:   store.topicSummaries,
         briefs:           store.briefs,
       }
-      const rawItems = ingestCorpus(storeSlice)
+      const rawItems = ingestCorpus(ingestSlice)
 
       // Step 2: Convert corpus items to signals.
       // Corpus signals bypass the intensity-3 threshold (they're curated research,
