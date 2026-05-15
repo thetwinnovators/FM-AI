@@ -47,11 +47,33 @@ export default function VentureScope() {
   const [meta,        setMeta]        = useState(() => loadVsMeta())
   const [activeTab,   setActiveTab]   = useState('Overview')
   const [scanning,    setScanning]    = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
   const [scanMsg,     setScanMsg]     = useState(null)
   const [selectedClusterId, setSelectedClusterId] = useState(null)
   const [selectedCandidate, setSelectedCandidate] = useState(null)
 
   const scanRef = useRef(false)
+
+  const handleRegenerateConcept = useCallback(async (clusterId) => {
+    if (regenerating) return
+    const cluster = clusters.find((c) => c.id === clusterId)
+    if (!cluster) return
+    setRegenerating(true)
+    try {
+      const frame = buildOpportunityFrame(cluster, signals, entityGraph)
+      const candidates = await generateConcepts(frame, 3)
+      for (const candidate of candidates) {
+        saveVsConcept(candidate)
+      }
+      const allConcepts = loadVsConcepts()
+      setVsConcepts(allConcepts)
+      setSelectedCandidate(null)  // reset to rank-1 so the regenerated brief shows
+    } catch (err) {
+      console.error('[VentureScope] regenerate failed', err)
+    } finally {
+      setRegenerating(false)
+    }
+  }, [regenerating, clusters, signals, entityGraph])
 
   const runScan = useCallback(async () => {
     if (scanRef.current) return
@@ -265,6 +287,8 @@ export default function VentureScope() {
             selectedCluster={selectedCluster}
             entityGraph={entityGraph}
             allSignals={signals}
+            onRegenerateConcept={handleRegenerateConcept}
+            isRegenerating={regenerating}
           />
         )}
         {activeTab === 'Compare' && (

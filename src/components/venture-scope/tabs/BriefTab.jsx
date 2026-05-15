@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import ScoreBar from '../ScoreBar.jsx'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
 import { buildOpportunityFrame } from '../../../venture-scope/services/opportunityFrameBuilder.js'
@@ -101,7 +102,29 @@ function EvidenceTraceSection({ entries, storeSlice }) {
   )
 }
 
-export default function BriefTab({ concept, candidates, onSelectCandidate, storeSlice, selectedCluster, entityGraph, allSignals }) {
+const GENERATED_BY_LABELS = {
+  ollama:   { text: 'LLM synthesised',  color: 'rgba(20,184,166,0.7)'  },  // teal
+  graph:    { text: 'Graph derived',    color: 'rgba(148,163,184,0.6)' },  // slate
+  template: { text: 'Template',         color: 'rgba(148,163,184,0.4)' },  // muted
+}
+
+function GeneratedByBadge({ generatedBy }) {
+  const config = GENERATED_BY_LABELS[generatedBy] ?? GENERATED_BY_LABELS.template
+  return (
+    <span
+      className="text-[10px] px-1.5 py-0.5 rounded"
+      style={{
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        color: config.color,
+        border: `1px solid ${config.color}`,
+      }}
+    >
+      {config.text}
+    </span>
+  )
+}
+
+export default function BriefTab({ concept, candidates, onSelectCandidate, storeSlice, selectedCluster, entityGraph, allSignals, onRegenerateConcept, isRegenerating }) {
   const frame = (selectedCluster && entityGraph && allSignals)
     ? buildOpportunityFrame(selectedCluster, allSignals, entityGraph)
     : null
@@ -123,14 +146,30 @@ export default function BriefTab({ concept, candidates, onSelectCandidate, store
     <div className="space-y-4 max-w-3xl">
       {/* Title block */}
       <div className="glass-panel p-5">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-[11px] uppercase tracking-widest" style={{ color: 'rgba(217,70,239,0.6)' }}>
-            Venture Brief
-          </span>
-          {concept.angleType && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[color:var(--color-text-tertiary)] capitalize">
-              {concept.angleType.replace('_', '-')}
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] uppercase tracking-widest" style={{ color: 'rgba(217,70,239,0.6)' }}>
+              Venture Brief
             </span>
+            {concept.angleType && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-[color:var(--color-text-tertiary)] capitalize">
+                {concept.angleType.replace(/_/g, '-')}
+              </span>
+            )}
+            {concept.generatedBy && (
+              <GeneratedByBadge generatedBy={concept.generatedBy} />
+            )}
+          </div>
+          {onRegenerateConcept && (
+            <button
+              type="button"
+              onClick={() => onRegenerateConcept(concept.clusterId)}
+              disabled={isRegenerating}
+              title="Regenerate brief from graph"
+              className="p-1 rounded text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)] hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+            </button>
           )}
         </div>
         <h2 className="text-lg font-semibold leading-snug mb-1">{concept.title}</h2>
