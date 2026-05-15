@@ -1,22 +1,38 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Download, Sparkles, X, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react'
-import ScoreBar from '../ScoreBar.jsx'
+import { Download, Sparkles, X, RefreshCw, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
-import OpportunityFramePanel from '../OpportunityFramePanel.jsx'
 
-// ── Modal glass style (matches app-wide Liquid Glass treatment) ───────────────
+// ── Liquid Glass — matches Flow Trade's SignalDetailModal exactly ─────────────
 
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 50%, rgba(255,255,255,0.07) 100%)',
   backdropFilter: 'blur(40px) saturate(180%)',
   WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-  border: '1px solid rgba(255,255,255,0.15)',
+  border: '1px solid rgba(255,255,255,0.13)',
   boxShadow:
     '0 30px 80px rgba(0,0,0,0.65),' +
     '0 8px 24px rgba(0,0,0,0.35),' +
-    'inset 0 1px 0 rgba(255,255,255,0.12)',
+    'inset 0 1px 0 rgba(255,255,255,0.18),' +
+    'inset 0 -1px 0 rgba(255,255,255,0.05)',
+}
+
+// ── Dark data strip — matches Flow Trade's price-level strip ─────────────────
+
+const DATA_STRIP = {
+  background: 'linear-gradient(160deg, #0d0f1c 0%, #07090f 100%)',
+  boxShadow: 'rgba(0,0,0,0.50) 0px 8px 24px, rgba(255,255,255,0.07) 0px 1px 0px inset',
+}
+
+// ── Paper card — matches Flow Trade's "Next Steps" paper card ─────────────────
+
+const PAPER_CARD = {
+  borderRadius: 14,
+  background: 'linear-gradient(160deg, #fdf9f3 0%, #f7f0e6 100%)',
+  border: '1px solid rgba(190,155,100,0.22)',
+  boxShadow: '0 4px 20px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.90)',
+  overflow: 'clip',
 }
 
 // ── Angle config ──────────────────────────────────────────────────────────────
@@ -58,25 +74,14 @@ function scoreLabel(score) {
 
 // Composite rank: opportunity score + evidence weight + LLM-generation boost
 function rankScore(c) {
-  const score    = c.opportunityScore ?? 0
-  const evidence = c.evidenceTrace?.length ?? 0
-  const llmBoost = c.generatedBy === 'ollama' ? 5 : 0
-  return score + evidence * 2 + llmBoost
+  return (c.opportunityScore ?? 0) + (c.evidenceTrace?.length ?? 0) * 2 + (c.generatedBy === 'ollama' ? 5 : 0)
 }
 
 // ── Concept deduplication ─────────────────────────────────────────────────────
 
-/**
- * Remove near-duplicate concepts using Jaccard similarity on title word sets.
- * Words ≤2 chars are ignored (stop words). Two concepts are merged when their
- * title Jaccard similarity ≥ 0.5. The highest-ranked concept in each group is
- * kept; others are discarded.
- */
 function deduplicateConcepts(concepts) {
   const titleWords = (title) =>
-    new Set(
-      (title ?? '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2),
-    )
+    new Set((title ?? '').toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 2))
 
   const jaccard = (setA, setB) => {
     if (!setA.size && !setB.size) return 1
@@ -86,7 +91,6 @@ function deduplicateConcepts(concepts) {
     return union === 0 ? 0 : intersection / union
   }
 
-  // Sort highest-ranked first so first occurrence in each cluster is kept
   const sorted = [...concepts].sort((a, b) => rankScore(b) - rankScore(a))
   const absorbed = new Set()
   const kept = []
@@ -97,9 +101,7 @@ function deduplicateConcepts(concepts) {
     const wordsI = titleWords(sorted[i].title)
     for (let j = i + 1; j < sorted.length; j++) {
       if (absorbed.has(sorted[j].id)) continue
-      if (jaccard(wordsI, titleWords(sorted[j].title)) >= 0.5) {
-        absorbed.add(sorted[j].id)
-      }
+      if (jaccard(wordsI, titleWords(sorted[j].title)) >= 0.5) absorbed.add(sorted[j].id)
     }
   }
   return kept
@@ -162,12 +164,9 @@ function downloadConceptMd(concept, clusterName) {
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
   const url  = URL.createObjectURL(blob)
   const a    = document.createElement('a')
-  a.href = url
-  a.download = `${slug}.md`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  a.href = url; a.download = `${slug}.md`
+  document.body.appendChild(a); a.click()
+  document.body.removeChild(a); URL.revokeObjectURL(url)
 }
 
 // ── Small shared components ───────────────────────────────────────────────────
@@ -196,27 +195,79 @@ function GeneratedByBadge({ generatedBy }) {
   )
 }
 
-function Section({ title, children }) {
+// ── Paper section — warm serif text, used inside paper cards ─────────────────
+
+function PaperSection({ title, children }) {
   if (!children) return null
-  if (typeof children === 'string' && (children.trim() === '—' || children.trim() === '')) return null
+  const text = typeof children === 'string' ? children.trim() : null
+  if (text !== null && (text === '—' || text === '')) return null
   return (
-    <div>
-      <h4 className="text-[10px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-1.5">
+    <div style={{ borderBottom: '1px solid rgba(160,130,90,0.13)', paddingBottom: 14 }}>
+      <div style={{
+        fontFamily: 'var(--font-lesson, "Georgia", serif)',
+        fontSize: 9.5,
+        fontWeight: 600,
+        letterSpacing: '0.13em',
+        textTransform: 'uppercase',
+        color: '#a07840',
+        marginBottom: 6,
+      }}>
         {title}
-      </h4>
-      <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed whitespace-pre-wrap">
+      </div>
+      <p style={{
+        fontFamily: 'var(--font-lesson, "Georgia", serif)',
+        fontSize: 13.5,
+        fontWeight: 400,
+        lineHeight: 1.72,
+        color: '#2c1f0e',
+        margin: 0,
+        whiteSpace: 'pre-wrap',
+      }}>
         {children}
       </p>
     </div>
   )
 }
 
+// ── Paper card shell — header + body ─────────────────────────────────────────
+
+function PaperCard({ label, children }) {
+  return (
+    <div style={PAPER_CARD}>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '11px 18px 10px',
+        borderBottom: '1px solid rgba(190,155,100,0.14)',
+        background: 'rgba(255,255,255,0.40)',
+      }}>
+        <ArrowRight size={11} style={{ color: '#c4a060', flexShrink: 0 }} />
+        <span style={{
+          fontFamily: 'var(--font-lesson, "Georgia", serif)',
+          fontSize: 10, fontWeight: 600,
+          letterSpacing: '0.14em', textTransform: 'uppercase',
+          color: '#a07840',
+        }}>
+          {label}
+        </span>
+        <div style={{ flex: 1, height: 1, background: 'rgba(190,155,100,0.18)', marginLeft: 4 }} />
+      </div>
+      {/* Body */}
+      <div style={{ padding: '14px 18px 4px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── Evidence block ────────────────────────────────────────────────────────────
+
 function EvidenceBlock({ entries, storeSlice }) {
   const navigate = useNavigate()
   if (!entries?.length) return null
   return (
     <div>
-      <h4 className="text-[10px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-2">
+      <h4 className="text-[10px] uppercase tracking-widest text-white/30 mb-2">
         Source Evidence
       </h4>
       <div className="space-y-2.5">
@@ -224,19 +275,17 @@ function EvidenceBlock({ entries, storeSlice }) {
           const resolved = storeSlice ? resolveSourceLink(e.sourceId, e.sourceType, storeSlice) : null
           const inner = (
             <>
-              <p className="text-[12px] text-[color:var(--color-text-primary)] leading-relaxed">
+              <p className="text-[12px] text-white/70 leading-relaxed">
                 "{e.evidenceSnippet}"
               </p>
               {resolved?.title && resolved.title !== e.evidenceSnippet && (
-                <p className="text-[11px] text-[color:var(--color-text-secondary)] mt-1 truncate">
-                  {resolved.title}
-                </p>
+                <p className="text-[11px] text-white/40 mt-1 truncate">{resolved.title}</p>
               )}
-              <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-[color:var(--color-text-tertiary)]">
+              <div className="mt-1 flex flex-wrap gap-2 text-[10px] text-white/25">
                 <span className="px-1.5 py-0.5 rounded bg-white/5">
                   {SOURCE_TYPE_LABELS[e.sourceType] ?? e.sourceType}
                 </span>
-                <span className="opacity-60">{new Date(e.extractedAt).toLocaleDateString()}</span>
+                <span>{new Date(e.extractedAt).toLocaleDateString()}</span>
               </div>
             </>
           )
@@ -246,14 +295,10 @@ function EvidenceBlock({ entries, storeSlice }) {
             </div>
           )
           if (resolved?.externalUrl) return wrap(
-            <a href={resolved.externalUrl} target="_blank" rel="noopener noreferrer" className="block hover:bg-white/4 rounded">
-              {inner}
-            </a>
+            <a href={resolved.externalUrl} target="_blank" rel="noopener noreferrer" className="block hover:bg-white/4 rounded transition-colors">{inner}</a>
           )
           if (resolved?.internalPath) return wrap(
-            <button type="button" onClick={() => navigate(resolved.internalPath)} className="w-full text-left hover:bg-white/4 rounded">
-              {inner}
-            </button>
+            <button type="button" onClick={() => navigate(resolved.internalPath)} className="w-full text-left hover:bg-white/4 rounded transition-colors">{inner}</button>
           )
           return wrap(inner)
         })}
@@ -284,7 +329,7 @@ function ConceptCard({ concept, clusterName, onClick }) {
       <div className="h-0.5 transition-opacity group-hover:opacity-80" style={{ backgroundColor: angle.color }} />
 
       <div className="p-4">
-        {/* Top row: badges + score chip */}
+        {/* Badges + score */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
             <AnglePill angleType={concept.angleType} />
@@ -307,23 +352,16 @@ function ConceptCard({ concept, clusterName, onClick }) {
 
         {/* Cluster name */}
         {clusterName && (
-          <p className="text-[10px] text-[color:var(--color-text-tertiary)] mb-2 truncate">
-            {clusterName}
-          </p>
+          <p className="text-[10px] text-[color:var(--color-text-tertiary)] mb-2 truncate">{clusterName}</p>
         )}
 
         {/* Summary */}
-        <p className="text-[12px] text-[color:var(--color-text-secondary)] leading-relaxed">
-          {summary}
-        </p>
+        <p className="text-[12px] text-[color:var(--color-text-secondary)] leading-relaxed">{summary}</p>
 
-        {/* Footer: evidence signals */}
+        {/* Footer */}
         {signals > 0 && (
           <div className="mt-3 pt-3 border-t border-white/6 flex items-center gap-1.5 text-[10px] text-[color:var(--color-text-tertiary)]">
-            <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ backgroundColor: 'rgba(20,184,166,0.6)' }}
-            />
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: 'rgba(20,184,166,0.6)' }} />
             {signals} signal{signals !== 1 ? 's' : ''} of evidence
           </div>
         )}
@@ -332,61 +370,72 @@ function ConceptCard({ concept, clusterName, onClick }) {
   )
 }
 
-// ── Concept modal ─────────────────────────────────────────────────────────────
+// ── Concept modal — Flow Trade treatment ──────────────────────────────────────
 
 function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate, isRegenerating }) {
   const navigate = useNavigate()
   const [expanded, setExpanded] = useState(false)
   const angle = ANGLE_CONFIG[concept.angleType] ?? ANGLE_CONFIG.persona_first
 
+  // Escape to close
+  useEffect(() => {
+    const fn = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', fn)
+    return () => window.removeEventListener('keydown', fn)
+  }, [onClose])
+
   const handleEnhance = useCallback(() => {
-    const prompt = [
-      `Enhance and deepen this venture concept:`,
-      ``,
-      `**${concept.title}**`,
-      concept.tagline ?? '',
-      ``,
-      `Core insight: ${concept.coreWedge ?? ''}`,
-      ``,
-      `Opportunity: ${concept.opportunitySummary ?? ''}`,
-      ``,
-      `Problem: ${concept.problemStatement ?? ''}`,
-      ``,
-      `Proposed solution: ${concept.proposedSolution ?? concept.workflowImprovement ?? ''}`,
-    ].join('\n')
-    navigate('/chat', { state: { prefilledPrompt: prompt } })
+    navigate('/chat', {
+      state: {
+        prefilledPrompt: [
+          `Enhance and deepen this venture concept:`,
+          ``,
+          `**${concept.title}**`,
+          concept.tagline ?? '',
+          ``,
+          `Core insight: ${concept.coreWedge ?? ''}`,
+          ``,
+          `Opportunity: ${concept.opportunitySummary ?? ''}`,
+          ``,
+          `Problem: ${concept.problemStatement ?? ''}`,
+          ``,
+          `Proposed solution: ${concept.proposedSolution ?? concept.workflowImprovement ?? ''}`,
+        ].join('\n'),
+      },
+    })
     onClose()
   }, [concept, navigate, onClose])
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center px-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+      onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl rounded-2xl overflow-hidden flex flex-col"
-        style={{ ...LIQUID_GLASS, maxHeight: 'calc(100vh - 48px)' }}
+        className="relative w-full max-w-[720px] rounded-2xl overflow-hidden flex flex-col"
+        style={{ ...LIQUID_GLASS, height: '85vh' }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* Modal header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-white/8 shrink-0">
+
+        {/* ── Header ── */}
+        <div className="flex-shrink-0 flex items-center gap-3 px-5 py-4 border-b border-white/[0.07]">
           <div className="flex flex-wrap items-center gap-2 min-w-0">
             <AnglePill angleType={concept.angleType} />
             {concept.generatedBy && <GeneratedByBadge generatedBy={concept.generatedBy} />}
             {clusterName && (
-              <span className="text-[10px] text-[color:var(--color-text-tertiary)] bg-white/5 px-1.5 py-0.5 rounded truncate max-w-[180px]">
+              <span className="text-[10px] text-white/30 bg-white/5 px-1.5 py-0.5 rounded truncate max-w-[200px]">
                 {clusterName}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 shrink-0 ml-2">
+          <div className="flex items-center gap-1 ml-auto shrink-0">
             {concept.rank === 1 && onRegenerate && (
               <button
                 type="button"
                 onClick={() => onRegenerate(concept.clusterId)}
                 disabled={isRegenerating}
                 title="Regenerate from graph"
-                className="p-1.5 rounded text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)] hover:bg-white/5 disabled:opacity-40 transition-colors"
+                className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] disabled:opacity-40 transition-colors"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
               </button>
@@ -394,46 +443,104 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
             <button
               type="button"
               onClick={onClose}
-              className="p-1.5 rounded text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-primary)] hover:bg-white/5 transition-colors"
+              className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Modal body */}
-        <div className="flex-1 px-6 py-5 space-y-5 overflow-y-auto min-h-0">
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-5">
 
           {/* Title block */}
           <div>
-            <h2 className="text-xl font-semibold leading-snug">{concept.title}</h2>
+            <h2 className="text-[19px] font-bold text-white/90 leading-snug">{concept.title}</h2>
             {concept.tagline && (
-              <p className="text-sm text-[color:var(--color-text-secondary)] mt-1">{concept.tagline}</p>
+              <p className="text-[13px] text-white/45 mt-1 leading-relaxed">{concept.tagline}</p>
             )}
-            {concept.coreWedge && (
-              <p className="mt-3 text-[12px] text-[color:var(--color-text-secondary)] italic leading-relaxed border-l-2 pl-3"
-                style={{ borderColor: angle.borderColor }}>
-                {concept.coreWedge}
-              </p>
-            )}
-            {concept.opportunityScore != null && (
-              <div className="mt-3">
-                <ScoreBar label="Opportunity score" score={concept.opportunityScore} color="topic" />
+          </div>
+
+          {/* ── Dark data strip (mirrors Flow Trade price-level strip) ── */}
+          <div
+            className="overflow-hidden rounded-xl border border-white/[0.09]"
+            style={DATA_STRIP}
+          >
+            <div className="grid grid-cols-4 divide-x divide-white/[0.06]">
+              {/* Opportunity Score */}
+              <div className="px-4 pt-3.5 pb-3">
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-white/30">
+                    Opp. Score
+                  </span>
+                </div>
+                <div className="text-[22px] font-bold font-mono leading-none" style={{ color: 'var(--color-topic)' }}>
+                  {concept.opportunityScore ?? '—'}
+                </div>
+                <div className="text-[10px] text-white/25 mt-0.5">/ 100</div>
               </div>
-            )}
+
+              {/* Evidence signals */}
+              <div className="px-4 pt-3.5 pb-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">
+                  Evidence
+                </div>
+                <div className="text-[22px] font-bold font-mono leading-none text-white/80">
+                  {concept.evidenceTrace?.length ?? 0}
+                </div>
+                <div className="text-[10px] text-white/25 mt-0.5">signals</div>
+              </div>
+
+              {/* Rank */}
+              <div className="px-4 pt-3.5 pb-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">
+                  Rank
+                </div>
+                <div className="text-[22px] font-bold font-mono leading-none text-white/80">
+                  #{concept.rank ?? '—'}
+                </div>
+                <div className="text-[10px] text-white/25 mt-0.5">by score</div>
+              </div>
+
+              {/* Buildable */}
+              <div className="px-4 pt-3.5 pb-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-white/30 mb-1">
+                  Buildable
+                </div>
+                <div
+                  className="text-[16px] font-bold font-mono leading-none mt-1"
+                  style={{ color: concept.isBuildable !== false ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.3)' }}
+                >
+                  {concept.isBuildable !== false ? 'Yes' : 'No'}
+                </div>
+                <div className="text-[10px] text-white/25 mt-0.5">
+                  {concept.generatedBy === 'ollama' ? 'LLM-driven' : 'graph-derived'}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Core sections */}
-          <div className="space-y-4">
-            <Section title="Opportunity Summary">{concept.opportunitySummary}</Section>
-            <Section title="Problem Statement">{concept.problemStatement}</Section>
-            <Section title="Target User">{concept.targetUser ?? concept.primaryUser}</Section>
-            <Section title="Proposed Solution">{concept.proposedSolution ?? concept.workflowImprovement}</Section>
-            <Section title="Value Proposition">{concept.valueProp}</Section>
-            <Section title="Why Now">{concept.whyNow}</Section>
-          </div>
+          {/* Core wedge quote */}
+          {concept.coreWedge && (
+            <p
+              className="text-[13px] text-white/45 italic leading-relaxed pl-4 border-l-2"
+              style={{ borderColor: angle.color + '80' }}
+            >
+              {concept.coreWedge}
+            </p>
+          )}
 
-          {/* Evidence — always shown */}
+          {/* ── Paper card — Venture Brief ── */}
+          <PaperCard label="Venture Brief">
+            <PaperSection title="Opportunity Summary">{concept.opportunitySummary}</PaperSection>
+            <PaperSection title="Problem Statement">{concept.problemStatement}</PaperSection>
+            <PaperSection title="Target User">{concept.targetUser ?? concept.primaryUser}</PaperSection>
+            <PaperSection title="Proposed Solution">{concept.proposedSolution ?? concept.workflowImprovement}</PaperSection>
+            <PaperSection title="Value Proposition">{concept.valueProp}</PaperSection>
+            <PaperSection title="Why Now">{concept.whyNow}</PaperSection>
+          </PaperCard>
+
+          {/* Evidence */}
           {concept.evidenceTrace?.length > 0 && (
             <EvidenceBlock entries={concept.evidenceTrace} storeSlice={storeSlice} />
           )}
@@ -442,7 +549,7 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
           <button
             type="button"
             onClick={() => setExpanded(v => !v)}
-            className="flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-tertiary)] hover:text-[color:var(--color-text-secondary)] transition-colors"
+            className="flex items-center gap-1.5 text-[11px] text-white/30 hover:text-white/55 transition-colors"
           >
             {expanded
               ? <><ChevronUp className="w-3.5 h-3.5" />Show less</>
@@ -450,67 +557,60 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
             }
           </button>
 
-          {/* Extended sections */}
+          {/* ── Extended paper card ── */}
           {expanded && (
-            <div className="space-y-4 pt-2 border-t border-white/6">
-              <Section title="Buyer vs User">{concept.buyerVsUser}</Section>
-              <Section title="Current Alternatives">{concept.currentAlternatives}</Section>
-              <Section title="Existing Workarounds">{concept.existingWorkarounds}</Section>
-              <Section title="Key Assumptions">{concept.keyAssumptions}</Section>
-              <Section title="Success Metrics">{concept.successMetrics}</Section>
-              <Section title="Pricing Hypothesis">{concept.pricingHypothesis ?? concept.revenueModelHypothesis}</Section>
-              <Section title="Defensibility">{concept.defensibility}</Section>
-              <Section title="Go-to-Market Angle">{concept.goToMarketAngle}</Section>
-              <Section title="MVP Scope">{concept.mvpScope}</Section>
-              <Section title="Risks">{concept.risks}</Section>
+            <PaperCard label="Extended Analysis">
+              <PaperSection title="Buyer vs User">{concept.buyerVsUser}</PaperSection>
+              <PaperSection title="Current Alternatives">{concept.currentAlternatives}</PaperSection>
+              <PaperSection title="Existing Workarounds">{concept.existingWorkarounds}</PaperSection>
+              <PaperSection title="Key Assumptions">{concept.keyAssumptions}</PaperSection>
+              <PaperSection title="Success Metrics">{concept.successMetrics}</PaperSection>
+              <PaperSection title="Pricing Hypothesis">{concept.pricingHypothesis ?? concept.revenueModelHypothesis}</PaperSection>
+              <PaperSection title="Defensibility">{concept.defensibility}</PaperSection>
+              <PaperSection title="Go-to-Market Angle">{concept.goToMarketAngle}</PaperSection>
+              <PaperSection title="MVP Scope">{concept.mvpScope}</PaperSection>
+              <PaperSection title="Risks">{concept.risks}</PaperSection>
               {concept.implementationPlan && (
-                <Section title="Implementation Plan">{concept.implementationPlan}</Section>
+                <PaperSection title="Implementation Plan">{concept.implementationPlan}</PaperSection>
               )}
               {concept.roiModel && (
-                <div>
-                  <h4 className="text-[10px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-2">
-                    ROI Model
-                  </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      ['Value creation',    concept.roiModel.estimatedValueCreation],
-                      ['Cost to build',     concept.roiModel.estimatedCostToBuild],
-                      ['Time to MVP',       concept.roiModel.estimatedTimeToMvp],
-                      ['Revenue scenarios', concept.roiModel.revenuePotentialScenarios],
-                      ['Payback period',    concept.roiModel.paybackPeriod],
-                    ].filter(([, v]) => v).map(([label, value]) => (
-                      <div key={label} className="rounded-lg p-2.5 bg-white/3">
-                        <div className="text-[10px] text-[color:var(--color-text-tertiary)] mb-0.5">{label}</div>
-                        <div className="text-[12px] text-[color:var(--color-text-primary)] leading-snug">{value}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <>
+                  {concept.roiModel.estimatedValueCreation  && <PaperSection title="Value Creation">{concept.roiModel.estimatedValueCreation}</PaperSection>}
+                  {concept.roiModel.estimatedCostToBuild     && <PaperSection title="Cost to Build">{concept.roiModel.estimatedCostToBuild}</PaperSection>}
+                  {concept.roiModel.estimatedTimeToMvp       && <PaperSection title="Time to MVP">{concept.roiModel.estimatedTimeToMvp}</PaperSection>}
+                  {concept.roiModel.revenuePotentialScenarios && <PaperSection title="Revenue Scenarios">{concept.roiModel.revenuePotentialScenarios}</PaperSection>}
+                  {concept.roiModel.paybackPeriod             && <PaperSection title="Payback Period">{concept.roiModel.paybackPeriod}</PaperSection>}
+                </>
               )}
-            </div>
+            </PaperCard>
           )}
+
         </div>
 
-        {/* Modal footer — actions */}
-        <div className="px-6 py-4 border-t border-white/8 shrink-0 flex items-center gap-3">
+        {/* ── Footer — pinned, frosted glass ── */}
+        <div
+          className="flex-shrink-0 px-5 py-4 border-t border-white/[0.07] flex items-center gap-3"
+          style={{ background: 'rgba(0,0,0,0.25)', backdropFilter: 'blur(8px)' }}
+        >
           <button
             type="button"
             onClick={() => downloadConceptMd(concept, clusterName)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium border border-white/12 bg-white/5 hover:bg-white/10 text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-medium border border-white/[0.12] bg-white/[0.05] hover:bg-white/[0.10] text-white/55 hover:text-white/80 transition-colors"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download size={13} />
             Download .md
           </button>
           <button
             type="button"
             onClick={handleEnhance}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[13px] font-semibold text-white transition-all hover:opacity-90"
             style={{ background: 'linear-gradient(135deg, rgba(20,184,166,0.75) 0%, rgba(59,130,246,0.75) 100%)' }}
           >
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles size={13} />
             Enhance with Flow.AI
           </button>
         </div>
+
       </div>
     </div>,
     document.body,
@@ -520,7 +620,6 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
 // ── BriefTab ──────────────────────────────────────────────────────────────────
 
 export default function BriefTab({
-  // new props
   concepts,
   clusters,
   // legacy props — kept for API compat
@@ -542,12 +641,10 @@ export default function BriefTab({
     [clusters],
   )
 
-  // Prefer new `concepts` prop; fall back to `candidates` / single `concept`
   const allConcepts = (concepts?.length ?? 0) > 0
     ? concepts
     : ((candidates?.length ?? 0) > 0 ? candidates : (concept ? [concept] : []))
 
-  // Deduplicate near-identical concepts, then sort by composite rank
   const ranked = deduplicateConcepts(allConcepts)
 
   if (!ranked.length) {
@@ -564,12 +661,10 @@ export default function BriefTab({
   return (
     <>
       <div className="max-w-4xl">
-        {/* Header */}
         <p className="text-[11px] uppercase tracking-widest text-[color:var(--color-text-tertiary)] mb-4">
           {ranked.length} Venture {ranked.length === 1 ? 'Concept' : 'Concepts'} · Ranked by score · Duplicates merged
         </p>
 
-        {/* Cards grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ranked.map((c) => (
             <ConceptCard
@@ -582,7 +677,6 @@ export default function BriefTab({
         </div>
       </div>
 
-      {/* Full-brief modal */}
       {activeConcept && (
         <ConceptModal
           concept={activeConcept}
