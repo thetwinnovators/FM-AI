@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
-import { Download, Sparkles, X, RefreshCw, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
+import { Download, Sparkles, X, RefreshCw, ChevronDown, ChevronUp, ArrowRight, Zap } from 'lucide-react'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
 import { formatClusterName } from '../../../venture-scope/utils/formatClusterName.js'
+import { openChatWithMessage } from '../../../lib/chatPanelState.js'
 
 // ── Liquid Glass — matches Flow Trade's SignalDetailModal exactly ─────────────
 
@@ -149,6 +150,64 @@ function downloadConceptMd(concept, clusterName) {
   document.body.removeChild(a); URL.revokeObjectURL(url)
 }
 
+// ── Prompt builder — deep concept regeneration via FLOW.AI ────────────────────
+
+function buildRegeneratePrompt(concept) {
+  const lines = [
+    `You are FLOW.AI, an opportunity synthesis engine.`,
+    ``,
+    `Below is a venture concept from FlowMap Venture Scope. Your task is to significantly expand and enhance this concept by reasoning through it from multiple angles. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling that would strengthen and differentiate this concept.`,
+    ``,
+    `For each dimension below, provide specific, actionable enhancements:`,
+    ``,
+    `WORKFLOWS — Map the end-to-end workflow this product enables. What steps occur, in what order, performed by whom? Where does it eliminate friction or compress time?`,
+    ``,
+    `PROCESSES — What business processes does this improve, replace, or integrate with? How does it fit into existing operational rhythms?`,
+    ``,
+    `TRIGGER EVENTS — What specific events, signals, or conditions cause a user to reach for this product? What is the "oh no" or "I need this now" moment?`,
+    ``,
+    `INPUTS & OUTPUTS — What enters the system (data, signals, documents, human actions)? What exits (reports, decisions, artifacts, automated actions)?`,
+    ``,
+    `DEPENDENCIES — What does this rely on to function? APIs, data sources, third-party integrations, human checkpoints, upstream systems?`,
+    ``,
+    `HANDOFFS — Where does this hand off to a human, another system, or a downstream process? How are those transitions designed to minimise drop-off?`,
+    ``,
+    `BOTTLENECKS — What slows adoption or creates failure points in the workflow? Where would users get stuck or abandon? How do you solve them?`,
+    ``,
+    `METRICS OF SUCCESS — How will the user know this is working? List leading indicators, lagging indicators, and the single north star metric.`,
+    ``,
+    `After working through each dimension, synthesise into an enhanced venture brief with:`,
+    `- A sharpened problem statement (specific, not broad)`,
+    `- A concrete proposed solution (narrow wedge, not a platform)`,
+    `- A realistic MVP scope (what ships in 6 weeks)`,
+    `- A reinforced "why now" grounded in specific enabling technology shifts`,
+    ``,
+    `---`,
+    ``,
+    `CURRENT CONCEPT:`,
+    `Title: ${concept.title ?? ''}`,
+    concept.tagline            ? `Tagline: ${concept.tagline}` : '',
+    concept.coreWedge          ? `Core Insight: ${concept.coreWedge}` : '',
+    concept.opportunitySummary ? `Opportunity: ${concept.opportunitySummary}` : '',
+    concept.problemStatement   ? `Problem: ${concept.problemStatement}` : '',
+    concept.targetUser ?? concept.primaryUser
+                               ? `Target User: ${concept.targetUser ?? concept.primaryUser}` : '',
+    (concept.proposedSolution ?? concept.workflowImprovement)
+                               ? `Proposed Solution: ${concept.proposedSolution ?? concept.workflowImprovement}` : '',
+    concept.valueProp          ? `Value Prop: ${concept.valueProp}` : '',
+    concept.whyNow             ? `Why Now: ${concept.whyNow}` : '',
+    concept.currentAlternatives ? `Current Alternatives: ${concept.currentAlternatives}` : '',
+    concept.existingWorkarounds ? `Existing Workarounds: ${concept.existingWorkarounds}` : '',
+    concept.successMetrics     ? `Success Metrics: ${concept.successMetrics}` : '',
+    concept.mvpScope           ? `MVP Scope: ${concept.mvpScope}` : '',
+    concept.goToMarketAngle    ? `GTM Angle: ${concept.goToMarketAngle}` : '',
+    concept.risks              ? `Risks: ${concept.risks}` : '',
+    (concept.opportunityScore != null) ? `Opportunity Score: ${concept.opportunityScore}/100` : '',
+  ].filter(Boolean).join('\n')
+
+  return lines
+}
+
 // ── Small shared components ───────────────────────────────────────────────────
 
 function AnglePill({ angleType }) {
@@ -288,7 +347,7 @@ function getAngleLabel(angleType) {
 
 // ── Concept card (grid item) ──────────────────────────────────────────────────
 
-function ConceptCard({ concept, clusterName, onClick }) {
+function ConceptCard({ concept, clusterName, onClick, onRegenerate }) {
   const signals = concept.evidenceTrace?.length ?? 0
 
   const summary = (() => {
@@ -297,12 +356,13 @@ function ConceptCard({ concept, clusterName, onClick }) {
   })()
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-panel w-full text-left overflow-hidden transition-all duration-150 hover:scale-[1.015] active:scale-[0.99] group"
-    >
-      <div className="p-4">
+    <div className="glass-panel w-full overflow-hidden transition-all duration-150 flex flex-col group">
+      {/* Clickable body — opens detail modal */}
+      <button
+        type="button"
+        onClick={onClick}
+        className="p-4 flex-1 text-left hover:bg-white/[0.03] transition-colors"
+      >
         {/* Badges + score */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="flex flex-wrap items-center gap-1.5 min-w-0">
@@ -331,16 +391,32 @@ function ConceptCard({ concept, clusterName, onClick }) {
 
         {/* Summary */}
         <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{summary}</p>
+      </button>
 
-        {/* Footer */}
-        {signals > 0 && (
-          <div className="mt-3 pt-3 border-t border-white/6 flex items-center gap-1.5 text-xs text-[color:var(--color-text-tertiary)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
-            {signals} signal{signals !== 1 ? 's' : ''} of evidence
-          </div>
-        )}
+      {/* ── Card footer — evidence count + Regenerate button ── */}
+      <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between gap-2 shrink-0">
+        <span className="text-xs text-[color:var(--color-text-tertiary)] flex items-center gap-1.5">
+          {signals > 0 && (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-white/20 shrink-0" />
+              {signals} signal{signals !== 1 ? 's' : ''} of evidence
+            </>
+          )}
+        </span>
+        <button
+          type="button"
+          onClick={onRegenerate}
+          className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border transition-colors shrink-0
+            bg-white/5 border-white/10
+            hover:bg-white/10 hover:border-white/16
+            text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+          title="Ask Flow.AI to deeply expand this concept"
+        >
+          <Zap size={10} />
+          Regenerate
+        </button>
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -358,26 +434,9 @@ function ConceptModal({ concept, clusterName, storeSlice, onClose, onRegenerate,
   }, [onClose])
 
   const handleEnhance = useCallback(() => {
-    navigate('/chat', {
-      state: {
-        prefilledPrompt: [
-          `Enhance and deepen this venture concept:`,
-          ``,
-          `**${concept.title}**`,
-          concept.tagline ?? '',
-          ``,
-          `Core insight: ${concept.coreWedge ?? ''}`,
-          ``,
-          `Opportunity: ${concept.opportunitySummary ?? ''}`,
-          ``,
-          `Problem: ${concept.problemStatement ?? ''}`,
-          ``,
-          `Proposed solution: ${concept.proposedSolution ?? concept.workflowImprovement ?? ''}`,
-        ].join('\n'),
-      },
-    })
+    openChatWithMessage(buildRegeneratePrompt(concept))
     onClose()
-  }, [concept, navigate, onClose])
+  }, [concept, onClose])
 
   return createPortal(
     <div
@@ -645,6 +704,7 @@ export default function BriefTab({
               concept={c}
               clusterName={lookupCluster(c.clusterId)}
               onClick={() => setActiveConcept(c)}
+              onRegenerate={() => openChatWithMessage(buildRegeneratePrompt(c))}
             />
           ))}
         </div>
