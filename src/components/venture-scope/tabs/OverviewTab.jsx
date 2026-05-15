@@ -4,6 +4,7 @@ import { X, Sparkles } from 'lucide-react'
 import ConfidenceBadge from '../ConfidenceBadge.jsx'
 import DimensionScoreGrid from '../DimensionScoreGrid.jsx'
 import { buildScoreExplanations } from '../../../opportunity-radar/services/opportunityScorer.js'
+import { formatClusterName } from '../../../venture-scope/utils/formatClusterName.js'
 
 // ── Shared modal styles — matches Flow Trade / BriefTab treatment ─────────────
 
@@ -88,7 +89,7 @@ function ClusterDetailModal({
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-white/30 mb-1">Opportunity</p>
             <h2 className="text-[17px] font-bold text-white/90 leading-snug">
-              {cluster.clusterName}
+              {formatClusterName(cluster.clusterName)}
             </h2>
           </div>
           <div className="flex items-center gap-2 shrink-0 pt-0.5">
@@ -265,7 +266,7 @@ function OpportunityCard({
 
         {/* Name */}
         <h3 className="text-[13px] font-semibold leading-snug mb-3 group-hover:text-white transition-colors">
-          {cluster.clusterName}
+          {formatClusterName(cluster.clusterName)}
         </h3>
 
         {/* Meta */}
@@ -350,7 +351,7 @@ function CompactRow({
         className="flex-1 min-w-0 text-left group flex items-center gap-3"
       >
         <span className="text-[12px] font-medium truncate group-hover:text-white transition-colors flex-1 min-w-0">
-          {cluster.clusterName}
+          {formatClusterName(cluster.clusterName)}
         </span>
         <span className="text-[11px] text-[color:var(--color-text-tertiary)] shrink-0">
           {cluster.signalCount ?? 0} signals

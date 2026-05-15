@@ -1,4 +1,5 @@
 import { Trophy } from 'lucide-react'
+import { formatClusterName } from '../../../venture-scope/utils/formatClusterName.js'
 
 const DIMENSIONS = [
   { key: 'painSeverity',     label: 'Pain Severity'      },
@@ -79,7 +80,7 @@ export default function CompareTab({ clusters }) {
                 {/* Name + wins */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium leading-tight truncate">
-                    {cluster.clusterName}
+                    {formatClusterName(cluster.clusterName)}
                   </p>
                   <p className="text-[11px] text-[color:var(--color-text-tertiary)] mt-0.5">
                     Leads {winCounts[i]}/{DIMENSIONS.length} dimensions
@@ -130,7 +131,7 @@ export default function CompareTab({ clusters }) {
                   style={{ backgroundColor: CLUSTER_DOT[leader.idx] }}
                 />
                 <span className="text-xs font-medium truncate">
-                  {leader.cluster.clusterName}
+                  {formatClusterName(leader.cluster.clusterName)}
                 </span>
                 <span className="text-[11px] font-mono tabular-nums text-[color:var(--color-text-secondary)] flex-shrink-0">
                   {leader.score}
@@ -144,7 +145,7 @@ export default function CompareTab({ clusters }) {
                     style={{ backgroundColor: CLUSTER_DOT[runnerUp.idx] }}
                   />
                   <span className="text-[10px] truncate max-w-[90px]">
-                    {runnerUp.cluster.clusterName}
+                    {formatClusterName(runnerUp.cluster.clusterName)}
                   </span>
                   <span className="text-[10px] font-mono tabular-nums">{runnerUp.score}</span>
                 </div>

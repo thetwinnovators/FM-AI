@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { Download, Sparkles, X, RefreshCw, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { resolveSourceLink, SOURCE_TYPE_LABELS } from '../../../venture-scope/utils/sourceResolver.js'
+import { formatClusterName } from '../../../venture-scope/utils/formatClusterName.js'
 
 // ── Liquid Glass — matches Flow Trade's SignalDetailModal exactly ─────────────
 
@@ -608,10 +609,10 @@ export default function BriefTab({
 }) {
   const [activeConcept, setActiveConcept] = useState(null)
 
-  const lookupCluster = useCallback(
-    (clusterId) => clusters?.find(c => c.id === clusterId)?.name ?? '',
-    [clusters],
-  )
+  const lookupCluster = useCallback((clusterId) => {
+    const raw = clusters?.find((c) => c.id === clusterId)?.clusterName
+    return raw ? formatClusterName(raw) : ''
+  }, [clusters])
 
   const allConcepts = (concepts?.length ?? 0) > 0
     ? concepts
