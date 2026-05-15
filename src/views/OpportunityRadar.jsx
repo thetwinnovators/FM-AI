@@ -11,9 +11,12 @@ import { KeywordClusterer } from '../opportunity-radar/services/clusterService.j
 import { applyBuildabilityFilter, scoreOpportunity, getTop3 } from '../opportunity-radar/services/opportunityScorer.js'
 import { aiValidateClusters }  from '../opportunity-radar/services/aiOpportunityFilter.js'
 import { generateConcept }     from '../opportunity-radar/services/conceptGenerator.js'
-import { ALL_SOURCES, SOURCE_LABELS } from '../opportunity-radar/services/painSearchService.js'
+import { ALL_SOURCES, SOURCE_LABELS as EXTERNAL_SOURCE_LABELS } from '../opportunity-radar/services/painSearchService.js'
+
+const SOURCE_LABELS = { ...EXTERNAL_SOURCE_LABELS, corpus: 'FlowMap Corpus' }
 import { buildEntityRegistry, summariseClusterEntities, mergeRegistries } from '../opportunity-radar/services/entityNormalizer.js'
 import { buildEntityGraph } from '../opportunity-radar/services/entityGraphBuilder.js'
+import { ingestCorpus }     from '../opportunity-radar/services/corpusIngestor.js'
 
 const SCAN_STALE_MS = 6 * 60 * 60 * 1000
 
@@ -51,15 +54,22 @@ export default function OpportunityRadar() {
     const start = Date.now()
 
     try {
-      const rawResults = await runPainSearch(
+      // ── Primary: internal corpus (local, always available, no CORS) ──────────
+      const corpusResults = ingestCorpus()
+      setProgress([{ source: 'corpus', status: 'done', resultCount: corpusResults.length }])
+
+      // ── Secondary: external web search (optional enrichment, may fail) ───────
+      const externalResults = await runPainSearch(
         ALL_SOURCES,
         (p) => setProgress((prev) => {
           const existing = prev.findIndex((x) => x.source === p.source)
           if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
+          // Keep the corpus progress entry at top
           return [...prev, p]
         }),
-      )
+      ).catch(() => [])
 
+      const rawResults = [...corpusResults, ...externalResults]
       const newSignals = extractSignals(rawResults, '')
       radarStorage.appendSignals(newSignals)
       const allSignals = radarStorage.loadSignals()

@@ -102,10 +102,23 @@ export interface DimensionScores {
 
 // ─── PainSignal (extended — backward compatible) ──────────────────────────────
 
+// ─── Corpus source lineage (Schema v2: internal corpus adapter) ──────────────
+
+export type CorpusSourceType =
+  | 'save'           // item bookmarked via saves[id]
+  | 'document'       // uploaded or pasted document
+  | 'manual_content' // user-added URL via manualContent[id]
+  | 'topic_summary'  // AI-generated topic overview / brief section
+  | 'brief'          // structured topic brief from generateTopicBrief
+
 export interface PainSignal {
   id:             string
   detectedAt:     string         // ISO timestamp
-  source:         'reddit' | 'hackernews' | 'youtube'
+  source:         'reddit' | 'hackernews' | 'youtube' | 'stackoverflow' | 'github'
+                | 'producthunt' | 'indiehackers' | 'g2' | 'capterra'
+                | 'twitter' | 'linkedin' | 'discord'
+                | 'mobbin' | 'behance' | 'dribbble' | 'thefwa'
+                | 'corpus'       // Schema v2: any internal corpus source
   sourceUrl:      string
   author?:        string
   painText:       string         // raw extracted text
@@ -117,6 +130,11 @@ export interface PainSignal {
   queryUsed:      string
   // Schema v1: extracted entities (undefined on legacy signals)
   entities?:      SignalEntity[]
+  // Schema v2: corpus lineage (only present on signals from ingestCorpus())
+  corpusSourceId?:   string           // ID of the originating save / document / topic
+  corpusSourceType?: CorpusSourceType
+  corpusTopicId?:    string           // primary topic this content belongs to
+  corpusTopicName?:  string           // human-readable topic name
 }
 
 export interface OpportunityCluster {

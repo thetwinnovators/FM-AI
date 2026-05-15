@@ -76,6 +76,11 @@ export interface RawSearchResult {
   source:      string
   author?:     string
   publishedAt?: string
+  // Schema v2: corpus lineage — only present when produced by corpusIngestor
+  corpusSourceId?:   string
+  corpusSourceType?: string
+  corpusTopicId?:    string
+  corpusTopicName?:  string
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -106,6 +111,11 @@ export function extractSignal(
     queryUsed,
     // Schema v1: entity extraction — runs deterministically, never throws
     entities:       extractEntities(combined),
+    // Schema v2: corpus lineage — pass through when present
+    ...(result.corpusSourceId   && { corpusSourceId:   result.corpusSourceId   }),
+    ...(result.corpusSourceType && { corpusSourceType: result.corpusSourceType }),
+    ...(result.corpusTopicId    && { corpusTopicId:    result.corpusTopicId    }),
+    ...(result.corpusTopicName  && { corpusTopicName:  result.corpusTopicName  }),
   }
 }
 
