@@ -58,16 +58,26 @@ export default function OpportunityRadar() {
       const corpusResults = ingestCorpus()
       setProgress([{ source: 'corpus', status: 'done', resultCount: corpusResults.length }])
 
-      // ── Secondary: external web search (optional enrichment, may fail) ───────
-      const externalResults = await runPainSearch(
-        ALL_SOURCES,
-        (p) => setProgress((prev) => {
-          const existing = prev.findIndex((x) => x.source === p.source)
-          if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
-          // Keep the corpus progress entry at top
-          return [...prev, p]
-        }),
-      ).catch(() => [])
+      // ── Secondary: external web search (optional enrichment, 20 s max) ────────
+      // AbortController lets us cancel all in-flight CORS fetches when the
+      // timeout fires instead of leaving them hanging in the background.
+      const EXTERNAL_TIMEOUT_MS = 20_000
+      const extAbort = new AbortController()
+      const externalResults = await Promise.race([
+        runPainSearch(
+          ALL_SOURCES,
+          (p) => setProgress((prev) => {
+            const existing = prev.findIndex((x) => x.source === p.source)
+            if (existing >= 0) { const next = [...prev]; next[existing] = p; return next }
+            return [...prev, p]
+          }),
+          extAbort.signal,
+        ),
+        new Promise((resolve) => setTimeout(() => {
+          extAbort.abort()   // cancel all pending fetch calls immediately
+          resolve([])
+        }, EXTERNAL_TIMEOUT_MS)),
+      ]).catch(() => [])
 
       const rawResults = [...corpusResults, ...externalResults]
       const newSignals = extractSignals(rawResults, '')

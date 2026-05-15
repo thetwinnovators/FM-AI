@@ -108,9 +108,16 @@ function mapGenericItem(item: any, source: string): RawSearchResult | null {
 // SearXNG site: sources use a smaller query set to reduce request volume
 const SITE_SOURCES = new Set<ScanSource>(['producthunt', 'indiehackers', 'g2', 'capterra', 'twitter', 'linkedin', 'discord', 'mobbin', 'behance', 'dribbble', 'thefwa'])
 
-async function runSource(source: ScanSource, onProgress: ProgressCallback): Promise<RawSearchResult[]> {
+async function runSource(
+  source: ScanSource,
+  onProgress: ProgressCallback,
+  externalSignal?: AbortSignal,
+): Promise<RawSearchResult[]> {
+  if (externalSignal?.aborted) return []
   onProgress({ source, status: 'running' })
   const abortController = new AbortController()
+  // When the caller aborts (e.g. the scan-level timeout), propagate to our fetch calls
+  externalSignal?.addEventListener('abort', () => abortController.abort(), { once: true })
   const results: RawSearchResult[] = []
   const queries = DESIGN_SOURCES.has(source) ? DESIGN_QUERIES : SITE_SOURCES.has(source) ? SITE_PAIN_QUERIES : PAIN_QUERIES
 
@@ -177,11 +184,12 @@ export const ALL_SOURCES: ScanSource[] = [
 export async function runPainSearch(
   sources: ScanSource[] = ALL_SOURCES,
   onProgress: ProgressCallback = () => {},
+  signal?: AbortSignal,
 ): Promise<RawSearchResult[]> {
-  const all: RawSearchResult[] = []
-  for (const source of sources) {
-    const sourceResults = await runSource(source, onProgress)
-    all.push(...sourceResults)
-  }
-  return all
+  // Run all sources in parallel so one slow/hung source never blocks the rest.
+  // Promise.allSettled ensures we collect whatever finished before abort.
+  const settled = await Promise.allSettled(
+    sources.map((source) => runSource(source, onProgress, signal)),
+  )
+  return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
 }
