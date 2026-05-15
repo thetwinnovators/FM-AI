@@ -91,6 +91,67 @@ export interface EvidenceTraceEntry {
   entityType?:     string          // which entity type made this signal relevant
 }
 
+// ─── LLM contract types ───────────────────────────────────────────────────────
+// VentureScopeLLMInput is the ONLY packet the LLM receives — every value is
+// derived deterministically from the entity graph and dimension scores.
+// No corpusSourceIds, no cluster IDs, no internal references are exposed.
+
+export interface VentureScopeLLMInput {
+  clusterName:      string
+  angleType:        'persona_first' | 'workflow_first' | 'technology_enablement'
+  angleDescription: string   // human-readable description of the strategic angle
+  coreWedge:        string   // deterministic wedge statement built before the LLM call
+
+  opportunityScore: number   // 0–100
+  isBuildable:      boolean
+
+  // Human-readable scoring summary — one entry per notable dimension
+  // Example: "High willingness-to-pay (72/100)"
+  scoreSummary: string[]
+
+  // Entity values only — no IDs, no metadata
+  graphContext: {
+    personas:          string[]
+    workflows:         string[]
+    workarounds:       string[]
+    bottlenecks:       string[]
+    existingSolutions: string[]
+    emergingTech:      string[]   // merged from frame.emergingTech + frame.platformShifts
+    industries:        string[]
+    technologies:      string[]
+  }
+
+  // Plaintext evidence excerpts — no corpusSourceIds exposed to the model
+  evidenceSnippets: Array<{
+    text:       string   // up to 200 chars of painText
+    sourceType: string   // e.g. 'save', 'document'
+  }>
+}
+
+// The LLM writes ONLY these narrative synthesis fields.
+// Scoring, IDs, evidence trace, rank, and structural metadata stay deterministic.
+// All fields required and non-empty — parseVentureScopeLLMOutput enforces this.
+export interface VentureScopeLLMOutput {
+  title:               string
+  tagline:             string
+  opportunitySummary:  string
+  problemStatement:    string
+  targetUser:          string
+  proposedSolution:    string
+  valueProp:           string
+  whyNow:              string
+  buyerVsUser:         string
+  currentAlternatives: string
+  existingWorkarounds: string
+  keyAssumptions:      string
+  successMetrics:      string
+  pricingHypothesis:   string
+  defensibility:       string
+  goToMarketAngle:     string
+  mvpScope:            string
+  risks:               string
+}
+
 // ─── Multi-candidate concept ──────────────────────────────────────────────────
 export interface VentureConceptCandidate {
   id:                     string
