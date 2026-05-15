@@ -1,6 +1,10 @@
 import type { OpportunityCluster, DimensionScores, CorpusSourceType } from '../../opportunity-radar/types.js'
 import type { OpportunityFrame, VentureScopeLLMInput } from '../types.js'
 
+// ── Corpus source type validation ─────────────────────────────────────────────
+
+const CORPUS_SOURCE_TYPES = new Set<string>(['save', 'document', 'manual_content', 'topic_summary', 'brief'])
+
 // ── Angle descriptions ────────────────────────────────────────────────────────
 
 const ANGLE_DESCRIPTIONS: Record<
@@ -18,7 +22,7 @@ const ANGLE_DESCRIPTIONS: Record<
 // ── Score summary builder ─────────────────────────────────────────────────────
 
 function scoreLine(label: string, score: number, threshold = 55): string | null {
-  if (score < threshold) return null
+  if (!Number.isFinite(score) || score < threshold) return null
   const tier = score >= 80 ? 'Very high' : score >= 65 ? 'High' : 'Moderate'
   return `${tier} ${label} (${score}/100)`
 }
@@ -60,7 +64,10 @@ export function buildVentureScopeLLMInput(
 ): VentureScopeLLMInput {
   const evidenceSnippets = frame.signals
     .filter((s): s is typeof s & { corpusSourceId: string; corpusSourceType: CorpusSourceType } =>
-      Boolean(s.corpusSourceId) && s.corpusSourceType != null && s.painText.length > 30
+      Boolean(s.corpusSourceId) &&
+      s.corpusSourceType != null &&
+      CORPUS_SOURCE_TYPES.has(s.corpusSourceType) &&
+      s.painText.length > 30
     )
     .sort((a, b) => b.intensityScore - a.intensityScore)
     .slice(0, 5)
