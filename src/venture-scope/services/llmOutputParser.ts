@@ -39,6 +39,9 @@ export function parseVentureScopeLLMOutput(
   return obj as unknown as VentureScopeLLMOutput
 }
 
+/** Prefix used by generateWithOllamaFrame to detect ID-leak warnings without string coupling. */
+export const ID_LEAK_WARNING_PREFIX = 'Internal cluster ID'
+
 // ── Validator ─────────────────────────────────────────────────────────────────
 
 // Phrases that indicate the model drifted into generic AI-hype territory
@@ -91,7 +94,7 @@ export function validateLLMOutput(
   // Internal ID leak check — cluster IDs must never appear in narrative text
   const allText = REQUIRED_FIELDS.map((f) => output[f]).join('\n')
   if (ID_PATTERN.test(allText)) {
-    warnings.push('Internal cluster ID pattern detected in output — possible prompt injection')
+    warnings.push(`${ID_LEAK_WARNING_PREFIX} pattern detected in output — possible prompt injection`)
   }
 
   // Minimum length sanity — suspiciously short narrative = likely truncated output

@@ -56,6 +56,7 @@ export default function VentureScope() {
 
   const handleRegenerateConcept = useCallback(async (clusterId) => {
     if (regenerating) return
+    if (!entityGraph) return
     const cluster = clusters.find((c) => c.id === clusterId)
     if (!cluster) return
     setRegenerating(true)

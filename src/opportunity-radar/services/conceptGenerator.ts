@@ -7,7 +7,7 @@ import type {
 } from '../../venture-scope/types.js'
 import { generateResponse, chatJson } from '../../lib/llm/ollama.js'
 import { buildVentureScopeLLMInput } from '../../venture-scope/services/llmInputBuilder.js'
-import { parseVentureScopeLLMOutput, validateLLMOutput } from '../../venture-scope/services/llmOutputParser.js'
+import { parseVentureScopeLLMOutput, validateLLMOutput, ID_LEAK_WARNING_PREFIX } from '../../venture-scope/services/llmOutputParser.js'
 
 // ── Section parser ────────────────────────────────────────────────────────────
 
@@ -584,7 +584,7 @@ async function generateWithOllamaFrame(
     }
     // ID-leak is an unconditional hard reject — cluster IDs in narrative output
     // indicate prompt injection or a model that hallucinated internal references.
-    if (warnings.some((w) => w.startsWith('Internal cluster ID'))) {
+    if (warnings.some((w) => w.startsWith(ID_LEAK_WARNING_PREFIX))) {
       console.warn('[VS-LLM] ID-leak detected — falling back to deterministic')
       return null
     }
