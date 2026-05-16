@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2, Bell, RefreshCw, Bookmark, BookmarkCheck, X, Pencil, Send } from 'lucide-react'
+import { Plane, ArrowLeftRight, ExternalLink, Search, Loader2, Bell, RefreshCw, Bookmark, BookmarkCheck, X, Pencil, Send, MoreHorizontal } from 'lucide-react'
 import { searchAirports } from './airportData.js'
 import { getWatches, addWatch, removeWatch, patchWatch } from './priceWatches.js'
 import { getSavedRoutes, addRoute as saveRoute, removeRoute as deleteSavedRoute } from './savedRoutes.js'
@@ -312,17 +312,34 @@ async function sendFlightToTelegram(watch) {
 // ── WatchCard ─────────────────────────────────────────────────────────────────
 
 function WatchCard({ watch: w, checking, onRemove, onLogPrice, onEdit }) {
-  const [editingPrice,  setEditingPrice ] = useState(false)
-  const [priceInput,    setPriceInput   ] = useState('')
-  const [editMode,      setEditMode     ] = useState(false)
-  const [editTarget,    setEditTarget   ] = useState('')
-  const [editDepart,    setEditDepart   ] = useState('')
-  const [editReturn,    setEditReturn   ] = useState('')
-  const [tgState,       setTgState      ] = useState('idle') // 'idle'|'sending'|'sent'|'error'
-  const [tgError,       setTgError      ] = useState(null)
+  const [editingPrice, setEditingPrice] = useState(false)
+  const [priceInput,   setPriceInput  ] = useState('')
+  const [editMode,     setEditMode    ] = useState(false)
+  const [editTarget,   setEditTarget  ] = useState('')
+  const [editDepart,   setEditDepart  ] = useState('')
+  const [editReturn,   setEditReturn  ] = useState('')
+  const [tgState,      setTgState     ] = useState('idle') // idle|sending|sent|error
+  const [tgError,      setTgError     ] = useState(null)
+  const [menuOpen,     setMenuOpen    ] = useState(false)
+  const menuBtnRef = useRef(null)
+  const menuRef    = useRef(null)
   const dropped = w.triggered
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return
+    function onDown(e) {
+      if (
+        menuRef.current    && !menuRef.current.contains(e.target) &&
+        menuBtnRef.current && !menuBtnRef.current.contains(e.target)
+      ) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [menuOpen])
+
   async function handleSendToTelegram() {
+    setMenuOpen(false)
     setTgState('sending')
     setTgError(null)
     const result = await sendFlightToTelegram(w)
@@ -344,6 +361,7 @@ function WatchCard({ watch: w, checking, onRemove, onLogPrice, onEdit }) {
   }
 
   function openEdit() {
+    setMenuOpen(false)
     setEditTarget(String(w.targetPrice))
     setEditDepart(w.departDate)
     setEditReturn(w.returnDate ?? '')
@@ -381,49 +399,120 @@ function WatchCard({ watch: w, checking, onRemove, onLogPrice, onEdit }) {
             {' · '}{w.tripType === 'roundtrip' ? 'Round-trip' : 'One-way'}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0 mt-0.5">
-          <a
-            href={buildLinks(w)[0].url}
-            target="_blank"
-            rel="noreferrer"
-            className="w-6 h-6 flex items-center justify-center rounded opacity-30 hover:opacity-75 transition-opacity"
-            title="Open Google Flights"
-          >
-            <ExternalLink size={12} className="text-white" />
-          </a>
 
-          {/* Telegram send button */}
+        {/* ── Meatball menu ──────────────────────────────────────────────── */}
+        <div className="relative flex-shrink-0 mt-0.5">
           <button
-            onClick={handleSendToTelegram}
-            disabled={tgState === 'sending'}
-            title={tgState === 'sent' ? 'Sent!' : tgState === 'error' ? tgError : 'Send to Telegram'}
-            className="w-6 h-6 flex items-center justify-center rounded transition-all disabled:opacity-40"
-            style={{
-              color: tgState === 'sent'  ? 'rgba(52,211,153,0.80)' :
-                     tgState === 'error' ? 'rgba(248,113,113,0.80)' :
-                                          'rgba(255,255,255,0.30)',
-              opacity: tgState === 'idle' ? undefined : 1,
-            }}
+            ref={menuBtnRef}
+            onClick={() => setMenuOpen((v) => !v)}
+            className="w-6 h-6 flex items-center justify-center rounded transition-colors"
+            style={{ color: menuOpen ? 'rgba(255,255,255,0.70)' : 'rgba(255,255,255,0.28)' }}
+            title="Options"
           >
-            {tgState === 'sending'
-              ? <Loader2 size={12} className="animate-spin" />
-              : <Send size={12} />}
+            <MoreHorizontal size={14} />
           </button>
 
-          <button
-            onClick={openEdit}
-            className="w-6 h-6 flex items-center justify-center rounded opacity-30 hover:opacity-75 transition-opacity text-white"
-            title="Edit alert"
-          >
-            <Pencil size={12} />
-          </button>
-          <button
-            onClick={onRemove}
-            className="w-6 h-6 flex items-center justify-center rounded opacity-30 hover:opacity-75 transition-opacity text-white"
-            title="Remove alert"
-          >
-            <X size={12} />
-          </button>
+          {menuOpen && (
+            <div
+              ref={menuRef}
+              className="absolute right-0 top-7 z-50 rounded-xl overflow-hidden"
+              style={{
+                width: 216,
+                background: 'rgba(6,11,22,0.97)',
+                border: '1px solid rgba(255,255,255,0.09)',
+                boxShadow: '0 16px 48px rgba(0,0,0,0.80)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+              }}
+            >
+              {/* Open Google Flights */}
+              <a
+                href={buildLinks(w)[0].url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left text-[12px] transition-colors hover:bg-white/[0.05]"
+                style={{ color: 'rgba(255,255,255,0.60)' }}
+              >
+                <ExternalLink size={11} style={{ color: 'rgba(14,210,238,0.65)' }} />
+                Open Google Flights
+              </a>
+
+              {/* Send to Telegram */}
+              <button
+                onClick={handleSendToTelegram}
+                disabled={tgState === 'sending'}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left text-[12px] transition-colors hover:bg-white/[0.05] disabled:opacity-40"
+                style={{
+                  color: tgState === 'sent'  ? 'rgba(52,211,153,0.85)' :
+                         tgState === 'error' ? 'rgba(248,113,113,0.85)' :
+                                              'rgba(255,255,255,0.60)',
+                }}
+              >
+                {tgState === 'sending'
+                  ? <Loader2 size={11} className="animate-spin" style={{ color: 'rgba(100,180,255,0.65)' }} />
+                  : <Send size={11} style={{ color: 'rgba(100,180,255,0.65)' }} />}
+                {tgState === 'sent' ? 'Sent!' : tgState === 'sending' ? 'Sending…' : 'Send to Telegram'}
+              </button>
+
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '2px 0' }} />
+
+              {/* Remind me via Telegram toggle */}
+              <button
+                onClick={() => onEdit({ tgRemind: !w.tgRemind })}
+                className="flex items-center justify-between gap-2.5 px-3.5 py-2.5 w-full text-left text-[12px] transition-colors hover:bg-white/[0.05]"
+                style={{ color: 'rgba(255,255,255,0.60)' }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Bell
+                    size={11}
+                    style={{ color: w.tgRemind ? 'rgba(13,148,136,0.85)' : 'rgba(255,255,255,0.30)' }}
+                  />
+                  <span>Remind me on Telegram</span>
+                </div>
+                {/* Toggle pill */}
+                <div
+                  style={{
+                    flexShrink: 0, width: 28, height: 16, borderRadius: 8, position: 'relative',
+                    background: w.tgRemind ? 'rgba(13,148,136,0.80)' : 'rgba(255,255,255,0.13)',
+                    transition: 'background 0.18s',
+                  }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute', top: 2,
+                      left: w.tgRemind ? 12 : 2,
+                      width: 12, height: 12, borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.92)',
+                      transition: 'left 0.15s',
+                    }}
+                  />
+                </div>
+              </button>
+
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '2px 0' }} />
+
+              {/* Edit alert */}
+              <button
+                onClick={openEdit}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left text-[12px] transition-colors hover:bg-white/[0.05]"
+                style={{ color: 'rgba(255,255,255,0.60)' }}
+              >
+                <Pencil size={11} style={{ color: 'rgba(255,255,255,0.35)' }} />
+                Edit alert
+              </button>
+
+              {/* Remove alert */}
+              <button
+                onClick={() => { setMenuOpen(false); onRemove() }}
+                className="flex items-center gap-2.5 px-3.5 py-2.5 w-full text-left text-[12px] transition-colors hover:bg-white/[0.05]"
+                style={{ color: 'rgba(248,113,113,0.75)' }}
+              >
+                <X size={11} />
+                Remove alert
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -651,7 +740,11 @@ export default function FlightSearch() {
       setWatches([...updated])
 
       // Notify if this is the first time hitting the target
-      if (nowTriggered && !w.triggered) sendNotification(w, newPrice)
+      if (nowTriggered && !w.triggered) {
+        sendNotification(w, newPrice)
+        // Auto-send Telegram if the user enabled "Remind me on Telegram"
+        if (w.tgRemind) sendFlightToTelegram({ ...w, currentPrice: newPrice }).catch(() => {})
+      }
 
       setCheckingIds((ids) => { const n = new Set(ids); n.delete(w.id); return n })
     }
