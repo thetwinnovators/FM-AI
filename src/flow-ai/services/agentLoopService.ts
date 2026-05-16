@@ -131,6 +131,60 @@ export async function runAgentLoop(
     }
   }
 
+  // ── Pinned-tool fast path ──────────────────────────────────────────────────
+  // When the user explicitly pinned exactly one tool via #tool-name, skip the
+  // LLM JSON loop entirely and call that tool directly with the message content.
+  // Small models (llama3.2:3b etc.) reliably fail to produce the structured
+  // JSON the agent loop requires; pinned-tool usage must work regardless of
+  // model size — the user has already told us which tool to call.
+  if (pinnedToolIds.length === 1) {
+    const pinnedTool = localMCPStorage.listTools().find((t) => t.id === pinnedToolIds[0]) ?? null
+    if (pinnedTool) {
+      // Strip common lead-in phrases to isolate the core script/content.
+      const coreContent = text
+        .replace(/^(?:generate|create|make|produce)\s+(?:a\s+)?(?:short\s+)?video\s+from\s+(?:this\s+)?script\s*:\s*/i, '')
+        .replace(/^(?:generate|create|make|produce)\s+(?:a\s+)?(?:short\s+)?video\s*:\s*/i, '')
+        .replace(/^(?:run|execute)\s+(?:this\s+)?(?:code|script)\s*:\s*/i, '')
+        .trim() || text
+
+      // Pick the primary parameter name from the tool description.
+      const descLower = (pinnedTool.description ?? '').toLowerCase()
+      const paramName =
+        descLower.includes('script')  ? 'script'  :
+        descLower.includes('prompt')  ? 'prompt'  :
+        descLower.includes('content') ? 'content' :
+        descLower.includes('text')    ? 'text'    :
+        'script'  // sensible default for InVideo
+      const toolInput: Record<string, string> = { [paramName]: coreContent }
+
+      emit({ type: 'tool_selected', toolName: pinnedTool.displayName, step })
+
+      let runResult = await runTool({ toolId: pinnedTool.id, input: toolInput, sourceSurface: 'chat' })
+
+      if (!runResult.success && runResult.error === 'denied by user') {
+        emit({ type: 'denied', toolName: pinnedTool.displayName, step })
+        finalAnswer = `I would have used ${pinnedTool.displayName} to complete that action. Let me know if you'd like to proceed.`
+        emit({ type: 'done', answer: finalAnswer })
+        return { steps, finalAnswer }
+      }
+
+      if (!runResult.success) {
+        // One retry on non-denial failure
+        runResult = await runTool({ toolId: pinnedTool.id, input: toolInput, sourceSurface: 'chat' })
+      }
+
+      const summary = summariseResult(runResult.output)
+      emit({ type: 'step_done', toolName: pinnedTool.displayName, resultSummary: summary, step })
+
+      finalAnswer = runResult.success
+        ? summary
+        : `The tool returned an error: ${runResult.error ?? 'Unknown error'}`
+
+      emit({ type: 'done', answer: finalAnswer })
+      return { steps, finalAnswer }
+    }
+  }
+
   while (step < MAX_STEPS) {
     if (ctrl.signal.aborted) break
 
