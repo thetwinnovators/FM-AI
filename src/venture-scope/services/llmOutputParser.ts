@@ -11,6 +11,8 @@ const _FIELDS_EXHAUSTIVE: { [K in keyof VentureScopeLLMOutput]: true } = {
   keyAssumptions: true, successMetrics: true, pricingHypothesis: true,
   defensibility: true, goToMarketAngle: true, mvpScope: true, risks: true,
   solutionModality: true, aiRoleInSolution: true,
+  // Draft concept skepticism — interpretation fields
+  chosenInterpretation: true, alternateInterpretations: true,
 }
 const REQUIRED_FIELDS = Object.keys(_FIELDS_EXHAUSTIVE) as Array<keyof VentureScopeLLMOutput>
 
@@ -30,11 +32,13 @@ const SUPPLEMENTARY_FIELDS: ReadonlyArray<keyof VentureScopeLLMOutput> = [
   'keyAssumptions', 'successMetrics', 'pricingHypothesis',
   'defensibility', 'goToMarketAngle', 'mvpScope', 'risks',
   'solutionModality', 'aiRoleInSolution',
+  // Interpretation fields — populated when model does draft concept skepticism reasoning
+  'chosenInterpretation', 'alternateInterpretations',
 ]
 const SUPPLEMENTARY_FALLBACK = '—'
 // Typed fallbacks for guardrail fields — more meaningful than '—'
-const MODALITY_FALLBACK = 'ai_optional'   // safe default: AI is optional
-const AI_ROLE_FALLBACK  = 'N/A'           // no specific AI role identified
+const MODALITY_FALLBACK = 'other'   // safe default: unclassified / does not fit a specific category
+const AI_ROLE_FALLBACK  = 'N/A'     // no specific AI role identified
 
 // ── Parser ────────────────────────────────────────────────────────────────────
 
@@ -166,10 +170,23 @@ export function validateLLMOutput(
     }
   }
 
-  // solutionModality must be one of the four valid literals
-  const VALID_MODALITIES = new Set(['ai_native', 'ai_assisted', 'ai_optional', 'non_ai'])
+  // solutionModality must be one of the twelve valid literals.
+  // Venture Scope solutions are NOT required to be AI-first — the full taxonomy
+  // covers rules-based, workflow, orchestration, analytics, governance, infra, etc.
+  const VALID_MODALITIES = new Set([
+    'rules_based', 'ai_assisted', 'ai_native', 'hybrid_workflow_ai',
+    'workflow_automation', 'orchestration_layer', 'analytics_monitoring',
+    'governance_compliance', 'infrastructure_platform', 'service_software_hybrid',
+    'marketplace', 'other',
+  ])
   if (!VALID_MODALITIES.has(output.solutionModality)) {
-    warnings.push(`solutionModality "${output.solutionModality}" is not a valid value — expected ai_native | ai_assisted | ai_optional | non_ai`)
+    warnings.push(
+      `solutionModality "${output.solutionModality}" is not a valid value — ` +
+      `expected one of: rules_based | ai_assisted | ai_native | hybrid_workflow_ai | ` +
+      `workflow_automation | orchestration_layer | analytics_monitoring | ` +
+      `governance_compliance | infrastructure_platform | service_software_hybrid | ` +
+      `marketplace | other`,
+    )
   }
 
   // Internal ID leak check — cluster IDs must never appear in narrative text

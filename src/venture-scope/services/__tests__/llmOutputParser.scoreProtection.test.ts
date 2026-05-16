@@ -52,6 +52,8 @@ function makeRawOutput(overrides: Record<string, unknown> = {}): Record<string, 
     risks: 'Low adoption if latency overhead is unacceptable. Mitigate with async audit mode.',
     solutionModality: 'ai_native',
     aiRoleInSolution: 'AI evaluates agent tool calls against policy rules in real-time before execution.',
+    chosenInterpretation: 'Platform engineers at enterprise software companies need automated policy enforcement for LLM agent tool calls before they execute.',
+    alternateInterpretations: 'ML engineer | model output monitoring | analytics_monitoring; DevOps engineer | deployment pipeline guardrails | workflow_automation',
     ...overrides,
   }
 }
@@ -102,10 +104,10 @@ describe('parseVentureScopeLLMOutput — structural validation', () => {
     expect(result).toBeNull()
   })
 
-  it('uses ai_optional fallback when solutionModality is empty', () => {
+  it('uses "other" fallback when solutionModality is empty', () => {
     const result = parseVentureScopeLLMOutput({ ...makeRawOutput(), solutionModality: '' })
     expect(result).not.toBeNull()
-    expect((result as VentureScopeLLMOutput).solutionModality).toBe('ai_optional')
+    expect((result as VentureScopeLLMOutput).solutionModality).toBe('other')
   })
 })
 
@@ -129,5 +131,55 @@ describe('validateLLMOutput — solutionModality validation', () => {
     const warnings = validateLLMOutput(parsed, fakeInput)
     const modalityWarning = warnings.some((w) => w.includes('solutionModality'))
     expect(modalityWarning).toBe(false)
+  })
+})
+
+// ── Draft concept skepticism — interpretation field tests ─────────────────────
+//
+// These tests verify the parser correctly handles chosenInterpretation and
+// alternateInterpretations — the fields that implement draft concept skepticism.
+// They are supplementary fields: present when the model does interpretation reasoning,
+// filled with '—' fallback when the model omits them.
+
+describe('parseVentureScopeLLMOutput — interpretation fields', () => {
+  it('parses chosenInterpretation when present', () => {
+    const raw = makeRawOutput({
+      chosenInterpretation: 'Platform engineers at fintech firms need a policy-as-code layer for LLM agent tool calls before execution.',
+    })
+    const result = parseVentureScopeLLMOutput(raw) as VentureScopeLLMOutput
+    expect(result).not.toBeNull()
+    expect(result.chosenInterpretation).toBe(
+      'Platform engineers at fintech firms need a policy-as-code layer for LLM agent tool calls before execution.',
+    )
+  })
+
+  it('parses alternateInterpretations when present', () => {
+    const raw = makeRawOutput({
+      alternateInterpretations: 'ML engineer | output monitoring dashboard | analytics_monitoring; Security engineer | compliance logging | governance_compliance',
+    })
+    const result = parseVentureScopeLLMOutput(raw) as VentureScopeLLMOutput
+    expect(result).not.toBeNull()
+    expect(result.alternateInterpretations).toContain('analytics_monitoring')
+  })
+
+  it('falls back to "—" when chosenInterpretation is absent (supplementary field)', () => {
+    const raw = makeRawOutput()
+    // Remove interpretation fields from the raw fixture to simulate a model that skipped them
+    delete (raw as Record<string, unknown>)['chosenInterpretation']
+    delete (raw as Record<string, unknown>)['alternateInterpretations']
+    const result = parseVentureScopeLLMOutput(raw) as VentureScopeLLMOutput
+    expect(result).not.toBeNull()
+    // Supplementary fallback '—' is applied
+    expect(result.chosenInterpretation).toBe('—')
+    expect(result.alternateInterpretations).toBe('—')
+  })
+
+  it('accepts a full output with all interpretation fields populated', () => {
+    // Simulates a model that correctly completes the full draft-skepticism reasoning
+    const result = parseVentureScopeLLMOutput(makeRawOutput()) as VentureScopeLLMOutput
+    expect(result).not.toBeNull()
+    expect(typeof result.chosenInterpretation).toBe('string')
+    expect(typeof result.alternateInterpretations).toBe('string')
+    expect(result.chosenInterpretation!.length).toBeGreaterThan(0)
   })
 })

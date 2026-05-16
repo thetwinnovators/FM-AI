@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { Tick } from './types.js'
@@ -10,6 +10,12 @@ const STALE_TIMEOUT = 15_000
 const MAX_BACKOFF   = 30_000
 
 interface Creds { key: string; secret: string }
+
+export async function saveAlpacaCredentials(key: string, secret: string): Promise<void> {
+  const dir = join(homedir(), '.flowmap')
+  await mkdir(dir, { recursive: true })
+  await writeFile(CREDS_PATH, JSON.stringify({ key, secret }, null, 2), 'utf-8')
+}
 
 export class AlpacaBridge {
   private ws: WebSocket | null = null

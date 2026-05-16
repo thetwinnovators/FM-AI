@@ -3,23 +3,47 @@ import { Pin, PinOff, X, Plus } from 'lucide-react'
 import { flowTradeApi } from './api.js'
 
 export function WatchlistPanel() {
-  const [watchlist, setWatchlist] = useState([])
-  const [input, setInput] = useState('')
+  const [watchlist,   setWatchlist]   = useState([])
+  const [input,       setInput]       = useState('')
+  const [removingId,  setRemovingId]  = useState(null)
+  const [removeError, setRemoveError] = useState(null)
+  const [adding,      setAdding]      = useState(false)
+  const [addError,    setAddError]    = useState(null)
 
   const load = () => flowTradeApi.getWatchlist().then(setWatchlist).catch(() => {})
   useEffect(() => { load() }, [])
 
   async function addSymbol() {
     const sym = input.trim().toUpperCase()
-    if (!sym) return
-    try { await flowTradeApi.addSymbol(sym) } catch { return }
-    setInput('')
-    load()
+    if (!sym || adding) return
+    setAdding(true)
+    setAddError(null)
+    try {
+      await flowTradeApi.addSymbol(sym)
+      setInput('')
+      load()
+    } catch (err) {
+      console.error('[WatchlistPanel] add failed:', err?.message ?? err)
+      setAddError(err?.message ?? 'Add failed')
+      setTimeout(() => setAddError(null), 3000)
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function removeSymbol(symbol) {
-    try { await flowTradeApi.removeSymbol(symbol) } catch { return }
-    setWatchlist((prev) => prev.filter((e) => e.symbol !== symbol))
+    setRemovingId(symbol)
+    setRemoveError(null)
+    try {
+      await flowTradeApi.removeSymbol(symbol)
+      load()
+    } catch (err) {
+      console.error('[WatchlistPanel] remove failed:', err?.message ?? err)
+      setRemoveError(symbol)
+      setTimeout(() => setRemoveError(null), 3000)
+    } finally {
+      setRemovingId(null)
+    }
   }
 
   async function pinSymbol(symbol) {
@@ -46,48 +70,61 @@ export function WatchlistPanel() {
         {sorted.map((entry) => (
           <div
             key={entry.symbol}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04] group"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.04]"
           >
             {entry.pinned === 1 && (
               <Pin size={9} className="text-fuchsia-400 flex-shrink-0" />
             )}
             <span className="flex-1 text-[13px] font-medium text-white/80">{entry.symbol}</span>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center gap-1 ml-auto">
               <button
                 onClick={() => pinSymbol(entry.symbol)}
-                className="p-0.5 rounded text-white/40 hover:text-white/70"
+                className="p-1 rounded text-white/25 hover:text-white/70 transition-colors"
                 title={entry.pinned ? 'Unpin' : 'Pin'}
               >
-                {entry.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+                {entry.pinned ? <PinOff size={11} /> : <Pin size={11} />}
               </button>
               <button
                 onClick={() => removeSymbol(entry.symbol)}
-                className="p-0.5 rounded text-red-400/60 hover:text-red-300"
-                title="Remove"
+                disabled={removingId === entry.symbol}
+                className={`p-1 rounded transition-colors disabled:opacity-40 ${
+                  removeError === entry.symbol
+                    ? 'text-red-300 animate-pulse'
+                    : 'text-white/25 hover:text-red-400'
+                }`}
+                title={removeError === entry.symbol ? 'Remove failed — try again' : 'Remove'}
               >
-                <X size={12} />
+                <X size={11} />
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="flex gap-1.5 pt-1 border-t border-white/[0.06]">
-        <input
-          className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-[12px] text-white/80 placeholder:text-white/25 focus:outline-none focus:border-white/20"
-          placeholder="Add symbol…"
-          value={input}
-          onChange={(e) => setInput(e.target.value.toUpperCase())}
-          onKeyDown={(e) => e.key === 'Enter' && addSymbol()}
-          maxLength={8}
-        />
-        <button
-          onClick={addSymbol}
-          disabled={!input.trim()}
-          className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] text-white/60 hover:text-white/90 disabled:opacity-30 transition-colors"
-        >
-          <Plus size={13} />
-        </button>
+      <div className="flex flex-col gap-1">
+        <div className="flex gap-1.5 pt-1 border-t border-white/[0.06]">
+          <input
+            className={`flex-1 bg-white/[0.04] border rounded-lg px-2.5 py-1.5 text-[12px] text-white/80 placeholder:text-white/25 focus:outline-none transition-colors ${
+              addError ? 'border-red-500/50' : 'border-white/[0.08] focus:border-white/20'
+            }`}
+            placeholder="Add symbol…"
+            value={input}
+            onChange={(e) => setInput(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === 'Enter' && addSymbol()}
+            maxLength={8}
+            disabled={adding}
+          />
+          <button
+            onClick={addSymbol}
+            disabled={!input.trim() || adding}
+            className="px-2.5 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.10] text-white/60 hover:text-white/90 disabled:opacity-30 transition-colors"
+          >
+            <Plus size={13} />
+          </button>
+        </div>
+        {addError && (
+          <div className="text-[10px] text-red-400/80 px-1">{addError}</div>
+        )}
       </div>
     </div>
   )

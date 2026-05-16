@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { Download, Upload, Database, Globe, Sparkles, Check, AlertCircle, Sun, Moon, RefreshCw, Volume2, ShieldCheck } from 'lucide-react'
+import { Download, Upload, Database, Globe, Sparkles, Check, AlertCircle, Sun, Moon, RefreshCw, Volume2, ShieldCheck, TrendingUp } from 'lucide-react'
 import { downloadSnapshot, readSnapshotFile, validateSnapshot, summarizeSnapshot, importSnapshotReplace } from '../../lib/snapshot.js'
 import { SEARCH_CONFIG, setSearxngEnabled } from '../../lib/search/searchConfig.js'
 import { OLLAMA_CONFIG, setOllamaEnabled, setOllamaModel } from '../../lib/llm/ollamaConfig.js'
 import { VOICE_CONFIG, setVoiceEnabled } from '../../lib/voice/voiceConfig.js'
 import { VT_CONFIG, setVtApiKey } from '../../lib/virustotal.js'
+import { flowTradeApi } from '../../flow-trade/api.js'
 import { stopVoice } from '../../lib/voice/player.js'
 import { getTheme, setTheme } from '../../lib/theme.js'
 import { syncState, subscribeSyncStatus, pullSyncedState } from '../../store/useStore.js'
@@ -37,6 +38,11 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
   const [model, setModelState] = useState(OLLAMA_CONFIG.model)
   const [availableModels, setAvailableModels] = useState([])
   const [vtKey, setVtKeyState] = useState(VT_CONFIG.apiKey)
+  const [alpacaKey,        setAlpacaKey]        = useState('')
+  const [alpacaSecret,     setAlpacaSecret]     = useState('')
+  const [alpacaHint,       setAlpacaHint]       = useState(null)
+  const [alpacaSaving,     setAlpacaSaving]     = useState(false)
+  const [alpacaSaveStatus, setAlpacaSaveStatus] = useState(null)
 
   // Subscribe to live sync status updates so the menu's pip reflects pushes/pulls.
   useEffect(() => {
@@ -53,6 +59,19 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
     setVoiceEnabledState(VOICE_CONFIG.enabled)
     setThemeState(getTheme())
     setVtKeyState(VT_CONFIG.apiKey)
+    setAlpacaKey('')
+    setAlpacaSecret('')
+    setAlpacaSaveStatus(null)
+  }, [open])
+
+  // Load Alpaca key hint from daemon whenever menu opens
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    flowTradeApi.getCredentials()
+      .then((c) => { if (!cancelled) setAlpacaHint(c?.keyHint ?? null) })
+      .catch(() => {})
+    return () => { cancelled = true }
   }, [open])
 
   // Close on outside click + Escape
@@ -143,6 +162,27 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
     setThemeState(next)
   }
 
+  async function handleSaveAlpaca() {
+    const key    = alpacaKey.trim()
+    const secret = alpacaSecret.trim()
+    if (!key || !secret) return
+    setAlpacaSaving(true)
+    setAlpacaSaveStatus(null)
+    try {
+      const result = await flowTradeApi.saveCredentials(key, secret)
+      setAlpacaHint(key.slice(0, 4) + '…')
+      setAlpacaKey('')
+      setAlpacaSecret('')
+      setAlpacaSaveStatus({ ok: true, message: result?.connected ? 'Connected!' : 'Saved.' })
+      setTimeout(() => setAlpacaSaveStatus(null), 3000)
+    } catch (err) {
+      setAlpacaSaveStatus({ ok: false, message: err?.message ?? 'Save failed' })
+      setTimeout(() => setAlpacaSaveStatus(null), 4000)
+    } finally {
+      setAlpacaSaving(false)
+    }
+  }
+
   return createPortal(
     <div
       ref={menuRef}
@@ -226,6 +266,50 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
             {voiceEnabled ? 'on' : 'off'}
           </span>
         </button>
+
+        <div className="my-1.5 border-t border-white/[0.08]" />
+
+        {/* Alpaca Paper Trading credentials */}
+        <div className="px-3 py-2">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp size={14} className="text-[color:var(--color-text-tertiary)] flex-shrink-0" />
+            <span className="text-sm text-white/90">Alpaca Paper Trading</span>
+            {alpacaHint && (
+              <span className="ml-auto text-[10px] font-mono text-emerald-400/70">{alpacaHint}</span>
+            )}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <input
+              type="text"
+              value={alpacaKey}
+              onChange={(e) => setAlpacaKey(e.target.value)}
+              placeholder="API Key (PK…)"
+              className="w-full bg-white/[0.05] border border-white/[0.10] rounded px-2 py-1 text-[11px] font-mono text-white/80 placeholder:text-white/25 outline-none focus:border-white/25"
+            />
+            <input
+              type="password"
+              value={alpacaSecret}
+              onChange={(e) => setAlpacaSecret(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSaveAlpaca() }}
+              placeholder="Secret…"
+              className="w-full bg-white/[0.05] border border-white/[0.10] rounded px-2 py-1 text-[11px] text-white/80 placeholder:text-white/25 outline-none focus:border-white/25"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSaveAlpaca}
+                disabled={alpacaSaving || !alpacaKey.trim() || !alpacaSecret.trim()}
+                className="px-3 py-1 rounded text-[11px] font-medium bg-emerald-500/15 border border-emerald-500/30 text-emerald-300/90 hover:bg-emerald-500/25 disabled:opacity-40 transition-colors"
+              >
+                {alpacaSaving ? 'Saving…' : 'Save & connect'}
+              </button>
+              {alpacaSaveStatus && (
+                <span className={`text-[10px] ${alpacaSaveStatus.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {alpacaSaveStatus.message}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className="my-1.5 border-t border-white/[0.08]" />
 

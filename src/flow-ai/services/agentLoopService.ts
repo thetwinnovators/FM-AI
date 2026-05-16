@@ -38,6 +38,7 @@ export interface MemoryContextEntry {
 export interface RunAgentLoopOptions {
   ctrl: AbortController
   memoryContext?: MemoryContextEntry[]
+  pinnedToolIds?: string[]
   onEvent: (event: AgentEvent) => void
 }
 
@@ -71,9 +72,9 @@ export async function runAgentLoop(
   text: string,
   options: RunAgentLoopOptions,
 ): Promise<{ steps: AgentStep[]; finalAnswer: string }> {
-  const { ctrl, memoryContext = [], onEvent } = options
+  const { ctrl, memoryContext = [], pinnedToolIds = [], onEvent } = options
 
-  const systemPrompt = buildAgentSystemPrompt(memoryContext)
+  const systemPrompt = buildAgentSystemPrompt(memoryContext, pinnedToolIds)
   const messages: Array<{ role: string; content: string }> = [
     { role: 'user', content: text },
   ]

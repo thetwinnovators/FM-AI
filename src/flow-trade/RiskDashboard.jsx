@@ -6,29 +6,10 @@ import { useFlowTradeSSE } from './useFlowTradeSSE.js'
 const LOCAL_BALANCE  = 100_000
 const LOSS_LIMIT_PCT = 0.02
 
-function useMarketCountdown(targetHour, targetMin) {
-  const [display, setDisplay] = useState('')
-
-  useEffect(() => {
-    function compute() {
-      const now  = new Date()
-      const nyStr = now.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: false })
-      const [h, m, s] = nyStr.split(':').map(Number)
-      const nowMin  = h * 60 + m
-      const targMin = targetHour * 60 + targetMin
-      let diff = (targMin - nowMin) * 60 - s
-      if (diff < 0) diff += 24 * 3600
-      const hh = Math.floor(diff / 3600)
-      const mm = Math.floor((diff % 3600) / 60)
-      const ss = diff % 60
-      return `${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
-    }
-    setDisplay(compute())
-    const id = setInterval(() => setDisplay(compute()), 1000)
-    return () => clearInterval(id)
-  }, [targetHour, targetMin])
-
-  return display
+function formatMarketTime(hour, min) {
+  const period = hour >= 12 ? 'PM' : 'AM'
+  const h12    = hour % 12 || 12
+  return `${h12}:${String(min).padStart(2, '0')} ${period}`
 }
 
 export function RiskDashboard({ refreshTick = 0 }) {
@@ -92,8 +73,8 @@ export function RiskDashboard({ refreshTick = 0 }) {
     setCancellingId(null)
   }, [])
 
-  const closeCountdown = useMarketCountdown(16, 0)
-  const resetCountdown = useMarketCountdown(9, 30)
+  const closeTime = formatMarketTime(16, 0)   // 4:00 PM
+  const resetTime = formatMarketTime(9, 30)   // 9:30 AM
 
   const isBlocked = dailyRisk?.blocked === 1
 
@@ -221,12 +202,12 @@ export function RiskDashboard({ refreshTick = 0 }) {
       {/* Timers */}
       <div className="flex flex-col gap-1.5 text-[13px]">
         <div className="flex justify-between text-white/40">
-          <span>Market close in</span>
-          <span className="font-mono text-white/60">{closeCountdown}</span>
+          <span>Market closes</span>
+          <span className="font-mono text-white/60">{closeTime}</span>
         </div>
         <div className="flex justify-between text-white/40">
-          <span>Next reset in</span>
-          <span className="font-mono text-white/60">{resetCountdown}</span>
+          <span>Trading resets</span>
+          <span className="font-mono text-white/60">{resetTime}</span>
         </div>
       </div>
 

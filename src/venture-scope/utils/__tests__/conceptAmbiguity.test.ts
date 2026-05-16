@@ -162,3 +162,77 @@ describe('assessConceptAmbiguity — needsDisambiguation', () => {
     expect(result.needsDisambiguation).toBe(true)
   })
 })
+
+// ── Draft concept skepticism — real-world scenario tests ──────────────────────
+//
+// These tests verify the deterministic inputs that drive FLOW.AI's skepticism
+// guardrail. They cover the three test cases from the spec:
+//   A. Ambiguous title + weak evidence → high ambiguity, needs disambiguation
+//   B. Well-formed concept → low ambiguity, no disambiguation needed
+//   C. Thin evidence only → needsDisambiguation = true regardless of title clarity
+
+describe('assessConceptAmbiguity — draft concept skepticism scenarios', () => {
+  // Test case A: "AI-Powered Publisher Tool for Pm's"
+  // Vague cluster name + thin evidence → must be flagged as high ambiguity so
+  // FLOW.AI applies skepticism and generates alternate interpretations.
+  it('flags "AI-Powered Publisher Tool for Pm\'s" framing as high ambiguity (Test Case A)', () => {
+    const result = assessConceptAmbiguity(makeInput({
+      clusterName: "AI-Powered Publisher Tool for Pm's",
+      graphContext: {
+        ...defaultGraphContext,
+        personas:  [],   // no confirmed personas
+        workflows: [],   // no confirmed workflows
+      },
+      evidenceSnippets: [
+        { text: 'Some vague mention of PM tools', sourceType: 'save' },
+      ],
+    }))
+    expect(result.ambiguityLevel).toBe('high')
+    expect(result.needsDisambiguation).toBe(true)
+    // Should detect at least some vague terms (AI, platform/tool)
+    expect(result.ambiguityFlags.length).toBeGreaterThan(0)
+    // Should surface interpretation suggestions for FLOW.AI to use
+    expect(result.recommendedInterpretations.length).toBeGreaterThan(0)
+  })
+
+  // Test case B: Well-formed concept — specific personas, workflows, multiple evidence snippets
+  // FLOW.AI should confirm the draft and refine, not replace.
+  it('returns low ambiguity for a well-specified concept with clear personas and workflows (Test Case B)', () => {
+    const result = assessConceptAmbiguity(makeInput({
+      clusterName: 'LLM Agent Policy Enforcement for Platform Engineers',
+      graphContext: {
+        ...defaultGraphContext,
+        personas:  ['platform engineer', 'DevOps engineer'],
+        workflows: ['agent deployment', 'policy enforcement', 'compliance review'],
+      },
+      evidenceSnippets: [
+        { text: 'Teams spend 3-4 hours manually reviewing agent actions for compliance', sourceType: 'save' },
+        { text: 'No tooling exists for enforcing policies on LLM outputs before they execute', sourceType: 'document' },
+        { text: 'Legal team requires audit trail for every agent action in production', sourceType: 'save' },
+      ],
+    }))
+    expect(result.ambiguityLevel).toBe('low')
+    expect(result.needsDisambiguation).toBe(false)
+  })
+
+  // Test case C: High ambiguity + thin evidence → provisional concept with needsDisambiguation
+  // FLOW.AI should generate a provisional brief with "Assumption:" prefixes.
+  it('flags thin evidence as needing disambiguation regardless of title clarity (Test Case C)', () => {
+    const result = assessConceptAmbiguity(makeInput({
+      clusterName: 'Workflow Automation for Operations Teams',
+      graphContext: {
+        ...defaultGraphContext,
+        personas:          [],
+        workflows:         [],
+        workarounds:       [],
+        existingSolutions: [],
+      },
+      evidenceSnippets: [],  // no evidence at all
+    }))
+    expect(result.ambiguityLevel).toBe('high')
+    expect(result.needsDisambiguation).toBe(true)
+    // Thin evidence flag text from assessConceptAmbiguity
+    expect(result.ambiguityFlags.some((f) => f.includes('evidence snippets'))).toBe(true)
+    expect(result.recommendedInterpretations.length).toBeGreaterThan(0)
+  })
+})

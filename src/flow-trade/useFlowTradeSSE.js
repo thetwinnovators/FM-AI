@@ -8,13 +8,28 @@ export function useFlowTradeSSE(onEvent) {
     const ctrl = new AbortController()
 
     async function connect() {
-      const token = localStorage.getItem('fm_operator_token') ?? ''
+      // Always fetch fresh port + token from the Vite proxy so a daemon
+      // restart doesn't leave us stuck with a stale token or wrong port.
+      let info = null
       try {
-        const res = await fetch('http://localhost:59990/flow-trade/events', {
-          headers: { authorization: `Bearer ${token}` },
+        const r = await fetch('/api/daemon/info')
+        if (r.ok) info = await r.json()
+      } catch { /* daemon not running yet */ }
+
+      if (!info) {
+        if (!ctrl.signal.aborted) setTimeout(connect, 3_000)
+        return
+      }
+
+      try {
+        const res = await fetch(`http://127.0.0.1:${info.port}/flow-trade/events`, {
+          headers: { authorization: `Bearer ${info.token}` },
           signal: ctrl.signal,
         })
-        if (!res.ok || !res.body) return
+        if (!res.ok || !res.body) {
+          if (!ctrl.signal.aborted) setTimeout(connect, 3_000)
+          return
+        }
         const reader  = res.body.getReader()
         const decoder = new TextDecoder()
         let buf = ''

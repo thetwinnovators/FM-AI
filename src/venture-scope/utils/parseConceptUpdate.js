@@ -66,6 +66,7 @@ export function parseConceptUpdate(aiText, existingConcept) {
     [['core workflows', 'core workflow steps', 'workflow steps'], 'coreWorkflows'],
     [['north star metric', 'core metrics', 'key metrics', 'metric'], 'metrics'],
     [['chosen interpretation', 'interpretation', 'selected interpretation'], 'chosenInterpretation'],
+    [['alternate interpretations', 'alternate interpretation', 'other interpretations', 'alternatives considered'], 'alternateInterpretations'],
   ]
 
   const updates = {}

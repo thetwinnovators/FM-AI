@@ -23,9 +23,11 @@ async function getDaemonInfo() {
 async function req(method, path, body) {
   const info = await getDaemonInfo()
   if (!info) throw new Error('Flow Trade daemon not running')
+  const headers = { authorization: `Bearer ${info.token}` }
+  if (body != null) headers['content-type'] = 'application/json'
   const res = await fetch(`http://127.0.0.1:${info.port}${path}`, {
     method,
-    headers: { authorization: `Bearer ${info.token}`, 'content-type': 'application/json' },
+    headers,
     body: body != null ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -52,4 +54,7 @@ export const flowTradeApi = {
   getAlpacaBars:       (symbol)      => req('GET',    `/flow-trade/alpaca/bars/${symbol}`),
   placeOrder:          (signalId, qty) => req('POST', '/flow-trade/orders', { signalId, qty }),
   cancelAlpacaOrder:   (orderId)     => req('DELETE', `/flow-trade/alpaca/orders/${orderId}`),
+  reconnect:           ()            => req('POST',   '/flow-trade/reconnect'),
+  getCredentials:      ()            => req('GET',    '/flow-trade/credentials'),
+  saveCredentials:     (key, secret) => req('POST',   '/flow-trade/credentials', { key, secret }),
 }

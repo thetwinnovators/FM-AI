@@ -93,6 +93,46 @@ function CheckAgainButton({ onCheck }) {
   )
 }
 
+function ReconnectButton({ onReconnect, label = 'Reconnect feed' }) {
+  const [state, setState] = useState('idle') // 'idle' | 'connecting' | 'error'
+  async function handle() {
+    setState('connecting')
+    try {
+      await onReconnect()
+      setState('idle')
+    } catch {
+      setState('error')
+      setTimeout(() => setState('idle'), 3000)
+    }
+  }
+  const isError      = state === 'error'
+  const isConnecting = state === 'connecting'
+  return (
+    <button
+      onClick={handle}
+      disabled={isConnecting}
+      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-medium transition-all disabled:opacity-50"
+      style={{
+        background: isError
+          ? 'rgba(239,68,68,0.12)'
+          : isConnecting
+          ? 'rgba(52,211,153,0.08)'
+          : 'linear-gradient(135deg, rgba(52,211,153,0.16) 0%, rgba(16,185,129,0.12) 100%)',
+        border: `1px solid ${isError ? 'rgba(239,68,68,0.30)' : 'rgba(52,211,153,0.28)'}`,
+        color: isError
+          ? 'rgba(252,165,165,0.9)'
+          : isConnecting
+          ? 'rgba(110,231,183,0.6)'
+          : 'rgba(110,231,183,0.9)',
+        boxShadow: !isError && !isConnecting ? '0 0 12px rgba(52,211,153,0.12)' : 'none',
+      }}
+    >
+      <RefreshCw size={11} className={isConnecting ? 'animate-spin' : ''} />
+      {isConnecting ? 'Connecting…' : isError ? 'Failed — try again' : label}
+    </button>
+  )
+}
+
 function OfflineShell({ message, icon: Icon, children }) {
   return (
     <div className="flex flex-col items-center justify-center flex-1 gap-5 text-center p-12">
@@ -124,6 +164,11 @@ export default function FlowTrade() {
     window.location.reload()
   }, [])
 
+  const handleReconnect = useCallback(async () => {
+    await flowTradeApi.reconnect()
+    await refresh()
+  }, [refresh])
+
   useEffect(() => {
     if (!status?.online) return
     flowTradeApi.getDailyRisk()
@@ -150,11 +195,32 @@ export default function FlowTrade() {
         </div>
         <div className="ml-auto flex items-center gap-3">
           {status && (
-            <div className="flex items-center gap-1.5 text-[11px]">
-              <span className={`h-1.5 w-1.5 rounded-full ${status.online ? 'bg-emerald-400' : 'bg-white/20'}`} />
-              <span className={status.online ? 'text-emerald-400/80' : 'text-white/30'}>
-                {status.online ? 'daemon online' : 'daemon offline'}
-              </span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  !status.online
+                    ? 'bg-white/20'
+                    : status.feedConnected
+                    ? 'bg-emerald-400'
+                    : 'bg-amber-400'
+                }`} />
+                <span className={
+                  !status.online
+                    ? 'text-white/30'
+                    : status.feedConnected
+                    ? 'text-emerald-400/80'
+                    : 'text-amber-400/80'
+                }>
+                  {!status.online
+                    ? 'daemon offline'
+                    : status.feedConnected
+                    ? 'feed connected'
+                    : 'feed disconnected'}
+                </span>
+              </div>
+              {status.online && !status.feedConnected && !status.setupRequired && (
+                <ReconnectButton onReconnect={handleReconnect} />
+              )}
             </div>
           )}
           <button
@@ -220,7 +286,7 @@ export default function FlowTrade() {
       ) : status.setupRequired ? (
         <OfflineShell message="Alpaca credentials not configured" icon={AlertTriangle}>
           <div className="text-[12px] text-white/30 mt-2 max-w-[360px] leading-relaxed">
-            Create <code className="font-mono text-white/50">~/.flowmap/alpaca-paper.json</code> with your Alpaca paper trading API key and secret, then restart the daemon.
+            Create <code className="font-mono text-white/50">~/.flowmap/alpaca-paper.json</code> with your Alpaca paper trading API key and secret, then click <strong className="text-white/45">Retry connection</strong>.
           </div>
           <pre className="mt-3 text-left text-[11px] bg-white/[0.04] border border-white/[0.08] rounded-lg px-4 py-3 font-mono text-white/40 leading-relaxed">
 {`{
@@ -228,6 +294,9 @@ export default function FlowTrade() {
   "secret": "..."
 }`}
           </pre>
+          <div className="mt-4">
+            <ReconnectButton onReconnect={handleReconnect} label="Retry connection" />
+          </div>
         </OfflineShell>
       ) : (
         <div className="flex flex-1 min-h-0">

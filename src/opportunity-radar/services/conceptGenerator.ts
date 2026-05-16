@@ -562,9 +562,20 @@ async function generateWithOllamaFrame(
     `"single-page app" or "no backend" as constraints for platform or team-facing opportunities, ` +
     `"solo developer" as the target persona unless evidence explicitly describes individual consumer use, ` +
     `or shallow agent/LLM definitions (e.g. "an AI that helps users with X" with no specifics).\n` +
-    `11. SOLUTION MODALITY REQUIRED: Your JSON output MUST include solutionModality (one of: ai_native, ai_assisted, ai_optional, non_ai) and aiRoleInSolution (one sentence describing the AI's specific role, or "N/A" if non_ai).\n` +
+    `11. SOLUTION MODALITY REQUIRED: Your JSON output MUST include solutionModality and aiRoleInSolution. ` +
+    `solutionModality must be exactly one of: rules_based | ai_assisted | ai_native | hybrid_workflow_ai | ` +
+    `workflow_automation | orchestration_layer | analytics_monitoring | governance_compliance | ` +
+    `infrastructure_platform | service_software_hybrid | marketplace | other. ` +
+    `The solution does NOT need to be AI-first — choose the modality that best fits the evidence. ` +
+    `aiRoleInSolution: one sentence describing the AI's specific role, or "N/A" if AI is not central.\n` +
     `12. NEVER RETURN SCORES: Do not include opportunityScore, confidenceScore, or dimension scores in your JSON output. These are computed externally and will be stripped if present.\n` +
-    `13. IF AMBIGUITY HINT IS PROVIDED: Select the narrowest interpretation from the recommendedInterpretations list. State your chosen interpretation in the title/tagline.\n\n` +
+    `13. IF AMBIGUITY HINT IS PROVIDED: Select the narrowest interpretation from the recommendedInterpretations list. State your chosen interpretation in the title/tagline.\n` +
+    `14. INTERPRETATION-FIRST GENERATION: The clusterName in the input is a working hypothesis — it may be imprecise, vague, or wrong. ` +
+    `Before writing any output field, internally generate 2–3 plausible workflow-level interpretations of what this opportunity represents, ` +
+    `using graphContext and evidenceSnippets as your primary source. ` +
+    `Pick the best-supported interpretation. If it differs from clusterName, base your output on the interpretation, not the clusterName. ` +
+    `Always populate chosenInterpretation (one sentence — the specific opportunity you chose to address) ` +
+    `and alternateInterpretations (brief notes on the 1–2 alternatives you considered, format: "user | workflow context | modality").\n\n` +
     `REQUIRED OUTPUT SCHEMA (all fields required, all strings, none empty):\n` +
     `{\n` +
     `  "title": "3-8 words",\n` +
@@ -585,8 +596,10 @@ async function generateWithOllamaFrame(
     `  "goToMarketAngle": "1-2 sentences — first customers and acquisition channel",\n` +
     `  "mvpScope": "2-3 sentences — what to build in v1 and what to exclude",\n` +
     `  "risks": "2-3 sentences — the most likely failure modes",\n` +
-    `  "solutionModality": "one of: ai_native | ai_assisted | ai_optional | non_ai",\n` +
-    `  "aiRoleInSolution": "one sentence — AI's specific role, or N/A if non_ai"\n` +
+    `  "solutionModality": "one of: rules_based | ai_assisted | ai_native | hybrid_workflow_ai | workflow_automation | orchestration_layer | analytics_monitoring | governance_compliance | infrastructure_platform | service_software_hybrid | marketplace | other",\n` +
+    `  "aiRoleInSolution": "one sentence — AI's specific role, or N/A if AI is not central",\n` +
+    `  "chosenInterpretation": "one sentence — the specific workflow-level opportunity this brief is built on",\n` +
+    `  "alternateInterpretations": "1-2 brief alternatives considered (each: user | workflow context | modality)"\n` +
     `}`
 
   // Build user prompt — append ambiguity section when hint is present

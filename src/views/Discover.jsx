@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Filter, X, Loader2, Compass, RefreshCw } from 'lucide-react'
+import { Filter, X, Loader2, Compass, RefreshCw, AlertTriangle } from 'lucide-react'
 import { useSeed } from '../store/useSeed.js'
 import { useStore } from '../store/useStore.js'
 import { filterContent } from '../lib/filter.js'
@@ -50,6 +50,7 @@ export default function Discover() {
   // Live items pulled from user topics + recent searches
   const [liveItems, setLiveItems] = useState([])
   const [liveStatus, setLiveStatus] = useState('idle')
+  const [liveErrors, setLiveErrors] = useState([])
   const [refreshTick, setRefreshTick] = useState(0)
 
   // Stable string key — re-fetch only when the set of queries actually changes
@@ -73,6 +74,7 @@ export default function Discover() {
       if (cancelled) return
       const out = []
       const seen = new Set()
+      const allErrors = []
       for (const r of results) {
         if (r.status !== 'fulfilled') continue
         for (const item of (r.value.items || [])) {
@@ -80,8 +82,10 @@ export default function Discover() {
           seen.add(item.id)
           out.push(item)
         }
+        if (r.value.errors?.length) allErrors.push(...r.value.errors)
       }
       setLiveItems(out)
+      setLiveErrors(out.length === 0 ? allErrors : [])
       setLiveStatus('done')
     })
     return () => { cancelled = true }
@@ -248,6 +252,23 @@ export default function Discover() {
         </div>
 
       </div>
+
+      {/* Live-fetch error banner — shown when all search sources failed */}
+      {liveStatus === 'done' && liveErrors.length > 0 && liveItems.length === 0 && (
+        <div className="mb-5 flex items-start gap-3 px-4 py-3 rounded-xl bg-amber-500/8 border border-amber-500/20 text-amber-200/80">
+          <AlertTriangle size={14} className="mt-0.5 flex-shrink-0 text-amber-400" />
+          <div className="text-[12px] leading-relaxed">
+            <span className="font-semibold text-amber-300">Live feed unavailable</span> — all search sources returned errors.
+            This usually means SearXNG isn't running locally, Piped/YouTube proxy instances are down, or Jina is rate-limiting your IP.
+            <span className="block mt-1 text-amber-200/50">
+              Try: run <code className="font-mono text-amber-300/70">docker run -d --name searxng -p 8888:8080 searxng/searxng</code> and restart FlowMap.
+            </span>
+            {liveErrors.slice(0, 3).map((e, i) => (
+              <span key={i} className="block mt-0.5 font-mono text-[11px] text-amber-200/40">{e.source}: {e.error}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Prominent full-area loader — shown whenever a live fetch is in flight,
           regardless of whether seed items are already visible */}

@@ -161,18 +161,39 @@ const VS_BRIEF_SYSTEM = `You are FLOW.AI, an opportunity synthesis engine built 
 
 GUARDRAILS — apply before generating anything:
 • GROUND EVERY CLAIM. Use only what is present in the concept data below. Prefix invented content with "Assumption:".
-• CLASSIFY MODALITY FIRST. Begin your response with: solutionModality: [ai_native|ai_assisted|ai_optional|non_ai] and aiRoleInSolution: [specific sentence or "N/A"].
+• CLASSIFY MODALITY FIRST. Begin your response with: solutionModality: [rules_based|ai_assisted|ai_native|hybrid_workflow_ai|workflow_automation|orchestration_layer|analytics_monitoring|governance_compliance|infrastructure_platform|service_software_hybrid|marketplace|other] and aiRoleInSolution: [specific sentence or "N/A"].
 • NO AI-FIRST BIAS. Match the solution to the evidence — not to a default "AI-powered" framing.
 • NEVER RETURN SCORES. Do not output opportunityScore, confidenceScore, or dimension scores.
 • MVP EXCLUSIONS REQUIRED. In your MVP Scope section, include an explicit "What does NOT ship in v1" list.
-• NO GENERIC FLUFF. No "seamlessly integrates", no "cutting-edge AI", no "robust platform".`
+• NO GENERIC FLUFF. No "seamlessly integrates", no "cutting-edge AI", no "robust platform".
+• DRAFT CONCEPT SKEPTICISM. The CURRENT CONCEPT below is a working hypothesis — not the anchor.
+  Before writing: scan the concept fields and generate 2–3 plausible workflow-level interpretations of what
+  this opportunity actually represents. For each: user | workflow context | solution modality.
+  Pick the best-supported interpretation as your chosenInterpretation.
+  If it differs from the current concept title: reframe the brief around chosenInterpretation, not the old title.
+  If it confirms the current title: refine only. State your chosen interpretation explicitly.
+  If evidence is thin or contradictory: mark ambiguous claims with "Assumption:" and flag needsDisambiguation.
+  Always output a "Chosen Interpretation" section and an "Alternate Interpretations" section.`
 
 // ── Prompt builder — deep concept regeneration via FLOW.AI ────────────────────
 
 function buildRegeneratePrompt(concept) {
+  // Determine how to label the concept based on its prior ambiguity assessment.
+  // This feeds the DRAFT CONCEPT SKEPTICISM guardrail — FLOW.AI will treat high-ambiguity
+  // concepts as replaceable rather than anchoring on their title/summary.
+  const draftQualityLabel = (() => {
+    const al = concept?.ambiguityLevel
+    if (al === 'high')   return 'CURRENT CONCEPT [HIGH AMBIGUITY — treat as tentative; replace or reframe if evidence supports a stronger interpretation]'
+    if (al === 'medium') return 'CURRENT CONCEPT [MODERATE AMBIGUITY — may reframe if evidence suggests a clearer interpretation]'
+    if (al === 'low')    return 'CURRENT CONCEPT [WELL-FORMED — refine only; do not replace unless evidence clearly contradicts]'
+    return 'CURRENT CONCEPT [treat as working hypothesis — confirm or reframe based on the workflow analysis below]'
+  })()
+
   const lines = [
     // VS_BRIEF_SYSTEM is passed separately as systemOverride — NOT here.
-    `Below is a venture concept from FlowMap Venture Scope. Significantly expand and enhance it by reasoning through each workflow dimension. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling that strengthen and differentiate the concept.`,
+    `Below is a venture concept from FlowMap Venture Scope. Before expanding it, apply Draft Concept Skepticism (see guardrails): reason through 2–3 possible interpretations of this opportunity from the available evidence, then pick and state your chosenInterpretation. If it differs from the current title, reframe the concept around the stronger interpretation.`,
+    ``,
+    `Then expand and enhance by reasoning through each workflow dimension. Go beyond AI — incorporate non-AI technologies, infrastructure, integrations, and tooling where they strengthen the concept.`,
     ``,
     `For each dimension below, provide specific, actionable enhancements:`,
     ``,
@@ -198,10 +219,11 @@ function buildRegeneratePrompt(concept) {
     `- A realistic MVP scope: what ships in 6 weeks AND a "What does NOT ship in v1" exclusions list`,
     `- A reinforced "why now" grounded in a specific enabling technology shift or regulatory change`,
     `- A solutionModality declaration and aiRoleInSolution statement (see guardrails above)`,
+    `- A Chosen Interpretation section and an Alternate Interpretations section (see DRAFT CONCEPT SKEPTICISM guardrail)`,
     ``,
     `---`,
     ``,
-    `CURRENT CONCEPT:`,
+    draftQualityLabel + ':',
     `Title: ${concept.title ?? ''}`,
     concept.tagline            ? `Tagline: ${concept.tagline}` : '',
     concept.coreWedge          ? `Core Insight: ${concept.coreWedge}` : '',
@@ -243,16 +265,28 @@ function AnglePill({ angleType }) {
   )
 }
 
+// Venture Scope solutions are NOT required to be AI-first.
+// This config covers the full solution modality taxonomy so the pill renders
+// correctly for rules-based, workflow, infra, governance, and service solutions
+// just as well as AI-native ones.
 const MODALITY_CONFIG = {
-  ai_native:    { label: 'AI Native',    color: '#14b8a6', bg: 'rgba(20,184,166,0.10)'  },
-  ai_assisted:  { label: 'AI Assisted',  color: '#3b82f6', bg: 'rgba(59,130,246,0.10)'  },
-  ai_optional:  { label: 'AI Optional',  color: '#f59e0b', bg: 'rgba(245,158,11,0.10)'  },
-  non_ai:       { label: 'Non-AI',       color: '#94a3b8', bg: 'rgba(148,163,184,0.10)' },
+  rules_based:             { label: 'Rules-Based',        color: '#10b981', bg: 'rgba(16,185,129,0.10)'  },
+  ai_assisted:             { label: 'AI Assisted',         color: '#3b82f6', bg: 'rgba(59,130,246,0.10)'  },
+  ai_native:               { label: 'AI Native',           color: '#14b8a6', bg: 'rgba(20,184,166,0.10)'  },
+  hybrid_workflow_ai:      { label: 'Hybrid Workflow+AI',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.10)'  },
+  workflow_automation:     { label: 'Workflow Automation', color: '#f97316', bg: 'rgba(249,115,22,0.10)'  },
+  orchestration_layer:     { label: 'Orchestration',       color: '#6366f1', bg: 'rgba(99,102,241,0.10)'  },
+  analytics_monitoring:    { label: 'Analytics',           color: '#f59e0b', bg: 'rgba(245,158,11,0.10)'  },
+  governance_compliance:   { label: 'Governance',          color: '#f43f5e', bg: 'rgba(244,63,94,0.10)'   },
+  infrastructure_platform: { label: 'Infrastructure',      color: '#0ea5e9', bg: 'rgba(14,165,233,0.10)'  },
+  service_software_hybrid: { label: 'Service + Software',  color: '#ec4899', bg: 'rgba(236,72,153,0.10)'  },
+  marketplace:             { label: 'Marketplace',         color: '#84cc16', bg: 'rgba(132,204,22,0.10)'  },
+  other:                   { label: 'Other',               color: '#94a3b8', bg: 'rgba(148,163,184,0.10)' },
 }
 
 function ModalityPill({ modality }) {
   if (!modality) return null
-  const cfg = MODALITY_CONFIG[modality] ?? MODALITY_CONFIG.ai_optional
+  const cfg = MODALITY_CONFIG[modality] ?? MODALITY_CONFIG.other
   return (
     <span
       className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"

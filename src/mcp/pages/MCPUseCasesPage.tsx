@@ -92,6 +92,7 @@ const WORKING_SECTIONS = [
       { use: 'Code execution',    prompt: 'Run this Python snippet and show me the output', approval: true },
       { use: 'Database queries',  prompt: 'Query the local DB for signals from the last 7 days', approval: false },
       { use: 'File I/O',          prompt: 'Read my exported trades CSV and calculate net P&L', approval: false },
+      { use: 'Generate a video (InVideo)', prompt: 'Generate a video from this script: [paste your script]', approval: true },
     ],
     note: 'Available tools depend on which Docker MCP servers you have running. Flow AI discovers them automatically.',
   },

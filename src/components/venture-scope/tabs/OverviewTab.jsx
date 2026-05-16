@@ -71,12 +71,21 @@ GUARDRAILS — apply before generating anything:
 
 1. GROUND EVERY CLAIM. Every statement in your output must be traceable to the provided evidence snippets and entity context. If the evidence does not directly support a claim, prefix it with "Assumption:". Do not invent personas, workflows, or technologies absent from the input.
 
-2. CLASSIFY MODALITY FIRST. Before proposing any solution, declare your solutionModality classification:
-   - ai_native — AI is the core mechanism. Without it the product does not exist.
-   - ai_assisted — AI assists a human workflow. Humans retain decision authority.
-   - ai_optional — The problem could be solved without AI. AI is an enhancement layer.
-   - non_ai — The problem is best solved with software, process, or data — no AI required.
-   Also state aiRoleInSolution: one specific sentence ("AI classifies X in step Y, reducing Z") or "N/A" for non_ai.
+2. CLASSIFY MODALITY FIRST. Before proposing any solution, declare your solutionModality classification.
+   Choose the value that best fits the challenge, users, industry, buyer, and workflow constraints:
+   - rules_based — deterministic rules, decision trees, structured logic; no AI required
+   - ai_assisted — AI assists a human workflow; humans retain decision authority
+   - ai_native — AI is the core mechanism; without it the product does not exist
+   - hybrid_workflow_ai — structured workflow orchestration with AI at specific decision or enrichment points
+   - workflow_automation — software-driven workflow automation without meaningful AI; replaces manual steps
+   - orchestration_layer — coordinates multiple systems, APIs, or agents; intelligence is in the orchestration logic
+   - analytics_monitoring — surfaces data, trends, or anomalies; primary value is visibility and measurement
+   - governance_compliance — enforces rules, policies, or compliance requirements; correctness > intelligence
+   - infrastructure_platform — foundational layer other systems run on; developer or operator tool
+   - service_software_hybrid — human service delivery augmented by software; people deliver the value
+   - marketplace — connects supply and demand; value is in the network and matching logic
+   - other — does not fit cleanly into any above category
+   Also state aiRoleInSolution: one specific sentence ("AI classifies X in step Y, reducing Z") or "N/A" if AI is not central.
 
 3. NO AI-FIRST BIAS. The problem drives the solution — not the other way around. If the evidence points to a workflow tool, a data pipeline, or a structured human process as the highest-leverage solution, propose that. Defaulting to "AI-powered" without evidence of AI necessity is a disqualifying anti-pattern.
 
@@ -91,7 +100,37 @@ GUARDRAILS — apply before generating anything:
    • "seamlessly integrates" or "leverages cutting-edge AI" (marketing fluff)
    • "solo developer side project" framing for B2B opportunities
    • Generic LLM wrapper with no workflow specificity
-   • Solutions that ignore the buyer/user separation when buyerRoles are present`
+   • Solutions that ignore the buyer/user separation when buyerRoles are present
+
+8. DRAFT CONCEPT SKEPTICISM — the DRAFT CONCEPT is a hypothesis, not an anchor.
+
+   Before writing any output, complete this two-step process internally:
+
+   STEP 1 — INTERPRET THE EVIDENCE (do not output this step):
+   Read the CONTEXT entities and TOP EVIDENCE. Generate 2–3 plausible interpretations of what
+   this opportunity actually represents at the workflow level. For each, identify:
+     a) the most likely user persona and their specific context
+     b) the specific workflow or process where the pain occurs
+     c) the appropriate solution type from the 12-modality taxonomy
+
+   STEP 2 — CHOOSE AND COMPARE:
+   Pick the best-supported interpretation using the evidence as the deciding factor.
+   Compare it to the DRAFT CONCEPT title/summary:
+
+   → If the draft is AMBIGUOUS, MALFORMED, or WEAKLY GROUNDED (vague "AI platform", unclear
+     user, short/cryptic title like "for Pm", no direct evidence support):
+     REPLACE or SIGNIFICANTLY REFRAME. Do not preserve the draft framing. Lead with:
+     "Draft angle: [original title]. Chosen interpretation: [your interpretation]. Rationale: [one sentence]."
+
+   → If the draft is WELL-FORMED and EVIDENCE-ALIGNED:
+     REFINE it. Lead with: "Chosen interpretation aligns with draft: [one sentence confirming]."
+
+   The venture brief must be built from your CHOSEN INTERPRETATION — not the draft title.
+
+   Always output:
+   • chosenInterpretation: one sentence — the specific workflow-level opportunity you are addressing
+   • alternateInterpretations: brief notes on the 1–2 alternatives you considered
+     (format for each: "user type | workflow context | solution modality")`
 
 function buildEnhancePrompt(cluster, concept, signals) {
   const es  = cluster.entitySummary
@@ -158,7 +197,30 @@ function buildEnhancePrompt(cluster, concept, signals) {
   }
 
   if (concept) {
-    lines.push('DRAFT CONCEPT:')
+    // Label the draft with a quality signal so FLOW.AI knows whether to preserve,
+    // refine, or replace it. Concept's ambiguityLevel is set by assessConceptAmbiguity()
+    // in llmInputBuilder; for older concepts without it, fall back to a title heuristic.
+    const draftQualityLabel = (() => {
+      const al = concept.ambiguityLevel
+      if (al === 'high') {
+        return 'DRAFT CONCEPT [HIGH AMBIGUITY — treat as tentative hypothesis; replace or reframe if evidence supports a stronger interpretation]'
+      }
+      if (al === 'medium') {
+        return 'DRAFT CONCEPT [MODERATE AMBIGUITY — may reframe if evidence suggests a clearer interpretation]'
+      }
+      if (al === 'low') {
+        return 'DRAFT CONCEPT [WELL-FORMED — refine only; do not replace unless evidence clearly contradicts]'
+      }
+      // No prior ambiguity assessment — apply quick title heuristic
+      const title = (concept.title ?? '').toLowerCase()
+      const isLikelyVague = /\bfor pm\b|\bpm'?s?\b|\bai platform\b|\bai tool\b|\bai app\b|\bai solution\b/.test(title)
+        || title.split(' ').length <= 2
+      return isLikelyVague
+        ? 'DRAFT CONCEPT [VAGUE FRAMING DETECTED — treat as tentative; replace or reframe if evidence supports a better interpretation]'
+        : 'DRAFT CONCEPT [no ambiguity assessment — treat as tentative hypothesis]'
+    })()
+
+    lines.push(draftQualityLabel + ':')
     if (concept.title)              lines.push(`  Title: ${concept.title}`)
     if (concept.tagline)            lines.push(`  Tagline: ${concept.tagline}`)
     if (concept.opportunitySummary) lines.push(`  Summary: ${concept.opportunitySummary}`)

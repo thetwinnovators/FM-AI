@@ -142,12 +142,36 @@ export interface VentureScopeLLMInput {
 }
 
 // ─── Solution modality ────────────────────────────────────────────────────────
-// Classifies the role AI plays in the proposed solution.
-// ai_native: AI is the core capability — without it the product doesn't exist.
-// ai_assisted: AI assists a human workflow; human retains decision authority.
-// ai_optional: Problem could be solved without AI; AI is an enhancement layer.
-// non_ai: Problem is best solved with software/process only; no AI required.
-export type SolutionModality = 'ai_native' | 'ai_assisted' | 'ai_optional' | 'non_ai'
+// Classifies what kind of solution the opportunity calls for.
+// Venture Scope solutions are NOT required to be AI-first. The evidence drives
+// the modality — not a default assumption. Choose the modality that best fits
+// the challenge, users, industry, buyer, workflow, and operational constraints.
+//
+// rules_based:            Deterministic rules, decision trees, structured logic. No AI.
+// ai_assisted:            AI assists a human workflow. Humans retain decision authority.
+// ai_native:              AI is the core mechanism. Without it the product does not exist.
+// hybrid_workflow_ai:     Structured workflow orchestration with AI at specific decision or enrichment points.
+// workflow_automation:    Software-driven workflow automation without meaningful AI; replaces manual steps.
+// orchestration_layer:    Coordinates multiple systems, APIs, or agents; intelligence is in the orchestration logic.
+// analytics_monitoring:   Surfaces data, trends, or anomalies; primary value is visibility and measurement.
+// governance_compliance:  Enforces rules, policies, or compliance requirements; correctness > intelligence.
+// infrastructure_platform: Foundational layer that other systems run on; developer or operator tool.
+// service_software_hybrid: Human service delivery augmented or scoped by software; people deliver the value.
+// marketplace:            Connects supply and demand; product value is in the network and matching logic.
+// other:                  Does not fit cleanly into any above category.
+export type SolutionModality =
+  | 'rules_based'
+  | 'ai_assisted'
+  | 'ai_native'
+  | 'hybrid_workflow_ai'
+  | 'workflow_automation'
+  | 'orchestration_layer'
+  | 'analytics_monitoring'
+  | 'governance_compliance'
+  | 'infrastructure_platform'
+  | 'service_software_hybrid'
+  | 'marketplace'
+  | 'other'
 
 // The LLM writes ONLY these narrative synthesis fields.
 // Scoring, IDs, evidence trace, rank, and structural metadata stay deterministic.
@@ -174,7 +198,12 @@ export interface VentureScopeLLMOutput {
   // Guardrail fields — modality classification prevents generic "AI wrapper" concepts.
   // LLM must classify these before writing any solution content.
   solutionModality:    SolutionModality
-  aiRoleInSolution:    string   // Specific sentence: "AI does X in Y step", or "N/A" if non_ai
+  aiRoleInSolution:    string   // Specific sentence: "AI does X in Y step", or "N/A" if AI is not central
+  // Interpretation fields — draft concept skepticism.
+  // The model is required to reason about alternative interpretations before picking one.
+  // These are optional/supplementary: small models may omit them; parser falls back to '—'.
+  chosenInterpretation?:    string   // "The specific workflow-level opportunity this brief addresses"
+  alternateInterpretations?: string  // "1–2 alternatives considered (user | context | modality)"
 }
 
 // ─── Multi-candidate concept ──────────────────────────────────────────────────

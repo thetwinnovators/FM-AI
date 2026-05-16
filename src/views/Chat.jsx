@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
-import { Plus, Send, MessageSquare, Sparkles, Loader2, Trash2, FileText, AlertCircle, Copy, Check, ChevronUp, ChevronDown, ChevronRight, Pencil, NotebookPen, Compass, Pin, PinOff, Mic, MicOff, Square } from 'lucide-react'
+import { Plus, Send, MessageSquare, Sparkles, Loader2, Trash2, FileText, AlertCircle, Copy, Check, ChevronUp, ChevronDown, ChevronRight, Pencil, NotebookPen, Compass, Pin, PinOff, Mic, MicOff, Square, Hash, X } from 'lucide-react'
 import { useMicTranscription } from '../lib/voice/useMicTranscription.js'
 import { useStore } from '../store/useStore.js'
 import { useSeed } from '../store/useSeed.js'
@@ -19,6 +19,8 @@ import AgentRunTimeline from '../components/chat/AgentRunTimeline.jsx'
 import { runAgentLoop } from '../flow-ai/services/agentLoopService.js'
 import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../lib/chat/mcpTools.js'
 import { fetchDaemonTools, buildDaemonToolMap, daemonToolToMCPShape } from '../lib/chat/daemonTools.js'
+import { localMCPStorage } from '../mcp/storage/localMCPStorage.js'
+import ToolMentionPicker from '../components/chat/ToolMentionPicker.jsx'
 
 function relativeDate(iso) {
   if (!iso) return ''
@@ -428,6 +430,11 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
   const [text, setText] = useState('')
   const [model, setModel] = useState(OLLAMA_CONFIG.model)
   const [availableModels, setAvailableModels] = useState([])
+  const [allTools,    setAllTools]    = useState([])
+  const [toolQuery,   setToolQuery]   = useState('')
+  const [pickerOpen,  setPickerOpen]  = useState(false)
+  const [pickerIdx,   setPickerIdx]   = useState(0)
+  const [pinnedTools, setPinnedTools] = useState([])
   const ref = useRef(null)
 
   // Local Whisper STT — same pipeline as QuickChatLauncher, hook-shared.
@@ -452,21 +459,56 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
     return () => { cancelled = true }
   }, [disabled])
 
+  // Load tool catalog once on mount so the # picker has data immediately.
+  useEffect(() => { setAllTools(localMCPStorage.listTools()) }, [])
+
   function onChangeModel(name) {
     setOllamaModel(name)
     setModel(name)
+  }
+
+  // ── Tool picker helpers ────────────────────────────────────────────────────
+
+  function selectTool(tool) {
+    const el     = ref.current
+    const cursor = el?.selectionStart ?? text.length
+    const before = text.slice(0, cursor)
+    const after  = text.slice(cursor)
+    setText(before.replace(/#\w*$/, '') + after)
+    setPinnedTools((prev) => prev.find((t) => t.id === tool.id) ? prev : [...prev, tool])
+    setPickerOpen(false)
+    setToolQuery('')
+    setTimeout(() => ref.current?.focus(), 0)
+  }
+
+  function removePinnedTool(toolId) {
+    setPinnedTools((prev) => prev.filter((t) => t.id !== toolId))
   }
 
   function submit() {
     const t = text.trim()
     if (!t || busy) return
     if (mic.listening) mic.cancelMic()
-    onSend(t)
+    onSend(t, pinnedTools.map((pt) => pt.id))
     setText('')
+    setPinnedTools([])
     mic.rebase('')
   }
 
   function onKey(e) {
+    if (pickerOpen) {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); setPickerIdx((i) => i + 1); return }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); setPickerIdx((i) => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter') {
+        const q = toolQuery.toLowerCase()
+        const filtered = allTools
+          .filter((t) => !q || t.toolName.toLowerCase().includes(q) || t.displayName.toLowerCase().includes(q))
+          .slice(0, 9)
+        const tool = filtered[pickerIdx]
+        if (tool) { e.preventDefault(); selectTool(tool); return }
+      }
+      if (e.key === 'Escape') { e.preventDefault(); setPickerOpen(false); return }
+    }
     // Enter sends, Shift+Enter inserts a newline.
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault()
@@ -482,6 +524,15 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
         <p className="mb-2 text-[11px] text-amber-300/80">{mic.error}</p>
       ) : null}
       <div className="relative">
+        {/* Tool picker dropdown — floats above the input box */}
+        {pickerOpen && (
+          <ToolMentionPicker
+            tools={allTools}
+            query={toolQuery}
+            activeIdx={pickerIdx}
+            onSelect={selectTool}
+          />
+        )}
         {/* Gradient glow behind the input */}
         <div
           className="absolute -inset-2 rounded-2xl blur-2xl pointer-events-none"
@@ -492,16 +543,54 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
         />
         {/* Unified input box — textarea + toolbar inside one glass container */}
         <div className="relative glass-input p-0 flex flex-col focus-within:border-[color:var(--color-border-strong)] transition-colors" style={{ background: 'rgba(6,8,16,0.82)' }}>
+          {/* Pinned tool chips */}
+          {pinnedTools.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-3.5 pt-2.5">
+              {pinnedTools.map((tool) => (
+                <div
+                  key={tool.id}
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-[11px] text-indigo-300"
+                >
+                  <Hash size={9} className="flex-shrink-0" />
+                  <span className="font-medium">{tool.toolName}</span>
+                  <button
+                    onClick={() => removePinnedTool(tool.id)}
+                    className="ml-0.5 text-indigo-300/50 hover:text-indigo-200 transition-colors"
+                    aria-label={`Remove ${tool.toolName}`}
+                  >
+                    <X size={9} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <textarea
             ref={ref}
             value={text}
-            onChange={(e) => { setText(e.target.value); mic.rebase(e.target.value) }}
+            onChange={(e) => {
+              const val = e.target.value
+              setText(val)
+              mic.rebase(val)
+              const cursor = e.target.selectionStart ?? val.length
+              const before = val.slice(0, cursor)
+              const match  = before.match(/#(\w*)$/)
+              if (match) {
+                setToolQuery(match[1].toLowerCase())
+                setPickerOpen(true)
+                setPickerIdx(0)
+              } else {
+                setPickerOpen(false)
+                setToolQuery('')
+              }
+            }}
             onKeyDown={onKey}
             placeholder={
               disabled ? 'Enable Ollama in the gear menu to chat.'
               : mic.listening ? 'Listening… click mic again to transcribe'
               : mic.transcribing ? 'Transcribing with Whisper…'
-              : 'Ask anything about your knowledge base… (Enter to send, Shift+Enter for newline)'
+              : pinnedTools.length
+                ? `Message with ${pinnedTools.map((t) => '#' + t.toolName).join(', ')} pinned…`
+                : 'Ask anything… type # to pin a tool (Enter to send, Shift+Enter for newline)'
             }
             disabled={disabled}
             rows={4}
@@ -805,7 +894,11 @@ export default function Chat() {
     // even when no action block was emitted, so we always strip them — if a
     // real action was queued, the permission gate UI surfaces it below.
     let displayText = rawText
+      // Strip properly-closed <fm-action>...</fm-action> blocks
       .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
+      // Strip UNCLOSED <fm-action> blocks (model forgot the closing tag —
+      // typically a hallucinated action type like "search_flights").
+      .replace(/<fm-action>[^\n<]*/gi, '')
       .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
       .replace(/^\s*The new topic is now available[^\n]*/gim, '')
       .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact|that)[^\n]*/gim, '')
@@ -837,7 +930,7 @@ export default function Chat() {
     setActionQueue((q) => q.slice(1))
   }
 
-  async function handleSend(text) {
+  async function handleSend(text, pinnedToolIds = []) {
     let convId = id
     // Auto-create conversation on first message
     if (!convId) {
@@ -896,6 +989,7 @@ export default function Chat() {
         const { steps, finalAnswer } = await runAgentLoop(text, {
           ctrl,
           memoryContext: agentMemory,
+          pinnedToolIds,
           onEvent: onAgentEvent,
         })
         addChatMessage(convId, { role: 'assistant', content: finalAnswer, agentSteps: steps })
@@ -1080,7 +1174,10 @@ export default function Chat() {
     // Generate follow-up suggestions and persist them on the assistant message
     // so they survive page reloads. Cleared when user sends another message or clicks one.
     if (assistantText.trim()) {
-      const cleanedForSuggestions = assistantText.replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '').trim()
+      const cleanedForSuggestions = assistantText
+        .replace(/<fm-action>[\s\S]*?<\/fm-action>/gi, '')
+        .replace(/<fm-action>[^\n<]*/gi, '')
+        .trim()
       latestAssistantRef.current = cleanedForSuggestions
       const latestMessages = chatMessagesFor(convId)
       const assistantMsg = latestMessages[latestMessages.length - 1]

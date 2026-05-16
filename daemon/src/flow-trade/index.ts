@@ -4,7 +4,7 @@ import type Database from 'better-sqlite3'
 import { openFlowTradeDb } from './db.js'
 import { SseHub } from './sseHub.js'
 import { Scheduler } from './scheduler.js'
-import { AlpacaBridge } from './alpacaBridge.js'
+import { AlpacaBridge, saveAlpacaCredentials } from './alpacaBridge.js'
 import { Scanner } from './scanner.js'
 import { RiskEngine } from './riskEngine.js'
 import { getNextResetMs, getNextSweepMs, getTradeDateNY, isMarketOpen } from './marketTime.js'
@@ -42,6 +42,23 @@ export class FlowTradeModule {
   stop(): void {
     this.bridge?.stop()
     this.scheduler.clear()
+  }
+
+  async reconnect(): Promise<{ connected: boolean; error?: string }> {
+    this.bridge?.stop()
+    this.bridge = null
+
+    const bridge = new AlpacaBridge(this.hub, (tick) => this.handleTick(tick))
+    const ok     = await bridge.loadCredentials()
+    if (!ok) {
+      this.setupRequired = true
+      return { connected: false, error: 'Credentials not found or invalid at ~/.flowmap/alpaca-paper.json' }
+    }
+
+    this.setupRequired = false
+    this.bridge = bridge
+    bridge.start(this.activeSymbols())
+    return { connected: true }
   }
 
   // ─── Internal ────────────────────────────────────────────────────────────
@@ -152,6 +169,39 @@ export class FlowTradeModule {
         marketOpen:     isMarketOpen(),
         riskBlocked:    this.riskEngine.getDailyRisk().blocked === 1,
         tradeDate:      getTradeDateNY(),
+      }
+    })
+
+    app.get('/flow-trade/credentials', (req, reply) => {
+      if (!requireAuth(req, reply)) return
+      const creds = this.bridge?.getCredentials()
+      return {
+        configured: !this.setupRequired,
+        keyHint: creds?.key ? `${creds.key.slice(0, 4)}…` : null,
+      }
+    })
+
+    app.post('/flow-trade/credentials', async (req, reply) => {
+      if (!requireAuth(req, reply)) return
+      const { key, secret } = (req.body ?? {}) as { key?: string; secret?: string }
+      if (!key?.trim() || !secret?.trim())
+        return reply.code(400).send({ error: 'key and secret required' })
+      try {
+        await saveAlpacaCredentials(key.trim(), secret.trim())
+        const result = await this.reconnect()
+        return { saved: true, connected: result.connected }
+      } catch (e: any) {
+        return reply.code(500).send({ error: e.message })
+      }
+    })
+
+    app.post('/flow-trade/reconnect', async (req, reply) => {
+      if (!requireAuth(req, reply)) return
+      try {
+        const result = await this.reconnect()
+        return reply.code(result.connected ? 200 : 503).send(result)
+      } catch (e: any) {
+        return reply.code(500).send({ connected: false, error: e.message })
       }
     })
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check, PanelRight, Minimize2, Zap } from 'lucide-react'
+import { Sparkles, Send, X, Loader2, Mic, MicOff, Square, ChevronDown, Check, PanelRight, Minimize2, Zap, Hash } from 'lucide-react'
 import { renderInlineText } from '../chat/ChatMessage.jsx'
 import { setChatPanelState } from '../../lib/chatPanelState.js'
 import { loadVsConcepts, saveVsConcept } from '../../venture-scope/storage/ventureScopeStorage.js'
@@ -14,6 +14,8 @@ import { playTtsForReply, stopVoice, subscribeVoicePlaying } from '../../lib/voi
 import { startRecording, transcribeBlob } from '../../lib/voice/stt.js'
 import { getActiveMCPTools, buildToolSystemBlock, processToolCalls } from '../../lib/chat/mcpTools.js'
 import { fetchDaemonTools, buildDaemonToolMap, daemonToolToMCPShape } from '../../lib/chat/daemonTools.js'
+import { localMCPStorage } from '../../mcp/storage/localMCPStorage.js'
+import ToolMentionPicker from '../chat/ToolMentionPicker.jsx'
 
 // "Talk to FlowMap" launcher — a fixed pill at the bottom-center of the
 // FlowMap page that expands into an inline chat panel. Ephemeral by design
@@ -46,6 +48,11 @@ export default function QuickChatLauncher() {
   const modelPickerRef = useRef(null)
   const [conceptTarget, setConceptTarget] = useState(null)  // { conceptId, clusterId, displayName }
   const [applyStatus, setApplyStatus] = useState(null)      // null | 'success' | 'error'
+  const [allTools,    setAllTools]    = useState([])
+  const [toolQuery,   setToolQuery]   = useState('')
+  const [pickerOpen,  setPickerOpen]  = useState(false)
+  const [pickerIdx,   setPickerIdx]   = useState(0)
+  const [pinnedTools, setPinnedTools] = useState([])
   const abortRef = useRef(null)
   const daemonToolMapRef = useRef(new Map())
   const pendingInjectRef = useRef(null)   // message injected from another page (VS "Enhance with Flow.AI")
@@ -74,6 +81,7 @@ export default function QuickChatLauncher() {
     memoryEntries, isMemoryDismissed,
     userTopics, isFollowing,
     userNotes,
+    addUserTopic, addMemory,
   } = useStore()
   const { seedMemory, topics: seedTopics, contentById } = useSeed()
 
@@ -97,6 +105,9 @@ export default function QuickChatLauncher() {
   // Subscribe to TTS playing state so the Stop button can react to voice-only
   // activity (e.g. a finished stream that's still being read aloud).
   useEffect(() => subscribeVoicePlaying(setVoicePlaying), [])
+
+  // Load tool catalog for # picker once on mount.
+  useEffect(() => { setAllTools(localMCPStorage.listTools()) }, [])
 
   // Load Docker MCP tools from the daemon once on mount so the model can call
   // them via <tool_call> instead of hallucinating <fm-action> fetch blocks.
@@ -168,14 +179,36 @@ export default function QuickChatLauncher() {
     stopVoice()
   }
 
+  // ── Tool picker helpers ──────────────────────────────────────────────────────
+
+  function selectTool(tool) {
+    const el     = inputRef.current
+    const cursor = el?.selectionStart ?? draft.length
+    const before = draft.slice(0, cursor)
+    const after  = draft.slice(cursor)
+    setDraft(before.replace(/#\w*$/, '') + after)
+    micBaseTextRef.current = before.replace(/#\w*$/, '') + after
+    setPinnedTools((prev) => prev.find((t) => t.id === tool.id) ? prev : [...prev, tool])
+    setPickerOpen(false)
+    setToolQuery('')
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  function removePinnedTool(toolId) {
+    setPinnedTools((prev) => prev.filter((t) => t.id !== toolId))
+  }
+
   async function send(overrideText) {
     const text = String(overrideText ?? draft).trim()
     if (!text || busy) return
 
     if (listening) stopMic()
+    const sentPinnedTools = [...pinnedTools]
     const nextHistory = [...messages, { role: 'user', content: text }]
     setMessages(nextHistory)
     setDraft('')
+    setPinnedTools([])
+    setPickerOpen(false)
     micBaseTextRef.current = ''
     atBottomRef.current = true // always follow new messages the user sends
     setBusy(true)
@@ -228,7 +261,11 @@ export default function QuickChatLauncher() {
     // vs FLOW.AI synthesis contract). Consume the override — it's single-use.
     const vsSystemOverride = systemOverrideRef.current
     if (vsSystemOverride) systemOverrideRef.current = null
-    const systemMessage = vsSystemOverride ?? (toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage)
+    let systemMessage = vsSystemOverride ?? (toolBlock ? `${baseSystemMessage}\n\n${toolBlock}` : baseSystemMessage)
+    if (sentPinnedTools.length > 0) {
+      const toolList = sentPinnedTools.map((t) => `"${t.toolName}"`).join(', ')
+      systemMessage = `User has pinned ${toolList} as preferred tool(s). If these tools are available and relevant, prefer invoking them over alternatives.\n\n${systemMessage}`
+    }
 
     const llmMessages = [
       { role: 'system', content: systemMessage },
@@ -275,18 +312,38 @@ export default function QuickChatLauncher() {
     setBusy(false)
     setStreaming('')
 
-    // Strip hallucinated confirmations the small model emits without an
-    // accompanying <fm-action> block (Quick Chat doesn't queue actions —
-    // any "Done — I've created..." line here is a hallucination). Also
-    // strip forbidden "I don't have a saved doc on the exact topic" phrasing
-    // that the model emits despite explicit prompt-level prohibition.
-    // Tightened from views/Chat.jsx: removed the "/I've ... that/" pattern
-    // because it false-positively eats legitimate replies like "I've noted
-    // that you asked..." Only obvious hallucinated confirmations are stripped.
+    // Parse and execute fm-action blocks. The model emits
+    // <fm-action>{"type":"add_topic",...}</fm-action> for create-topic /
+    // save-memory requests. QuickChat is an explicit-request context so we
+    // execute them directly without a confirmation gate.
+    const executedActions = []
+    const fmActionRe = /[<\[(]\s*fm-action\s*[>\])]([\s\S]*?)[<\[(]\s*\/\s*fm-action\s*[>\])]/gi
+    let fmMatch
+    while ((fmMatch = fmActionRe.exec(assistantText)) !== null) {
+      try {
+        const action = JSON.parse(fmMatch[1].trim())
+        if (action.type === 'add_topic' && action.name) {
+          const name = String(action.name).trim()
+          const summary = action.summary ? String(action.summary).trim() : 'Added via Flow.AI.'
+          addUserTopic({ name, summary, source: 'chat-ai', query: name })
+          executedActions.push(`Added topic "${name}"`)
+        } else if (action.type === 'save_memory' && action.content) {
+          addMemory({ category: action.category || 'research_note', content: String(action.content).trim(), source: 'chat-ai' })
+          executedActions.push('Saved to memory')
+        }
+      } catch { /* malformed JSON in action block — skip */ }
+    }
+
+    // Strip fm-action blocks AND hallucinated confirmations from display text.
     const cleaned = assistantText
       // Strip <fm-action>...</fm-action> AND malformed variants the small model
       // emits: [fm-action]...</fm-action>, [fm-action]...[/fm-action], etc.
       .replace(/[<\[(]\s*fm-action\s*[>\])][\s\S]*?[<\[(]\s*\/\s*fm-action\s*[>\])]/gi, '')
+      // Strip UNCLOSED <fm-action> blocks (model emits the opening tag but forgets the closing
+      // tag — typically when hallucinating a non-existent tool type like "search_flights").
+      // The model always puts the action at the end of its response, so stripping
+      // <fm-action> + everything to end-of-line safely removes the leaked JSON.
+      .replace(/<fm-action>[^\n<]*/gi, '')
       .replace(/^\s*Done\s*.{0,6}I.{0,2}ve (?:added|created|saved|updated|noted)\b[^\n]*/gim, '')
       .replace(/^\s*The new topic is now available[^\n]*/gim, '')
       .replace(/^\s*I.{0,2}ve (?:added|created|saved|noted) (?:a new topic|the fact)\b[^\n]*/gim, '')
@@ -300,26 +357,41 @@ export default function QuickChatLauncher() {
       .replace(/\n{3,}/g, '\n\n')
       .trim()
 
-    if (cleaned) {
-      setMessages((m) => [...m, { role: 'assistant', content: cleaned }])
+    // Build final display text: prefer cleaned prose; fall back to action
+    // confirmation when the whole response was action blocks + strip targets.
+    const displayText = cleaned || (executedActions.length > 0
+      ? `✓ ${executedActions.join(' · ')}`
+      : null)
+
+    if (displayText) {
+      setMessages((m) => [...m, { role: 'assistant', content: displayText }])
       if (VOICE_CONFIG.enabled) {
-        playTtsForReply(cleaned).catch(() => {})
+        playTtsForReply(displayText).catch(() => {})
       }
     } else if (assistantText.trim()) {
-      // Strip removed everything. If the raw text contains <fm-action> blocks the
-      // model hallucinated (e.g. fake "fetch" actions it can't actually run), don't
-      // show them — that would expose raw XML syntax to the user. Only fall back to
-      // raw text when the response is clean prose that the strip over-eagerly removed.
+      // Strip removed everything and no actions ran. Only show the raw text
+      // when it contains no action blocks (otherwise we'd expose raw XML).
       const rawHasActionBlocks = /[<\[(]\s*fm-action\s*[>\]]/.test(assistantText)
       if (!rawHasActionBlocks) {
         setMessages((m) => [...m, { role: 'assistant', content: assistantText.trim() }])
       }
-      // (If only action blocks were present and nothing else, silently discard —
-      //  the action was either processed or was a hallucination.)
     }
   }
 
   function onKeyDown(e) {
+    if (pickerOpen) {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); setPickerIdx((i) => i + 1); return }
+      if (e.key === 'ArrowUp')    { e.preventDefault(); setPickerIdx((i) => Math.max(i - 1, 0)); return }
+      if (e.key === 'Enter') {
+        const q = toolQuery.toLowerCase()
+        const filtered = allTools
+          .filter((t) => !q || t.toolName.toLowerCase().includes(q) || t.displayName.toLowerCase().includes(q))
+          .slice(0, 9)
+        const tool = filtered[pickerIdx]
+        if (tool) { e.preventDefault(); selectTool(tool); return }
+      }
+      if (e.key === 'Escape') { e.preventDefault(); setPickerOpen(false); return }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       if (listening) {
@@ -756,6 +828,40 @@ export default function QuickChatLauncher() {
           </div>
         )}
 
+        {/* Pinned tool chips */}
+        {pinnedTools.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {pinnedTools.map((tool) => (
+              <div
+                key={tool.id}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-[11px] text-indigo-300"
+              >
+                <Hash size={9} className="flex-shrink-0" />
+                <span className="font-medium">{tool.toolName}</span>
+                <button
+                  onClick={() => removePinnedTool(tool.id)}
+                  className="ml-0.5 text-indigo-300/50 hover:text-indigo-200 transition-colors"
+                  aria-label={`Remove ${tool.toolName}`}
+                >
+                  <X size={9} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Input box wrapper — relative so picker can anchor to it */}
+        <div className="relative">
+          {/* Tool picker dropdown — floats above the input box */}
+          {pickerOpen && (
+            <ToolMentionPicker
+              tools={allTools}
+              query={toolQuery}
+              activeIdx={pickerIdx}
+              onSelect={selectTool}
+            />
+          )}
+
         {/* Unified input box — textarea + buttons inside one container */}
         <div className={`flex flex-col rounded-lg bg-white/[0.05] transition-all border ${
           listening
@@ -765,13 +871,30 @@ export default function QuickChatLauncher() {
           <textarea
             ref={inputRef}
             value={draft}
-            onChange={(e) => { setDraft(e.target.value); micBaseTextRef.current = e.target.value }}
+            onChange={(e) => {
+              const val = e.target.value
+              setDraft(val)
+              micBaseTextRef.current = val
+              const cursor = e.target.selectionStart ?? val.length
+              const before = val.slice(0, cursor)
+              const match  = before.match(/#(\w*)$/)
+              if (match) {
+                setToolQuery(match[1].toLowerCase())
+                setPickerOpen(true)
+                setPickerIdx(0)
+              } else {
+                setPickerOpen(false)
+                setToolQuery('')
+              }
+            }}
             onKeyDown={onKeyDown}
             rows={2}
             placeholder={
               listening    ? 'Listening… Enter to stop & send · Ctrl+T to stop only'
               : transcribing ? 'Transcribing with Whisper…'
-              : 'Ask FlowMap… · Ctrl+T to dictate'
+              : pinnedTools.length
+                ? `Message with ${pinnedTools.map((t) => '#' + t.toolName).join(', ')} pinned…`
+                : 'Ask FlowMap… type # to pin a tool · Ctrl+T to dictate'
             }
             className="w-full text-[13px] leading-relaxed text-white/90 bg-transparent px-3 pt-3 pb-1 outline-none placeholder:text-white/25 resize-none"
           />
@@ -872,6 +995,7 @@ export default function QuickChatLauncher() {
             </div>
           </div>
         </div>
+        </div>{/* /relative input wrapper */}
       </footer>
     </div>
     </div>
