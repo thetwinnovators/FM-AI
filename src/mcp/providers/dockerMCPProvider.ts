@@ -115,7 +115,13 @@ export const dockerMCPProvider: MCPIntegrationProvider = {
       const output = await awaitJobCompletion(jobId)
       return { success: true, output }
     } catch (err: any) {
-      return { success: false, error: err?.message ?? String(err) }
+      const raw = err?.message ?? String(err)
+      // "Failed to fetch" means the daemon port is unreachable — give an
+      // actionable message instead of a raw network error string.
+      const msg = raw === 'Failed to fetch'
+        ? 'The FlowMap daemon is not reachable. Make sure Docker Desktop is running and the FlowMap app/daemon process is active, then try again.'
+        : raw
+      return { success: false, error: msg }
     }
   },
 
