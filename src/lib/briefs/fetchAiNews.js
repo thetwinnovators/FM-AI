@@ -1,5 +1,12 @@
-const HN_API = '/api/hn/api/v1/search_by_date'
-const REDDIT_API = '/api/reddit/r/MachineLearning+artificial/top.json'
+// HN Algolia serves Access-Control-Allow-Origin: * — call directly, no proxy needed.
+const HN_API = 'https://hn.algolia.com/api/v1/search_by_date'
+
+// Reddit's JSON API now requires OAuth. Use their public RSS feed via rss2json
+// (same intermediary used by aggregate.js) so no auth or proxy is needed.
+const REDDIT_RSS_URL = encodeURIComponent(
+  'https://www.reddit.com/r/MachineLearning+artificial/top.rss?t=day&limit=25',
+)
+const REDDIT_RSS2JSON = `https://api.rss2json.com/v1/api.json?rss_url=${REDDIT_RSS_URL}`
 
 /**
  * Deduplicates stories by URL, keeping the one with the highest score.
@@ -36,16 +43,17 @@ async function fetchHnAiStories() {
 }
 
 async function fetchRedditAiStories() {
-  const res = await fetch(`${REDDIT_API}?t=day&limit=25`)
-  if (!res.ok) throw new Error(`Reddit fetch failed: ${res.status}`)
+  const res = await fetch(REDDIT_RSS2JSON)
+  if (!res.ok) throw new Error(`Reddit RSS fetch failed: ${res.status}`)
   const data = await res.json()
-  return (data?.data?.children ?? []).map((c) => ({
-    id: `reddit-${c.data.id}`,
-    url: c.data.url,
-    title: c.data.title,
-    score: c.data.score ?? 0,
-    comments: c.data.num_comments ?? 0,
-    source: `r/${c.data.subreddit}`,
+  if (data.status !== 'ok') throw new Error(`rss2json error: ${data.message ?? data.status}`)
+  return (data.items ?? []).map((item) => ({
+    id: `reddit-${encodeURIComponent(item.link ?? item.guid ?? item.title)}`,
+    url: item.link ?? '',
+    title: item.title ?? '',
+    score: 0, // RSS feeds don't include upvote scores
+    comments: 0,
+    source: 'r/MachineLearning',
   }))
 }
 
