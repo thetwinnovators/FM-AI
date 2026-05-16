@@ -19,13 +19,19 @@ export class ServerManager {
 
   async sync(): Promise<void> {
     const configs = await loadServerRegistry(this.registryPath)
+    const configIdSet = new Set(configs.map((c) => c.id))
 
-    // Disconnect servers no longer in config
-    for (const id of Array.from(this.handles.keys())) {
-      if (!configs.find((c) => c.id === id)) {
-        const handle = this.handles.get(id)!
-        await handle.close().catch(() => {})
-        this.handles.delete(id)
+    // Disconnect and evict ANY server no longer in the registry — including
+    // servers that never made it into this.handles (error / disconnected state).
+    // Previously this loop only iterated this.handles.keys(), which left stale
+    // error-state entries in this.servers after the registry was edited.
+    for (const id of Array.from(this.servers.keys())) {
+      if (!configIdSet.has(id)) {
+        const handle = this.handles.get(id)
+        if (handle) {
+          await handle.close().catch(() => {})
+          this.handles.delete(id)
+        }
         this.servers.delete(id)
       }
     }
@@ -136,8 +142,21 @@ export class ServerManager {
   async removeServer(id: string): Promise<void> {
     const configs = await loadServerRegistry(this.registryPath)
     const next = configs.filter((c) => c.id !== id)
-    if (next.length === configs.length) throw new Error(`Server "${id}" not found`)
-    await saveServerRegistry(next, this.registryPath)
+    const wasInFile = next.length !== configs.length
+    // Also check in-memory — a server can be stuck there if sync() previously
+    // failed to clean it up (e.g. error-state server removed from registry file
+    // while the daemon was running but the server never entered this.handles).
+    const wasInMemory = this.servers.has(id)
+    if (!wasInFile && !wasInMemory) throw new Error(`Server "${id}" not found`)
+    if (wasInFile) await saveServerRegistry(next, this.registryPath)
+    // Always evict from in-memory maps so the UI sees it gone immediately.
+    const handle = this.handles.get(id)
+    if (handle) {
+      await handle.close().catch(() => {})
+      this.handles.delete(id)
+    }
+    this.servers.delete(id)
+    // Resync to pick up any other drift between file and in-memory state.
     await this.sync()
   }
 

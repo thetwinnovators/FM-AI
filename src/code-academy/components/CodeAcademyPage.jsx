@@ -23,7 +23,7 @@ function LessonFrame({ children, onHome }) {
           onMouseEnter={e => e.currentTarget.style.color = '#2dd4bf'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--color-text-secondary)'}
         >
-          Code Academy
+          Flow Code
         </button>
       </div>
 
@@ -48,7 +48,7 @@ function AcademyHeader({ onHome }) {
         className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5 cursor-pointer hover:text-teal-400 transition-colors"
         onClick={onHome}
       >
-        <Code2 size={20} className="text-teal-400" /> Code Academy
+        <Code2 size={20} className="text-teal-400" /> Flow Code
       </h1>
     </div>
   )
@@ -130,7 +130,7 @@ export default function CodeAcademyPage({ academy }) {
             onClick={backToHome}
             className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-900 mb-7 transition-colors"
           >
-            ← <span>Code Academy</span>
+            ← <span>Flow Code</span>
           </button>
 
           <div className="max-w-2xl">

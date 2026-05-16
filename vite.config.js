@@ -68,13 +68,8 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/stt/, ''),
       },
-      // Kiwi/Skypicker public flight search — used by FlightSearch for price estimates.
-      // No API key required for basic search (partner=skypicker demo mode).
-      '/api/kiwi': {
-        target: 'https://api.skypicker.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/kiwi/, ''),
-      },
+      // Kiwi flight price API removed — api.skypicker.com is decommissioned (returns 502).
+      // The current Tequila API requires a paid key. FlightSearch degrades to links-only.
     },
   },
   build: {

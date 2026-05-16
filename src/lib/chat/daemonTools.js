@@ -31,7 +31,8 @@ async function getDaemonInfo() {
 async function daemonFetch(path, init = {}) {
   const info = await getDaemonInfo()
   if (!info) throw new Error('Daemon not available')
-  return fetch(`http://127.0.0.1:${info.port}${path}`, {
+  // Route through Vite proxy — same-origin, no CORS needed
+  return fetch(`/api/daemon-proxy${path}`, {
     ...init,
     headers: {
       ...((init.headers) ?? {}),
@@ -132,7 +133,7 @@ export async function executeDaemonTool(toolId, params, timeoutMs = JOB_TIMEOUT_
         return resolve({ success: false, error: 'Daemon not available' })
       }
 
-      const r = await fetch(`http://127.0.0.1:${info.port}/jobs/${jobId}`, {
+      const r = await fetch(`/api/daemon-proxy/jobs/${jobId}`, {
         headers: { Authorization: `Bearer ${info.token}` },
       })
 

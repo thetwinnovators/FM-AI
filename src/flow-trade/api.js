@@ -25,7 +25,8 @@ async function req(method, path, body) {
   if (!info) throw new Error('Flow Trade daemon not running')
   const headers = { authorization: `Bearer ${info.token}` }
   if (body != null) headers['content-type'] = 'application/json'
-  const res = await fetch(`http://127.0.0.1:${info.port}${path}`, {
+  // Route through Vite proxy — same-origin, no CORS needed
+  const res = await fetch(`/api/daemon-proxy${path}`, {
     method,
     headers,
     body: body != null ? JSON.stringify(body) : undefined,

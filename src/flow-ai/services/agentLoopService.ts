@@ -176,9 +176,14 @@ export async function runAgentLoop(
       const summary = summariseResult(runResult.output)
       emit({ type: 'step_done', toolName: pinnedTool.displayName, resultSummary: summary, step })
 
-      finalAnswer = runResult.success
-        ? summary
-        : `The tool returned an error: ${runResult.error ?? 'Unknown error'}`
+      if (!runResult.success) {
+        const rawErr = runResult.error ?? 'Unknown error'
+        finalAnswer = (rawErr === 'Failed to fetch' || rawErr.toLowerCase().includes('failed to fetch'))
+          ? 'The FlowMap daemon is not reachable. Make sure **Docker Desktop** is running and the FlowMap daemon process is active, then try again.'
+          : `The tool returned an error: ${rawErr}`
+      } else {
+        finalAnswer = summary
+      }
 
       emit({ type: 'done', answer: finalAnswer })
       return { steps, finalAnswer }

@@ -22,7 +22,8 @@ export function useFlowTradeSSE(onEvent) {
       }
 
       try {
-        const res = await fetch(`http://127.0.0.1:${info.port}/flow-trade/events`, {
+        // Route through Vite proxy to avoid cross-origin issues
+        const res = await fetch(`/api/daemon-proxy/flow-trade/events`, {
           headers: { authorization: `Bearer ${info.token}` },
           signal: ctrl.signal,
         })

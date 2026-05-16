@@ -209,9 +209,10 @@ export default function VentureScope() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/8">
         <div className="flex items-center gap-3">
-          <Telescope className="w-5 h-5 text-[color:var(--color-creator)]" />
           <div>
-            <h1 className="text-base font-semibold leading-tight">Venture Scope</h1>
+            <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+              <Telescope size={20} className="text-[color:var(--color-topic)]" /> Venture Scope
+            </h1>
             <p className="text-xs text-[color:var(--color-text-tertiary)]">
               Venture intelligence workspace
             </p>

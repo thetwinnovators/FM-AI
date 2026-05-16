@@ -12,9 +12,12 @@ async function getDaemonInfo() {
 async function daemonFetch(method, path, body) {
   const info = await getDaemonInfo()
   if (!info) throw new Error('Daemon offline — start FlowMap dev server')
-  const res = await fetch(`http://127.0.0.1:${info.port}${path}`, {
+  // Route through Vite proxy — same-origin, no CORS needed
+  const headers = { Authorization: `Bearer ${info.token}` }
+  if (body != null) headers['Content-Type'] = 'application/json'
+  const res = await fetch(`/api/daemon-proxy${path}`, {
     method,
-    headers: { Authorization: `Bearer ${info.token}`, 'Content-Type': 'application/json' },
+    headers,
     body: body != null ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
@@ -243,13 +246,21 @@ export default function DockerMCPPanel() {
   }
 
   async function handleToggle(id, enabled) {
-    const data = await daemonFetch('PATCH', `/docker-mcp/servers/${id}`, { enabled })
-    setServers(data.servers ?? [])
+    try {
+      const data = await daemonFetch('PATCH', `/docker-mcp/servers/${id}`, { enabled })
+      setServers(data.servers ?? [])
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   async function handleRemove(id) {
-    const data = await daemonFetch('DELETE', `/docker-mcp/servers/${id}`)
-    setServers(data.servers ?? [])
+    try {
+      const data = await daemonFetch('DELETE', `/docker-mcp/servers/${id}`)
+      setServers(data.servers ?? [])
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   async function handleAdd(cfg) {

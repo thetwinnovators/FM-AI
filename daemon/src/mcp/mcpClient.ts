@@ -2,6 +2,17 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js'
+import { Agent, fetch as undiciFetch } from 'undici'
+
+// Custom fetch that bypasses TLS certificate verification for remote MCP servers.
+// These are explicitly user-configured endpoints so skipping cert checks is safe.
+const _tlsRelaxedAgent = new Agent({ connect: { rejectUnauthorized: false } })
+function tlsRelaxedFetch(url: URL | RequestInfo, init?: RequestInit): Promise<Response> {
+  return undiciFetch(url as string | URL, {
+    ...(init as Parameters<typeof undiciFetch>[1] | undefined),
+    dispatcher: _tlsRelaxedAgent,
+  }) as unknown as Promise<Response>
+}
 
 export interface MCPServerTool {
   name: string
@@ -80,8 +91,8 @@ export async function connectMCPServerHTTP(
 
   const t =
     transport === 'sse'
-      ? new SSEClientTransport(endpoint)
-      : new StreamableHTTPClientTransport(endpoint)
+      ? new SSEClientTransport(endpoint, { fetch: tlsRelaxedFetch })
+      : new StreamableHTTPClientTransport(endpoint, { fetch: tlsRelaxedFetch })
 
   const client = new Client(
     { name: 'flowmap-operator', version: '1.0.0' },

@@ -6,6 +6,7 @@ import { RiskDashboard } from '../flow-trade/RiskDashboard.jsx'
 import { FlowTradeChat } from '../flow-trade/FlowTradeChat.jsx'
 import { flowTradeApi } from '../flow-trade/api.js'
 import { useFlowTradeSSE } from '../flow-trade/useFlowTradeSSE.js'
+import { useDailyStockReport } from '../flow-trade/useDailyStockReport.js'
 
 function useStatus() {
   const [status, setStatus] = useState(null)
@@ -156,6 +157,7 @@ function OfflineShell({ message, icon: Icon, children }) {
 
 export default function FlowTrade() {
   const { status, refresh } = useStatus()
+  useDailyStockReport()
   const [isBlocked,   setIsBlocked]   = useState(false)
   const [rightTab,    setRightTab]    = useState('risk')
   const [refreshTick, setRefreshTick] = useState(0)
@@ -188,9 +190,10 @@ export default function FlowTrade() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-4 border-b border-white/[0.06]">
-        <TrendingUp size={18} className="text-emerald-400" />
         <div>
-          <div className="text-[15px] font-semibold text-white/85 leading-none">Flow Trade</div>
+          <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+            <TrendingUp size={20} className="text-[color:var(--color-topic)]" /> Flow Trade
+          </h1>
           <div className="text-[11px] text-white/35 mt-0.5">paper day-trading workspace</div>
         </div>
         <div className="ml-auto flex items-center gap-3">

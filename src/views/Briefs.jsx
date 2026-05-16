@@ -102,8 +102,8 @@ export default function Briefs() {
     <div className="p-6 max-w-3xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: 'rgba(255,255,255,0.9)' }}>
-          Briefs
+        <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
+          <Newspaper size={20} className="text-[color:var(--color-topic)]" /> Briefs
         </h1>
         <p className="text-sm" style={{ color: 'rgba(255,255,255,0.35)' }}>
           {sorted.length === 0

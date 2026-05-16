@@ -58,31 +58,33 @@ function buildDayBuckets() {
   })
 }
 
-/** Build 28 × 6-hour buckets (~7 days at 6h granularity) for the hero chart.
- *  Slots are aligned to LOCAL 6h marks (0/6/12/18h) so getHours()===0 correctly
- *  fires at local midnight regardless of the user's UTC offset. */
-function build6hBuckets() {
-  const SIX_H  = 6 * 3600_000
-  // Snap to the most-recent local 6h boundary
+/** Build 30 daily buckets for the hero chart, oldest first.
+ *  Slots are aligned to local midnight so each bucket is one full calendar day. */
+function build24hBuckets() {
+  const DAY_MS = 24 * 3600_000
   const now    = new Date()
-  const snapped = new Date(now)
-  snapped.setHours(Math.floor(now.getHours() / 6) * 6, 0, 0, 0)
-  const periodStart = snapped.getTime()
+  // Snap to today's local midnight
+  const today  = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  const todayStart = today.getTime()
 
-  return Array.from({ length: 28 }, (_, i) => {
-    const start      = periodStart - (27 - i) * SIX_H
-    const d          = new Date(start)
-    const hour       = d.getHours()          // local hours
-    const isLast     = i === 27
-    const isDayStart = hour === 0 || i === 0
-    const dayLabel   = isLast ? 'Now'
-      : isDayStart ? d.toLocaleDateString('en-US', { weekday: 'short' })
-      : null
-    const hourLabel  = !isLast && !isDayStart && [6, 12, 18].includes(hour)
-      ? `${hour}h` : null
-    const tipLabel   = isLast ? 'Now'
-      : `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${String(hour).padStart(2, '0')}:00`
-    return { dayLabel, hourLabel, tipLabel, isDayStart, start, end: start + SIX_H, count: 0 }
+  return Array.from({ length: 30 }, (_, i) => {
+    const start  = todayStart - (29 - i) * DAY_MS
+    const d      = new Date(start)
+    const isLast = i === 29
+
+    // Label every 7 days + the last slot ("Today")
+    const showLabel = i === 0 || (i % 7 === 0 && i < 27) || isLast
+    const dayLabel  = isLast
+      ? 'Today'
+      : showLabel
+        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null
+    const tipLabel  = isLast
+      ? 'Today'
+      : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+    return { dayLabel, hourLabel: null, tipLabel, isDayStart: true, start, end: start + DAY_MS, count: 0 }
   })
 }
 
@@ -221,7 +223,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
   useEffect(() => { setMountKey((k) => k + 1) }, [])
 
   const { deltaBuckets, cumBuckets, baseMeta, activeSeries, peak, totalCount } = useMemo(() => {
-    const base = build6hBuckets()   // 28 × 6-hour slots
+    const base = build24hBuckets()   // 30 daily slots
 
     const deltaBuckets = {
       video:       fillBuckets(base, Object.values(saves)
@@ -272,7 +274,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
         <div>
           <h2 className="text-[13px] font-semibold">Knowledge growth</h2>
           <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-0.5">
-            Cumulative ingest · 6h intervals · last 7 days
+            Cumulative ingest · daily · last 30 days
           </p>
         </div>
         <div className="flex items-center gap-4 flex-wrap">
@@ -292,7 +294,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
           key={mountKey}
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           style={{ width: '100%', height: 'auto', display: 'block', cursor: 'crosshair' }}
-          aria-label="Knowledge growth over the last 7 days"
+          aria-label="Knowledge growth over the last 30 days"
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredIdx(null)}
         >
@@ -313,9 +315,8 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
             </clipPath>
           </defs>
 
-          {/* Vertical grid lines — solid at day boundaries, dashed at 6h marks */}
+          {/* Vertical grid lines — solid at labeled day marks, subtle dashed for every other day */}
           {baseMeta.map((slot, i) => {
-            if (!slot.dayLabel && !slot.hourLabel) return null
             const x = PAD.l + i * (PLOT_W / N)
             return slot.dayLabel ? (
               <line key={i} x1={x} y1={PAD.t} x2={x} y2={PAD.t + PLOT_H}
@@ -457,7 +458,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
           {isEmpty && (
             <text x={PAD.l + PLOT_W / 2} y={PAD.t + PLOT_H / 2}
               textAnchor="middle" fontSize="11" fill="rgba(255,255,255,0.20)">
-              No ingest activity in the last 7 days
+              No ingest activity in the last 30 days
             </text>
           )}
         </svg>

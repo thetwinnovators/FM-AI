@@ -16,6 +16,14 @@ const KEYS = {
 
 const MAX_EXECUTIONS = 500
 
+// ── In-memory schema cache ────────────────────────────────────────────────────
+// inputSchema objects are large JSON blobs that quickly exhaust the 5-10 MB
+// localStorage quota when 17-18 Docker MCP servers are connected. We strip
+// them before persisting and hold them in memory only. They are rebuilt every
+// agent-loop run via refreshDockerMCPTools() so the gap after a page reload
+// is negligible in practice.
+const _schemaCache = new Map<string, Record<string, unknown> | undefined>()
+
 function read<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key)
@@ -26,7 +34,39 @@ function read<T>(key: string, fallback: T): T {
 }
 
 function write<T>(key: string, value: T): void {
-  localStorage.setItem(key, JSON.stringify(value))
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (e: any) {
+    const isQuota =
+      e?.name === 'QuotaExceededError' ||
+      (e?.code !== undefined && (e.code === 22 || e.code === 1014)) ||
+      String(e).toLowerCase().includes('quota')
+    if (!isQuota) throw e
+
+    // ── Eviction pass ─────────────────────────────────────────────────────────
+    // Quota is full. Before giving up, try clearing non-critical MCP keys in
+    // order of safety, then retry the write. We never evict integrations — those
+    // hold user connection state. Safe eviction order:
+    //   1. tools       — inputSchema blobs in _schemaCache; re-fetched each run
+    //   2. executions  — execution history only, not configuration
+    //   3. telegramMessages — demo seeds re-created by seedOnce() on next load
+    for (const candidate of [KEYS.tools, KEYS.executions, KEYS.telegramMessages]) {
+      if (candidate === key) continue            // don't clear what we're writing
+      if (localStorage.getItem(candidate) === null) continue  // nothing to free
+      localStorage.removeItem(candidate)
+      console.info(`[FlowMap] localStorage quota: evicted "${candidate}" to free space for "${key}".`)
+      try {
+        localStorage.setItem(key, JSON.stringify(value))
+        enqueue()
+        return  // write succeeded after eviction — done
+      } catch { /* still full — try next candidate */ }
+    }
+
+    // All eviction candidates exhausted. The quota is filled by non-MCP data
+    // (research topics, saves, etc.). Data lives in memory only this session.
+    console.warn(`[FlowMap] localStorage quota exceeded for key "${key}". Data is in-memory only for this session.`)
+    return
+  }
   enqueue()
 }
 
@@ -204,6 +244,24 @@ function makeSeedTelegramMessages(): TelegramCommandMessage[] {
 // IDs that have been retired and should be removed from existing storage.
 const REMOVED_IDS = new Set(['integ_google_workspace', 'integ_canva', 'integ_generic_mcp'])
 
+// ── One-time storage migration ────────────────────────────────────────────────
+// Older versions persisted full inputSchema blobs in fm_mcp_tools, which
+// could exceed the 5-10 MB localStorage quota when many Docker MCP servers
+// are connected. On the first load after this change, clear any oversized
+// entry so the quota is freed immediately. Tools are re-fetched automatically
+// on the next agent run (refreshDockerMCPTools) or Docker MCP reconnect.
+function migrateToolStorage(): void {
+  try {
+    const raw = localStorage.getItem(KEYS.tools)
+    if (!raw) return
+    if (raw.length > 500_000) { // > 500 KB almost certainly contains full schemas
+      localStorage.removeItem(KEYS.tools)
+      console.info('[FlowMap] Cleared oversized tool catalog from localStorage (schemas are now in-memory only).')
+    }
+  } catch { /* silently ignore */ }
+}
+migrateToolStorage()
+
 function seedOnce(): void {
   const integrations = read<MCPIntegration[]>(KEYS.integrations, [])
   if (integrations.length === 0) {
@@ -251,13 +309,26 @@ export const localMCPStorage: MCPStorage = {
 
   listTools(integrationId) {
     const all = read<MCPToolDefinition[]>(KEYS.tools, [])
-    return integrationId ? all.filter((t) => t.integrationId === integrationId) : all
+    // Merge in-memory schemas back — stripped at persist time to save quota
+    const withSchemas = all.map((t) =>
+      _schemaCache.has(t.id) ? { ...t, inputSchema: _schemaCache.get(t.id) } : t
+    )
+    return integrationId
+      ? withSchemas.filter((t) => t.integrationId === integrationId)
+      : withSchemas
   },
   saveTools(integrationId, tools) {
+    // Cache schemas in memory and strip them before writing to localStorage.
+    // inputSchema objects can be 2-10 KB each; 17-18 servers × 5-15 tools each
+    // easily blows the 5-10 MB localStorage quota.
+    for (const t of tools) {
+      if (t.inputSchema !== undefined) _schemaCache.set(t.id, t.inputSchema)
+    }
+    const slim = tools.map(({ inputSchema: _dropped, ...rest }) => rest as MCPToolDefinition)
     const others = read<MCPToolDefinition[]>(KEYS.tools, []).filter(
       (t) => t.integrationId !== integrationId
     )
-    write(KEYS.tools, [...others, ...tools])
+    write(KEYS.tools, [...others, ...slim])
   },
 
   listExecutionRecords(options) {

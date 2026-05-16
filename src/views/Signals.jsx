@@ -886,10 +886,9 @@ export default function Signals() {
       <div className="flex flex-col gap-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <Activity size={20} className="text-[color:var(--color-topic)]" />
-              <h1 className="text-xl font-bold text-white/95">Latest Signals</h1>
-            </div>
+            <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5 mb-1">
+              <Activity size={20} className="text-[color:var(--color-topic)]" /> Latest Signals
+            </h1>
             <p className="text-sm text-white/45">FlowMap monitors emerging patterns across your watched sources</p>
           </div>
 

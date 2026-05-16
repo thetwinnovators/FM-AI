@@ -8,7 +8,7 @@ import {
 
 const NAV_GROUPS = [
   [
-    { to: '/',         label: 'Dashboard',        icon: LayoutDashboard },
+    { to: '/',         label: 'Flow Graph',        icon: LayoutDashboard },
     { to: '/memory',   label: 'Knowledge Base',   icon: Brain           },
   ],
   [
@@ -22,7 +22,7 @@ const NAV_GROUPS = [
   ],
   [
     { to: '/education',    label: 'Flow Academy', icon: GraduationCap },
-    { to: '/code-academy', label: 'Code Academy', icon: Code2          },
+    { to: '/code-academy', label: 'Flow Code', icon: Code2          },
     { to: '/chat',         label: 'Ask Flow.AI',  icon: Bot            },
   ],
   [

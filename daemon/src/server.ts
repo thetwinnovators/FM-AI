@@ -273,11 +273,17 @@ export async function buildServer(opts: ServerOptions): Promise<FastifyInstance>
     if (!requireAuth(req, reply)) return
     const id = (req.params as any).id
 
+    // reply.raw.writeHead() bypasses Fastify's reply pipeline, so @fastify/cors
+    // never fires for SSE responses. Manually reflect the Origin header here —
+    // safe because the daemon is bound to 127.0.0.1 and gated by bearer auth.
+    const origin = (req.headers.origin as string | undefined) ?? '*'
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       Connection: 'keep-alive',
       'X-Accel-Buffering': 'no',
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Credentials': 'true',
     })
 
     const send = (event: JobEvent) => {

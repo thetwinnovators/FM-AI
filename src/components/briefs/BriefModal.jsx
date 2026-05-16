@@ -3,18 +3,47 @@ import { createPortal } from 'react-dom'
 import { ExternalLink } from 'lucide-react'
 
 // ── OG image thumbnail ────────────────────────────────────────────────────────
+// Module-level cache: url → image-url-string | null (null = no image / failed)
+// Persists for the browser session so reopening a brief never re-fetches.
+const _ogCache = new Map()
+// Timestamp (ms) until which Microlink is considered rate-limited (429).
+let _microlinkBackoffUntil = 0
+
 function ArticleThumbnail({ url }) {
-  const [imgUrl, setImgUrl] = useState(null)
+  const [imgUrl, setImgUrl] = useState(() => _ogCache.has(url) ? _ogCache.get(url) : null)
   const [loaded, setLoaded]  = useState(false)
-  const [failed, setFailed]  = useState(false)
+  const [failed, setFailed]  = useState(() => _ogCache.has(url) && _ogCache.get(url) === null)
 
   useEffect(() => {
     if (!url) return
+    // Already cached — nothing to do
+    if (_ogCache.has(url)) return
+    // Microlink is rate-limited — fall through to favicon fallback silently
+    if (Date.now() < _microlinkBackoffUntil) {
+      _ogCache.set(url, null)
+      setFailed(true)
+      return
+    }
     let cancelled = false
     fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`)
-      .then((r) => r.json())
-      .then((data) => { if (!cancelled) setImgUrl(data?.data?.image?.url ?? null) })
-      .catch(() => { if (!cancelled) setFailed(true) })
+      .then((r) => {
+        if (r.status === 429) {
+          // Back off for 2 minutes on rate-limit
+          _microlinkBackoffUntil = Date.now() + 2 * 60 * 1000
+          _ogCache.set(url, null)
+          if (!cancelled) setFailed(true)
+          return
+        }
+        return r.json().then((data) => {
+          const img = data?.data?.image?.url ?? null
+          _ogCache.set(url, img)
+          if (!cancelled) setImgUrl(img)
+        })
+      })
+      .catch(() => {
+        _ogCache.set(url, null)
+        if (!cancelled) setFailed(true)
+      })
     return () => { cancelled = true }
   }, [url])
 

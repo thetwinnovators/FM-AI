@@ -11,7 +11,8 @@ async function daemonInfo(): Promise<{ port: number; token: string } | null> {
 async function call(path: string, init: RequestInit = {}): Promise<Response> {
   const info = await daemonInfo()
   if (!info) throw new Error('Local daemon not running. Start it with: npm run daemon')
-  return fetch(`http://127.0.0.1:${info.port}${path}`, {
+  // Route through Vite proxy — same-origin, no CORS needed
+  return fetch(`/api/daemon-proxy${path}`, {
     ...init,
     headers: {
       ...(init.headers as Record<string, string> | undefined ?? {}),

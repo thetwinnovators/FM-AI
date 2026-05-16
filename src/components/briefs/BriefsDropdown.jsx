@@ -24,7 +24,11 @@ function BriefItem({ brief, onClick }) {
     const overviewSection = brief.sections?.find((s) => s.type === 'overview' || s.type === 'highlights')
     if (!overviewSection) return ''
     if (overviewSection.content) return overviewSection.content
-    if (Array.isArray(overviewSection.items)) return overviewSection.items.slice(0, 2).join(' ')
+    if (Array.isArray(overviewSection.items))
+      return overviewSection.items
+        .slice(0, 2)
+        .map((it) => (typeof it === 'string' ? it : (it?.text ?? '')))
+        .join(' ')
     return ''
   })()
 

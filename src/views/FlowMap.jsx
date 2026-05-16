@@ -156,7 +156,7 @@ export default function FlowMap() {
       <header className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight inline-flex items-center gap-2.5">
-            <LayoutDashboard size={20} className="text-[color:var(--color-topic)]" /> Dashboard
+            <LayoutDashboard size={20} className="text-[color:var(--color-topic)]" /> Flow Graph
           </h1>
           <p className="text-sm text-[color:var(--color-text-secondary)] mt-1 max-w-2xl">
             The relational context network for your topic intelligence — typed, weighted, and learning from what you save and view.

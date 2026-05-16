@@ -4,6 +4,15 @@ import { fetchAiNews } from '../../lib/briefs/fetchAiNews.js'
 import { generateNewsDigest } from '../../lib/briefs/generateNewsDigest.js'
 import { shouldGenerateTopicBrief } from '../../lib/briefs/briefTrigger.js'
 import { generateTopicBrief } from '../../lib/briefs/generateTopicBrief.js'
+import { sendTelegramMessage, formatBriefForTelegram } from '../../lib/telegram.js'
+
+/** Fire-and-forget Telegram send — never throws, never blocks the caller. */
+async function tryTelegramBrief(brief) {
+  try {
+    const text = formatBriefForTelegram(brief)
+    await sendTelegramMessage(text)
+  } catch { /* no credentials or network error — silent */ }
+}
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
@@ -32,7 +41,7 @@ export function useDailyDigestCheck() {
         const stories = await fetchAiNews().catch(() => [])
         if (!stories.length) return
         const digest = await generateNewsDigest(stories)
-        if (digest) addBrief(digest)
+        if (digest) { addBrief(digest); tryTelegramBrief(digest) }
       })()
     }
 
@@ -51,7 +60,7 @@ export function useDailyDigestCheck() {
 
       ;(async () => {
         const brief = await generateTopicBrief(topicTitle, topic.id, itemsForTopic)
-        if (brief) addBrief(brief)
+        if (brief) { addBrief(brief); tryTelegramBrief(brief) }
       })()
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps

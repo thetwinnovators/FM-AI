@@ -16,7 +16,8 @@ async function daemonInfo(): Promise<{ port: number; token: string } | null> {
 async function call(path: string, init: RequestInit = {}): Promise<Response> {
   const info = await daemonInfo()
   if (!info) throw new Error('Local daemon not running')
-  const url = `http://127.0.0.1:${info.port}${path}`
+  // Route through Vite proxy — same-origin, no CORS needed
+  const url = `/api/daemon-proxy${path}`
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined ?? {}),
     Authorization: `Bearer ${info.token}`,
@@ -34,7 +35,7 @@ function riskToPermissionMode(risk: MCPToolRiskLevel): ToolPermissionMode {
 async function awaitJobCompletion(jobId: string): Promise<unknown> {
   const info = await daemonInfo()
   if (!info) throw new Error('Local daemon not running')
-  const sseUrl = `http://127.0.0.1:${info.port}/jobs/${jobId}`
+  const sseUrl = `/api/daemon-proxy/jobs/${jobId}`
   const sse = await fetch(sseUrl, {
     headers: { Authorization: `Bearer ${info.token}`, Accept: 'text/event-stream' },
   })

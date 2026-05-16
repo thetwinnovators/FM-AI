@@ -1,20 +1,20 @@
 # FlowMap Memory Index
 
 > **Auto-generated — do not edit by hand.**  
-> Generated: 15/05/2026, 12:46:48  
-> App version: `0.0.0` · Schema: `1.0.0` · Total nodes: **167**
+> Generated: 16/05/2026, 08:56:54  
+> App version: `0.0.0` · Schema: `1.0.0` · Total nodes: **838**
 
 ## Summary
 
 | Type | Icon | Count |
 |---|---|---|
 | Project | 📦 | 1 |
-| Conversations | 💬 | 15 |
-| Decisions | 🔑 | 7 |
+| Conversations | 💬 | 18 |
+| Decisions | 🔑 | 11 |
 | Workflows | ⚙️ | 14 |
-| Source Items | 📄 | 128 |
-| Preferences | 🎛️ | 2 |
-| Insights | 💡 | 0 |
+| Source Items | 📄 | 105 |
+| Preferences | 🎛️ | 5 |
+| Insights | 💡 | 684 |
 
 ## 📦 Project
 
@@ -22,7 +22,7 @@ _Storage keys: `package.json (static)`_
 
 | ID | Label | Tags | Updated |
 |---|---|---|---|
-| `project:flowmap` | FlowMap — topic intelligence platform | react, vite, typescript, tailwindcss, ollama, local-first | 15 May 2026 |
+| `project:flowmap` | FlowMap — topic intelligence platform | react, vite, typescript, tailwindcss, ollama, local-first | 16 May 2026 |
 
 ## 💬 Conversations
 
@@ -31,20 +31,23 @@ _Storage keys: `flowmap.v1/conversations`, `flowmap.v1/chatMessages`_
 | ID | Label | Tags | Updated |
 |---|---|---|---|
 | `conv:conv_moplsr8r_96ni` | What are the benefits of Flow Map? | — | 3 May 2026 |
-| `conv:conv_moq098v2_so76` | Hi | — | 7 May 2026 |
+| `conv:conv_moq098v2_so76` | Hi | — | 4 May 2026 |
 | `conv:conv_moqt9gfx_xigr` | I have an app concept I'd like you to evaluate. Please let me know if this is wo | — | 4 May 2026 |
 | `conv:conv_moqtlcso_tac2` | I have an app concept I'd like you to evaluate. Please let me know if this is wo | — | 4 May 2026 |
 | `conv:conv_moqtswpf_p05a` | I have an app concept I'd like you to evaluate. Please let me know if this is wo | — | 4 May 2026 |
 | `conv:conv_mor5359q_i7kv` | I have an app concept I'd like you to evaluate. Please let me know if this is wo | — | 4 May 2026 |
 | `conv:conv_mor6exgs_9abi` | create a calculator in HTML | — | 4 May 2026 |
 | `conv:conv_morwlwl8_67zm` | What's new in flowmap today? | — | 4 May 2026 |
+| `conv:conv_mos4e9au_0o4m` | Evaluate this app concept. Your response MUST contain exactly these three sectio | — | 5 May 2026 |
 | `conv:conv_mos4klgq_j2tw` | Walk me through my top rising signals. What patterns are emerging across them, w | — | 5 May 2026 |
+| `conv:conv_mos4r8js_mxbb` | Evaluate this app concept. Your response MUST contain exactly these three sectio | — | 5 May 2026 |
+| `conv:conv_mosiqnk3_qdc5` | Evaluate this app concept. Your response MUST contain exactly these three sectio | — | 5 May 2026 |
+| `conv:conv_mosir0ag_luhw` | Evaluate this app concept. Your response MUST contain exactly these three sectio | — | 5 May 2026 |
 | `conv:conv_mosqh0gx_qt6t` | Summarize "Summary: Harness Engineering" and pull out the 3 most important takea | — | 5 May 2026 |
-| `conv:conv_movd884o_uym0` | Anything new today? | — | 7 May 2026 |
-| `conv:conv_mow38jlr_k1dt` | Are you able to create a topic in Flow Map for me? | — | 7 May 2026 |
-| `conv:conv_mow3pbsa_dxex` | Are you able to create a topic in Flow Map for me? | — | 7 May 2026 |
-| `conv:conv_mp21g5a1_1w3w` | how can I add more value to you? | — | 12 May 2026 |
-| `conv:conv_mp38zb0f_xvjf` | Evaluate this app concept. Your response MUST contain exactly these three sectio | — | 13 May 2026 |
+| `conv:conv_mosy5733_ov89` | What are the most important recent developments in Ethical AI and User Experienc | — | 5 May 2026 |
+| `conv:conv_mosycxf0_kzlj` | ? | — | 5 May 2026 |
+| `conv:conv_mp7oul3u_8b2p` | Generate a video from this script: [You guys should try POSCHI!] | — | 15 May 2026 |
+| `conv:conv_mp7q6uyp_pd3p` | Generate a video of a barber shop scene and the barber is telling the other barb | — | 15 May 2026 |
 
 ## 🔑 Decisions
 
@@ -52,13 +55,17 @@ _Storage keys: `flowmap.v1/memoryEntries`_
 
 | ID | Label | Tags | Updated |
 |---|---|---|---|
+| `decision:mem_mojptaai_j4us` | Always address me by name. | personal_stack | 28 Apr 2026 |
+| `decision:mem_mojpuzgi_cur2` | Don't ask about family members unless I take the conversation there. | personal_stack | 28 Apr 2026 |
 | `decision:mem_mojpxhol_7r1z` | Call me sir or Mr. Anusiem | personal_stack | 28 Apr 2026 |
+| `decision:mem_mojqh2ku_1l1j` | My twin brother's name is Mr. Kel Anusiem | personal_stack | 28 Apr 2026 |
 | `decision:mem_mokcznq8_rwfj` | Always address me at the beginning of a new conversation. "Good day, Mr. Anusie… | personal_stack | 28 Apr 2026 |
 | `decision:mem_mokd1o6t_qylb` | Always address me as Sir in most your responses, but always when asking me a qu… | personal_stack | 28 Apr 2026 |
 | `decision:mem_mokma1ns_u5d4` | Please respond accordingly when ever I ask you these questions in any variation… | personal_stack | 28 Apr 2026 |
 | `decision:mem_mokmesia_4z5w` | Never say this in any variation: I don't have a saved doc on the exact... | personal_stack | 28 Apr 2026 |
 | `decision:mem_mokmg5gz_dfty` | Do not say: "I don't have a saved doc on the exact topic " | research_focus | 28 Apr 2026 |
 | `decision:mem_mokmhmkv_wwn0` | Do not say: "I don't have a saved doc on the exact topic... " | source_pref | 28 Apr 2026 |
+| `decision:mem_mokr8shb_14pp` | Review all saved topics first and documents second. | source_pref | 29 Apr 2026 |
 
 ## ⚙️ Workflows
 
@@ -66,19 +73,19 @@ _Storage keys: `fm_mcp_integrations`, `fm_mcp_executions`, `flowmap.mcp.taskPlan
 
 | ID | Label | Tags | Updated |
 |---|---|---|---|
-| `mcp:integration:integ_telegram` | MCP: Telegram (telegram) | telegram, disconnected | 15 May 2026 |
-| `mcp:integration:integ_figma` | MCP: Figma (figma) | figma, disconnected | 15 May 2026 |
-| `mcp:integration:integ_google_drive` | MCP: Google Drive (google-drive) | google-drive, disconnected | 15 May 2026 |
-| `mcp:integration:integ_gmail` | MCP: Gmail (gmail) | gmail, disconnected | 15 May 2026 |
-| `mcp:integration:integ_google_calendar` | MCP: Google Calendar (google-calendar) | google-calendar, disconnected | 15 May 2026 |
-| `mcp:integration:integ_google_slides` | MCP: Google Slides (google-slides) | google-slides, disconnected | 15 May 2026 |
-| `mcp:integration:integ_youtube` | MCP: YouTube (youtube) | youtube, disconnected | 15 May 2026 |
-| `mcp:integration:integ_google_docs` | MCP: Google Docs (google-docs) | google-docs, disconnected | 15 May 2026 |
-| `mcp:integration:integ_higgsfield` | MCP: Higgsfield AI (higgsfield) | higgsfield, disconnected | 15 May 2026 |
-| `mcp:integration:integ_instagram` | MCP: Instagram (instagram) | instagram, disconnected | 15 May 2026 |
-| `mcp:integration:integ_facebook` | MCP: Facebook (facebook) | facebook, disconnected | 15 May 2026 |
-| `mcp:integration:integ_flowmap` | MCP: FlowMap (flowmap) | flowmap, connected | 15 May 2026 |
-| `mcp:integration:integ_local` | MCP: Local Operator (local) | local, connected | 15 May 2026 |
+| `mcp:integration:integ_telegram` | MCP: Telegram (telegram) | telegram, connected | 1 May 2026 |
+| `mcp:integration:integ_google_slides` | MCP: Google Slides (google-slides) | google-slides, disconnected | 1 May 2026 |
+| `mcp:integration:integ_youtube` | MCP: YouTube (youtube) | youtube, disconnected | 1 May 2026 |
+| `mcp:integration:integ_higgsfield` | MCP: Higgsfield AI (higgsfield) | higgsfield, disconnected | 1 May 2026 |
+| `mcp:integration:integ_instagram` | MCP: Instagram (instagram) | instagram, disconnected | 1 May 2026 |
+| `mcp:integration:integ_facebook` | MCP: Facebook (facebook) | facebook, disconnected | 1 May 2026 |
+| `mcp:integration:integ_google_docs` | MCP: Google Docs (google-docs) | google-docs, disconnected | 2 May 2026 |
+| `mcp:integration:integ_gmail` | MCP: Gmail (gmail) | gmail, disconnected | 2 May 2026 |
+| `mcp:integration:integ_flowmap` | MCP: FlowMap (flowmap) | flowmap, connected | 3 May 2026 |
+| `mcp:integration:integ_figma` | MCP: Figma (figma) | figma, connected | 3 May 2026 |
+| `mcp:integration:integ_google_calendar` | MCP: Google Calendar (google-calendar) | google-calendar, connected | 3 May 2026 |
+| `mcp:integration:integ_google_drive` | MCP: Google Drive (google-drive) | google-drive, connected | 3 May 2026 |
+| `mcp:integration:integ_local` | MCP: Local Operator (local) | local, connected | 13 May 2026 |
 | `mcp:integration:integ_docker_mcp` | MCP: Docker MCP Servers (docker-mcp) | docker-mcp, connected | 15 May 2026 |
 
 ## 📄 Source Items
@@ -87,7 +94,7 @@ _Storage keys: `flowmap.v1/documents`, `flowmap.v1/manualContent`, `flowmap.v1/s
 
 | ID | Label | Tags | Updated |
 |---|---|---|---|
-| `doc:doc_mok7y46a_1rjw` | AI Innovation | — | 11 May 2026 |
+| `doc:doc_mok7y46a_1rjw` | AI Innovation | — | 29 Apr 2026 |
 | `doc:doc_mokcqf7x_7u4e` | Agentic-Design-Patterns | — | 29 Apr 2026 |
 | `doc:doc_mokcqfjz_hmex` | AI and UX | — | 29 Apr 2026 |
 | `doc:doc_mokcqfse_arao` | AI+UX+revision+08062023 | — | 29 Apr 2026 |
@@ -120,11 +127,6 @@ _Storage keys: `flowmap.v1/documents`, `flowmap.v1/manualContent`, `flowmap.v1/s
 | `doc:doc_moq1jj1j_jcja` | Summary: Vibe Coding | — | 3 May 2026 |
 | `doc:doc_moq1niep_clgy` | Evaluating LLM applications | — | 4 May 2026 |
 | `doc:doc_mos43lnt_noyb` | Summary: Harness Engineering | — | 5 May 2026 |
-| `doc:doc_mot18zwn_6k3k` | Python Projects: 60+ Ideas for Beginners to Advanced | — | 5 May 2026 |
-| `doc:doc_moth1nve_enj8` | A_Practical_Introduction_to_Python_Programming_Heinold | — | 5 May 2026 |
-| `doc:doc_moth5c7z_646i` | Learning_Python | — | 11 May 2026 |
-| `doc:doc_moth5cko_xrta` | PythonTutorial | — | 5 May 2026 |
-| `doc:doc_mp1rc22f_cal3` | PythonTutorial | — | 11 May 2026 |
 | `manual:manual_yt_eXlSgQmz02E` | Claude Design: The Complete Guide | — | — |
 | `manual:manual_moozva6z_43vi` | Context Engineering for AI Agents | — | — |
 | `save:hn_20917554` | Show HN: UX and AI experiment detects your posture and blurs screen if it’s poor | — | 27 Apr 2026 |
@@ -197,24 +199,6 @@ _Storage keys: `flowmap.v1/documents`, `flowmap.v1/manualContent`, `flowmap.v1/s
 | `save:searxng_yt_wwwYTMKmTvg` | What is Ethical AI and Why Is It Important. AI Ethical Principles | — | 5 May 2026 |
 | `save:searxng_yt_S2MpETdEPf8` | Machine Learning With Python Full Course 2026 \| Python Machine Learning For Beg… | — | 5 May 2026 |
 | `save:searxng_yt_VE1HAjJB7cs` | Absolute Beginner Guide to Python - YouTube | — | 5 May 2026 |
-| `save:searxng_yt_2DO8Td9F0VY` | Take a Look at Google’s Android XR Display Glasses. | — | 5 May 2026 |
-| `save:searxng_yt_M0WwogRk7xI` | We Tested Rokid Glasses and Meta Ray-Ban Looks Outdated! | — | 5 May 2026 |
-| `save:searxng_yt_zkMSBjvLmfk` | The Highest Paying Design Jobs In 2026! AX Design Crash Course | — | 7 May 2026 |
-| `save:searxng_yt_VC6nM0t-bUw` | From UX to AX: Why Agent Experience is the Next Frontier in Business AI | — | 7 May 2026 |
-| `save:searxng_yt_Kho24ymyTLM` | The Birth of AI Agent Experience (AX)—A New Kind of UX | — | 7 May 2026 |
-| `save:searxng_pdf_github.com:The-Ultimate-Python-Course/The_U` | The-Ultimate-Python-Course/The Ultimate Python Handbook.pdf at main · CodeWithH… | — | 10 May 2026 |
-| `save:searxng_pdf_bugs.python.org:Python_Tutorial_Release_3.7.0_Gu` | Python Tutorial Release 3.7.0 Guido van Rossum and the Python development team | — | 10 May 2026 |
-| `save:searxng_pdf_stat.berkeley.edu:Introduction_to_Python_Programmi` | Introduction to Python Programming Course Notes Phil Spector | — | 10 May 2026 |
-| `save:searxng_pdf_static.realpython.com:[PDF]_Python_Cheat_Sheet` | [PDF] Python Cheat Sheet | — | 10 May 2026 |
-| `save:searxng_pdf_mathstat.dal.ca:Undergraduate_Topics_in_Computer` | Undergraduate Topics in Computer Science A Beginners Guide to Python 3 | — | 10 May 2026 |
-| `save:searxng_pdf_schools.utah.gov:[PDF]_strands_and_standards_-_py` | [PDF] strands and standards - python 1, introduction | — | 10 May 2026 |
-| `save:searxng_pdf_python-basics-tutorial.readthedocs.io:Python_Basics` | Python Basics | — | 10 May 2026 |
-| `save:searxng_pdf_bu.edu:[PDF]_Introduction_to_Python_Par` | [PDF] Introduction to Python Part 1 | — | 10 May 2026 |
-| `save:searxng_pdf_tdc-www.harvard.edu:Introduction_to_Python_Heavily_b` | Introduction to Python Heavily based on presentations by | — | 10 May 2026 |
-| `save:searxng_pdf_web.stanford.edu:PDF_Introduction_to_Python_-_Sta` | PDF Introduction to Python - Stanford University | — | 10 May 2026 |
-| `save:searxng_pdf_daytrading.com:PDF_Day_Trading_For_Beginners` | PDF Day Trading For Beginners | — | 12 May 2026 |
-| `save:searxng_pdf_ukglobalinvestors.org:PDF_How_to_Day_Trade_for_a_Livin` | PDF How to Day Trade for a Living: Tools, Tactics, Money Management ... | — | 12 May 2026 |
-| `save:searxng_pdf_daytrading.com:PDF_DayTrading.com_PDF_Guides_-_` | PDF DayTrading.com PDF Guides - Day Trading For Beginners | — | 12 May 2026 |
 
 ## 🎛️ Preferences
 
@@ -223,13 +207,701 @@ _Storage keys: `flowmap.v1`, `flowmap.ollama.*`, `flowmap.voice.*`, `flowmap.the
 | ID | Label | Tags | Updated |
 |---|---|---|---|
 | `pref:theme` | UI theme: dark | — | — |
-| `pref:ollama` | Ollama: enabled — model: phi4-mini | — | — |
+| `pref:ollama` | Ollama: enabled — model: qwen2.5:7b | — | — |
+| `pref:voice` | Voice: enabled | — | — |
+| `pref:searxng` | SearXNG: enabled | — | — |
+| `pref:viewModes` | View modes — topics:list topic:grid signals:list | — | — |
 
 ## 💡 Insights
 
 _Storage keys: `fm_radar_clusters`, `fm_radar_concepts`, `fm_signals_items`_
 
-_none_
+| ID | Label | Tags | Updated |
+|---|---|---|---|
+| `radar:cluster:cluster_1777890105144_2z11r` | Pattern: stopped claude drifting | workaround, concept_generated | 4 May 2026 |
+| `radar:cluster:cluster_1777890105144_fq1fv` | Pattern: built powered chatbot | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777890105144_0jws0` | Pattern: annoyed existing clients | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777890105144_71sog` | Pattern: annoyed existing local | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777890105144_kefwd` | Pattern: built successful tech | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777895353937_udbrn` | Pattern: make browser wait | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777895353937_cnlgs` | Pattern: create react takes | workaround, concept_generated | 4 May 2026 |
+| `radar:cluster:cluster_1777895353937_gjmze` | Pattern: annoyed atom invalid | workaround, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_6d2xp` | Pattern: churndog churn always | cost, concept_generated | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_vjxlf` | Pattern: 2022 become indie | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_mhteh` | Pattern: 2025 saving money | cost, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_pbgzs` | Pattern: 2025 built search | cost, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_84z62` | Pattern: 2026 built design | cost, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_h16rs` | Pattern: dislike always feel | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_gtxvy` | Pattern: dislike always articulate | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_s9ctg` | Pattern: george davis post | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_6v9my` | Pattern: 2025 dislike being | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777910119309_wfig3` | Pattern: 2023 usually leave | workflow, emerging | 4 May 2026 |
+| `radar:cluster:cluster_1777983427695_sj5y7` | Pattern: dislike much always | workflow, emerging | 5 May 2026 |
+| `radar:cluster:cluster_1777986716097_wykwn` | Pattern: wallet every paid | workaround, emerging | 5 May 2026 |
+| `radar:concept:concept_1777895415491_alqun` | Concept: Create React Takes | concept, new | 4 May 2026 |
+| `radar:concept:concept_1777895615266_kpfyf` | Concept: Stopped Claude Drifting | concept, new | 4 May 2026 |
+| `radar:concept:concept_1777955376893_ne7fy` | Concept: Churndog Churn Always | concept, new | 5 May 2026 |
+| `signal:sig_yt_builder_core_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_user_experience_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_episode_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_confucius_code_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_agent_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agent_cca_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_swe_bench_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bench_pro_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_confucius_code_agent_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_agent_cca_1777633451400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_1777636703126` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_claude_code_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_claude_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_just_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_just_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_claude_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_design_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_claude_1777636703127` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_2026_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_and_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_for_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_app_design_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_modern_mobile_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_learn_design_1777636703488` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_systems_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_session_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_for_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_agentic_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_session_from_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_from_the_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agents_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_session_from_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_session_from_the_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_from_the_agents_1777636703845` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_1777636704191` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_code_claude_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_routines_claude_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_routines_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_claude_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_https_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_https_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_www_1777636704192` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_vibe_coding_1777636704550` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_coding_101_1777636704550` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_vibe_coding_101_1777636704550` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_animated_comedy_1777636704550` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_comedy_shorts_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_101_lesson_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_animated_comedy_shorts_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_coding_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_coding_101_lesson_1777636704550` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_smart_glasses_1777636704946` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_ray_1777636704946` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ray_ban_1777636704946` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_galaxy_glasses_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_ray_ban_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_glasses_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_galaxy_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gucci_google_1777636704946` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_building_agentic_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_they_are_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_coding_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_agentic_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_stack_for_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777636705188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_com_agentic_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_tools_are_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_workflows_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_youtu_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_quot_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_designers_1777636705532` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_user_experience_1777636705850` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_customer_experience_1777636705850` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636705850` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_longer_1777636705850` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_not_the_1777636705850` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_shorts_1777636706188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_1777636706188` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_feedshorts_animasi_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_mulai_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_bicara_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_feedshorts_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_animasi_1777636706189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_videos_1777636706508` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_this_video_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_video_generated_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_and_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_and_created_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_created_for_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_entertainment_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_entertainment_purposes_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_purposes_only_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_only_inspired_1777636706508` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_seedance_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_inkpaintingfunny_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_inkpaintingfunny_aishortvideo_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aishortvideo_episode_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_episode_dream_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dream_seedance_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_inkpaintingfunny_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_inkpaintingfunny_aishortvideo_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_inkpaintingfunny_aishortvideo_episode_1777636706929` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_learn_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_learn_how_1777636707238` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_perfect_for_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_like_and_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_subscribe_for_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_2026_learn_how_1777636707238` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_like_and_subscribe_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_for_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_guide_2026_1777636707238` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_transformation_neonlights_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_neonlights_using_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_using_seedream_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedream_and_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_seedance_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedance_pro_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_pro_generate_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_generate_your_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_your_amazing_1777636707544` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777636707820` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_banana_pro_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_nano_banana_pro_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_image_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_image_nano_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_banana_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_banana_google_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_google_gemini_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_nano_banana_google_1777636707820` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_chatgpt_1777636708161` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_photo_editing_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_edit_chatgpt_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_gemini_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_chatgpt_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_chatgpt_chatgpt_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_photo_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aesthetic_girl_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_girl_collage_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_collage_edit_1777636708161` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_meta_1777636708499` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777636708499` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bareng_meta_1777636708499` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_glasses_1777636708865` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_smart_glasses_1777636708865` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_smart_1777636708865` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ray_ban_1777636708865` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_smart_glasses_1777636708865` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ban_meta_1777636708865` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ray_ban_meta_1777636708865` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_workers_were_1777636708865` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_glasses_and_1777636708865` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mark_zuckerberg_1777636708865` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_360_1777636709170` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_for_agents_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_software_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_salesforce_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_360_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_software_why_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_why_companies_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_companies_are_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_building_1777636709171` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_get_started_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_isn_just_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_design_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_started_with_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_with_design_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dive_into_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_into_the_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_shift_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shift_with_1777636709464` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_1777636743592` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_claude_code_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_claude_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_just_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_just_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_claude_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_design_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_claude_1777636743592` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_2026_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_and_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_for_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_app_design_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_modern_mobile_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_learn_design_1777636743965` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_systems_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_session_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_agentic_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_session_from_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_from_the_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agents_1777636744329` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_session_from_1777636744330` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_session_from_the_1777636744330` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_from_the_agents_1777636744330` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636744330` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_1777636744666` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_code_claude_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_routines_claude_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_routines_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_claude_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_https_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_https_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_www_1777636744666` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_vibe_coding_1777636744966` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_coding_101_1777636744966` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_vibe_coding_101_1777636744966` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_animated_comedy_1777636744966` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_comedy_shorts_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_101_lesson_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_animated_comedy_shorts_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_coding_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_coding_101_lesson_1777636744966` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_smart_glasses_1777636745311` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_ray_1777636745311` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ray_ban_1777636745311` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_galaxy_glasses_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_ray_ban_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_glasses_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_galaxy_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gucci_google_1777636745311` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_building_agentic_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_they_are_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_coding_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_agentic_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_stack_for_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777636745580` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_com_agentic_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_tools_are_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_workflows_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_youtu_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_quot_1777636745924` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_designers_1777636745925` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_user_experience_1777636746189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_customer_experience_1777636746189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636746189` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_longer_1777636746190` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_not_the_1777636746190` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_shorts_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_feedshorts_animasi_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_mulai_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_bicara_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_feedshorts_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_animasi_1777636746554` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_videos_1777636746911` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_this_video_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_video_generated_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_and_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_and_created_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_created_for_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_entertainment_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_entertainment_purposes_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_purposes_only_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_only_inspired_1777636746911` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_seedance_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_inkpaintingfunny_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_inkpaintingfunny_aishortvideo_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aishortvideo_episode_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_episode_dream_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dream_seedance_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_inkpaintingfunny_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_inkpaintingfunny_aishortvideo_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_inkpaintingfunny_aishortvideo_episode_1777636747236` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_learn_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_learn_how_1777636747527` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_perfect_for_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_like_and_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_subscribe_for_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_2026_learn_how_1777636747527` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_like_and_subscribe_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_for_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_guide_2026_1777636747527` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_transformation_neonlights_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_neonlights_using_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_using_seedream_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedream_and_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_seedance_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedance_pro_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_pro_generate_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_generate_your_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_your_amazing_1777636747790` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777636748103` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_banana_pro_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_nano_banana_pro_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_image_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_image_nano_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_banana_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_banana_google_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_google_gemini_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_nano_banana_google_1777636748103` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_chatgpt_1777636748415` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_photo_editing_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_edit_chatgpt_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_gemini_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_chatgpt_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_chatgpt_chatgpt_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_photo_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aesthetic_girl_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_girl_collage_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_collage_edit_1777636748415` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_meta_1777636748737` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777636748737` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bareng_meta_1777636748737` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_glasses_1777636749039` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_smart_glasses_1777636749040` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_smart_1777636749040` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ray_ban_1777636749040` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_smart_glasses_1777636749040` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ban_meta_1777636749040` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ray_ban_meta_1777636749040` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_workers_were_1777636749040` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_glasses_and_1777636749040` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mark_zuckerberg_1777636749040` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_360_1777636749328` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_for_agents_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_software_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_salesforce_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_360_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_software_why_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_why_companies_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_companies_are_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_building_1777636749328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_get_started_1777636749559` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_isn_just_1777636749559` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_design_1777636749559` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_started_with_1777636749559` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_with_design_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dive_into_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_into_the_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_shift_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shift_with_1777636749560` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_1777640031636` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_claude_code_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_claude_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_just_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_just_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_claude_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_design_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_claude_1777640031636` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_turn_your_1777640032055` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_2026_1777640032055` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_and_1777640032055` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_for_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_understand_how_1777640032328` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_agentic_systems_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_session_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_governance_1777640032328` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_1777640032664` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_code_claude_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_routines_claude_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_routines_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_claude_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_with_claude_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_https_1777640032664` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_vibe_coding_1777640033070` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_coding_101_1777640033070` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_vibe_coding_101_1777640033070` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_animated_comedy_1777640033070` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_comedy_shorts_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_101_lesson_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_animated_comedy_shorts_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_coding_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_coding_101_lesson_1777640033070` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_smart_glasses_1777640033479` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_ray_1777640033479` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_galaxy_glasses_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ray_ban_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_ray_ban_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_glasses_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_galaxy_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gucci_google_1777640033479` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_building_agentic_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_they_are_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_coding_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_agentic_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_stack_for_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777640033763` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_com_agentic_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_tools_are_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_workflows_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_youtu_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_quot_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_designers_1777640034072` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_user_experience_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_not_the_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_you_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_customer_experience_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777640034351` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_movie_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_movie_scenes_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_shorts_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_feedshorts_animasi_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_mulai_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_bicara_1777640034742` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_videos_1777640035095` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_video_generator_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_kids_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_videos_shortsfeed_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shortsfeed_shorts_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_welcome_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_welcome_the_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_world_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_world_magic_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_magic_here_1777640035095` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_seedance_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_music_video_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_video_created_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_inkpaintingfunny_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_inkpaintingfunny_aishortvideo_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aishortvideo_episode_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_episode_dream_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dream_seedance_1777640035363` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_inkpaintingfunny_1777640035364` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_learn_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_learn_how_1777640035676` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_perfect_for_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_like_and_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_subscribe_for_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_2026_learn_how_1777640035676` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_like_and_subscribe_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_for_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_guide_2026_1777640035676` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_transformation_neonlights_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_neonlights_using_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_using_seedream_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedream_and_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_seedance_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedance_pro_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_pro_generate_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_generate_your_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_your_amazing_1777640035979` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_1777640036322` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_banana_pro_1777640036323` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_nano_banana_pro_1777640036323` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_gpt_image_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_image_nano_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_image_nano_banana_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_images_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_images_now_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_now_outperforms_1777640036323` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_chatgpt_1777640036644` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_photo_editing_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_edit_chatgpt_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_aesthetic_photo_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_editing_tutorial_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_tutorial_chat_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chat_gpt_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gpt_prompt_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_prompt_instagram_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_instagram_trending_1777640036644` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_meta_1777640036953` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777640036953` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_glasses_1777640037262` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_smart_glasses_1777640037262` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_ray_ban_1777640037262` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_smart_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_smart_glasses_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ban_meta_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ray_ban_meta_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_meta_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_workers_were_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_glasses_and_1777640037262` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_360_1777640037490` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_for_agents_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_software_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_headless_salesforce_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_salesforce_headless_360_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_software_why_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_why_companies_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_companies_are_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_building_1777640037490` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_get_started_1777640037779` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_isn_just_1777640037779` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_design_1777640037779` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_started_with_1777640037779` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_with_design_1777640037779` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_dive_into_1777640037780` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_into_the_1777640037780` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777640037780` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_shift_1777640037780` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shift_with_1777640037780` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_1777647778535` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_design_claude_1777647778535` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_claude_design_claude_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_claude_design_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_how_build_1777647778535` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_code_claude_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_just_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_design_just_1777647778535` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_and_1777647778932` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777647778933` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_design_for_1777647778933` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_figma_design_1777647778933` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_learn_how_1777647778933` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_this_video_1777647779298` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_for_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_what_agentic_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_explained_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_the_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_rag_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_systems_1777647779299` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_1777647779686` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_this_video_1777647779686` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_claude_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_claude_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_codex_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claude_code_codex_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_claude_code_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_chatgpt_claude_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_claudecode_claude_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_code_routines_1777647779687` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_vibe_coding_1777647780068` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_coding_101_1777647780068` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_vibe_coding_101_1777647780068` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_animated_comedy_1777647780068` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_comedy_shorts_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_101_lesson_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_animated_comedy_shorts_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_vibe_coding_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_coding_101_lesson_1777647780068` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_smart_glasses_1777647780400` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_meta_ray_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_galaxy_glasses_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_samsung_galaxy_glasses_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ray_ban_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_meta_ray_ban_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_samsung_galaxy_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_gucci_google_1777647780400` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_building_agentic_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_they_are_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_coding_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_agentic_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_stack_for_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777647780770` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_future_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_com_agentic_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_tools_are_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_workflows_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_youtu_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_agentic_quot_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_for_designers_1777647781106` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_user_experience_1777647781489` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_customer_experience_1777647781489` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_the_agentic_1777647781489` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_are_longer_1777647781489` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_not_the_1777647781489` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shorts_movie_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_trending_shorts_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_bicara_feedshorts_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_feedshorts_animasi_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_ketika_buah_mulai_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_buah_mulai_bicara_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_mulai_bicara_feedshorts_1777647781839` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_videos_1777647782267` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_generated_short_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_short_film_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_generated_short_film_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_video_generator_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_movie_shooting_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_shooting_location_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_style_this_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_video_generated_1777647782267` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_seedance_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_using_seedance_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_with_seedance_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_this_video_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_higgsfield_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_seedance_create_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_higgsfield_https_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_https_higgsfield_1777647782612` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_higgsfield_https_higgsfield_1777647782613` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_music_video_1777647782613` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_2026_learn_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_learn_how_1777647783034` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_perfect_for_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_like_and_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_subscribe_for_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_2026_learn_how_1777647783034` | Signal: undefined (youtube) | recurring-question, up | — |
+| `signal:sig_yt_like_and_subscribe_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_subscribe_for_1777647783034` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_higgsfield_step_1777647783034` | Signal: undefined (youtube) | repeating-hook, up | — |
+| `signal:sig_yt_nano_banana_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_transformation_neonlights_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_neonlights_using_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_using_seedream_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedream_and_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_and_seedance_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_seedance_pro_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_pro_generate_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_generate_your_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
+| `signal:sig_yt_your_amazing_1777647783385` | Signal: undefined (youtube) | entity-spike, up | — |
 
 ## Storage Key Registry
 
