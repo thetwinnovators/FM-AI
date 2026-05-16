@@ -23,7 +23,7 @@ export default function ToolMentionPicker({ tools, query, activeIdx, onSelect })
       .slice(0, 9)
   }, [tools, query])
 
-  if (!filtered.length) return null
+  const isEmpty = !filtered.length
 
   return (
     <div
@@ -35,6 +35,18 @@ export default function ToolMentionPicker({ tools, query, activeIdx, onSelect })
         <span className="text-[10px] text-white/35 uppercase tracking-wider">Pin a tool</span>
         {query && <span className="text-[10px] text-indigo-400/70 font-mono">#{query}</span>}
       </div>
+      {isEmpty ? (
+        <div className="px-3 py-3 text-center">
+          <p className="text-[12px] text-white/40">
+            {query
+              ? <>No tools match <span className="font-mono text-indigo-400/70">#{query}</span></>
+              : 'No tools connected'}
+          </p>
+          <p className="text-[11px] text-white/25 mt-0.5">
+            Go to <span className="text-white/40">Connections → Docker MCP</span> to add tools
+          </p>
+        </div>
+      ) : null}
       {filtered.map((tool, idx) => {
         const source = tool.displayName.replace(tool.toolName, '').replace(/[()]/g, '').trim()
         return (
@@ -64,9 +76,11 @@ export default function ToolMentionPicker({ tools, query, activeIdx, onSelect })
           </button>
         )
       })}
-      <div className="px-3 py-1 border-t border-white/[0.06] text-[10px] text-white/20">
-        ↑↓ navigate · Enter select · Esc close
-      </div>
+      {!isEmpty && (
+        <div className="px-3 py-1 border-t border-white/[0.06] text-[10px] text-white/20">
+          ↑↓ navigate · Enter select · Esc close
+        </div>
+      )}
     </div>
   )
 }

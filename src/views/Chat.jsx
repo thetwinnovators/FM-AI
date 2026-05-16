@@ -575,6 +575,9 @@ function Composer({ onSend, onStop, disabled, busy, voicePlaying }) {
               const before = val.slice(0, cursor)
               const match  = before.match(/#(\w*)$/)
               if (match) {
+                // Refresh catalog on every open so newly-connected integrations
+                // appear without requiring a page reload.
+                setAllTools(localMCPStorage.listTools())
                 setToolQuery(match[1].toLowerCase())
                 setPickerOpen(true)
                 setPickerIdx(0)
