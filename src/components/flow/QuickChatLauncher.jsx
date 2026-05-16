@@ -198,9 +198,24 @@ export default function QuickChatLauncher() {
     setPinnedTools((prev) => prev.filter((t) => t.id !== toolId))
   }
 
+  // Docker MCP tools (e.g. InVideo generate-video-from-script) need the full
+  // agent loop which only runs in the main Chat view. Quick Chat uses streamChat
+  // and can't execute tool calls or show approval dialogs. Intercept early and
+  // redirect so the model never gets a chance to hallucinate a navigate action.
+  const DOCKER_MCP_PHRASES = /\b(generate|create|make|produce)\s+(?:a\s+)?(?:short\s+)?video\b|\brun\s+(?:this\s+)?(?:python|script|code)\b|\bexecute\s+(?:this\s+)?(?:code|script)\b/i
+
   async function send(overrideText) {
     const text = String(overrideText ?? draft).trim()
     if (!text || busy) return
+
+    if (DOCKER_MCP_PHRASES.test(text)) {
+      setMessages((m) => [...m,
+        { role: 'user', content: text },
+        { role: 'assistant', content: 'To generate a video (or run code), open the [main Chat](/chat) — that\'s where the agent loop runs and can call InVideo and other Docker MCP tools directly. Quick Chat doesn\'t have access to those tools.' },
+      ])
+      setDraft('')
+      return
+    }
 
     if (listening) stopMic()
     const sentPinnedTools = [...pinnedTools]
