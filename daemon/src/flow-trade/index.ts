@@ -365,11 +365,16 @@ export class FlowTradeModule {
 
     app.get('/flow-trade/events', (req, reply) => {
       if (!requireAuth(req, reply)) return
+      // CORS must be written manually here because reply.raw.writeHead() bypasses
+      // Fastify's onSend hook chain where @fastify/cors normally injects headers.
+      const origin = (req.headers['origin'] as string) || '*'
       reply.raw.writeHead(200, {
-        'Content-Type':    'text/event-stream',
-        'Cache-Control':   'no-cache',
-        'Connection':      'keep-alive',
-        'X-Accel-Buffering': 'no',
+        'Content-Type':                'text/event-stream',
+        'Cache-Control':               'no-cache',
+        'Connection':                  'keep-alive',
+        'X-Accel-Buffering':           'no',
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Headers': 'authorization, content-type',
       })
       reply.raw.write('data: {"type":"connected"}\n\n')
 
