@@ -1,8 +1,28 @@
 import { chatJson } from '../../lib/llm/ollama.js'
 import { localMCPStorage } from '../../mcp/storage/localMCPStorage.js'
 import { runTool } from '../../mcp/services/mcpExecutionService.js'
+import { discoverTools } from '../../mcp/services/mcpToolRegistry.js'
 import { writeAgentResult } from '../../mcp/services/mcpMemoryService.js'
 import { buildAgentSystemPrompt } from './agentSystemPrompt.js'
+
+// ─── Docker MCP auto-refresh ──────────────────────────────────────────────────
+// Docker MCP tools are only cached when the user visits Connections → Docker MCP.
+// Refresh them silently before every agent run so InVideo and other Docker tools
+// are always in the catalog without requiring a manual reconnect.
+async function refreshDockerMCPTools(): Promise<void> {
+  const integ = localMCPStorage.listIntegrations().find((i) => i.type === 'docker-mcp')
+  if (!integ) return
+  try {
+    await Promise.race([
+      discoverTools({ ...integ, status: 'connected' }).then(() => {
+        // If discover succeeded, mark integration as connected so tools pass the
+        // connectedIds filter inside buildAgentSystemPrompt.
+        localMCPStorage.updateIntegration(integ.id, { status: 'connected' })
+      }),
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000)),
+    ])
+  } catch { /* daemon not running or timed out — fall back to cached tools */ }
+}
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -73,6 +93,10 @@ export async function runAgentLoop(
   options: RunAgentLoopOptions,
 ): Promise<{ steps: AgentStep[]; finalAnswer: string }> {
   const { ctrl, memoryContext = [], pinnedToolIds = [], onEvent } = options
+
+  // Refresh Docker MCP tools before building the system prompt so InVideo and
+  // other Docker tools are always in the catalog without a manual reconnect.
+  await refreshDockerMCPTools()
 
   const systemPrompt = buildAgentSystemPrompt(memoryContext, pinnedToolIds)
   const messages: Array<{ role: string; content: string }> = [
