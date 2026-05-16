@@ -112,6 +112,25 @@ export async function runAgentLoop(
     onEvent(event)
   }
 
+  // ── Docker MCP pre-flight ──────────────────────────────────────────────────
+  // If the user is asking for a Docker MCP action (video generation, code
+  // execution) but no Docker MCP tools are cached yet, skip the JSON agent
+  // loop entirely and explain how to connect — avoids the cryptic
+  // "model returned unexpected output" failure that happens when the system
+  // prompt contains "(no tools connected)" and the model can't produce JSON.
+  const DOCKER_ACTION_RE = /\b(generate|create|make|produce)\s+(?:a\s+)?(?:short\s+)?video\b|\brun\s+(?:this\s+)?(?:python|script|code)\b|\bexecute\s+(?:this\s+)?(?:code|script)\b/i
+  if (DOCKER_ACTION_RE.test(text)) {
+    const dockerInteg = localMCPStorage.listIntegrations().find((i) => i.type === 'docker-mcp')
+    const dockerToolCount = dockerInteg
+      ? localMCPStorage.listTools().filter((t) => t.integrationId === dockerInteg.id).length
+      : 0
+    if (dockerToolCount === 0) {
+      finalAnswer = 'I need Docker MCP connected to do that — InVideo lives inside it.\n\n**To connect:**\n1. Open **Docker Desktop** and make sure it\'s running.\n2. In FlowMap go to **Connections → Docker MCP** and click **Connect**.\n3. Come back here and send the same message — I\'ll discover InVideo automatically.'
+      emit({ type: 'done', answer: finalAnswer })
+      return { steps, finalAnswer }
+    }
+  }
+
   while (step < MAX_STEPS) {
     if (ctrl.signal.aborted) break
 
@@ -128,7 +147,10 @@ export async function runAgentLoop(
     }
 
     if (!parsed) {
-      finalAnswer = "I couldn't produce a valid action for that request — the model returned unexpected output. Try rephrasing."
+      const wantedVideo = DOCKER_ACTION_RE.test(text)
+      finalAnswer = wantedVideo
+        ? 'The model failed to produce valid JSON to call the video tool. Try switching to a 7B+ model in the model picker, or be explicit: "Use generate-video-from-script with script=[your text]".'
+        : "I couldn't produce a valid action for that request — the model returned unexpected output. Try rephrasing."
       emit({ type: 'done', answer: finalAnswer })
       break
     }
