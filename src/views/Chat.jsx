@@ -947,6 +947,18 @@ export default function Chat() {
     // model never responds to "hey" with retrieval-failure language.
     const intent = classifyIntent(text)
 
+    // Upgrade to tool_use when the message explicitly names a connected tool
+    // (e.g. "Use generate-video-from-script with script=…"). classifyIntent
+    // pattern-matches on action phrases only; it can't know what tools exist.
+    const resolvedIntent = (() => {
+      if (intent === 'tool_use') return 'tool_use'
+      const msgLower = text.toLowerCase()
+      const hasToolName = localMCPStorage.listTools().some(
+        (t) => t.toolName && msgLower.includes(t.toolName.toLowerCase()),
+      )
+      return hasToolName ? 'tool_use' : intent
+    })()
+
     // Create the abort controller early — shared across pipeline retrieval and
     // the Ollama stream so Esc / Stop cancels both at once.
     const ctrl = new AbortController()
@@ -967,7 +979,7 @@ export default function Chat() {
     latestAssistantRef.current = ''
 
     // ── Agent loop (tool_use intent) ────────────────────────────────────────
-    if (intent === 'tool_use') {
+    if (resolvedIntent === 'tool_use') {
       const agentMemory = [
         ...(seedMemory || []).filter((m) => !isMemoryDismissed(m.id)),
         ...Object.values(memoryEntries || {}),
@@ -1009,7 +1021,7 @@ export default function Chat() {
     let pipelineResult = null
     let retrieved = []
 
-    if (intent !== 'casual_chat') {
+    if (resolvedIntent !== 'casual_chat') {
       pipelineResult = await retrieveWithPipeline(
         {
           query:            text,
@@ -1071,7 +1083,7 @@ export default function Chat() {
     // Compute allRecent BEFORE buildSystemMessage so we can pass recentMessages
     const allRecent = chatMessagesFor(convId) // includes the user msg we just added
     const systemMessage = buildSystemMessage(
-      retrieved, text, allMemory, allTopics, allNotes, intent, folders,
+      retrieved, text, allMemory, allTopics, allNotes, resolvedIntent, folders,
       pipelineResult?.contextText ?? null,
       allDocs,
       allRecent.slice(-4, -1),
