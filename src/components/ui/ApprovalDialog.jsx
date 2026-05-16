@@ -31,9 +31,7 @@ export function ApprovalDialogProvider({ children }) {
       {pending && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          {/* Backdrop click is intentionally a no-op — accidental clicks outside
-              the dialog should not silently deny a tool call. Use the Deny button. */}
-        >
+        >{/* Backdrop click intentionally does nothing — use Deny or Approve buttons */}
           <div className="w-full max-w-md mx-4 rounded-2xl border border-white/10 bg-[color:var(--color-bg-panel,#0d0e12)] p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 rounded-lg bg-amber-500/15 border border-amber-500/25">
