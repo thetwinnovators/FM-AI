@@ -88,6 +88,68 @@ function build24hBuckets() {
   })
 }
 
+/** Scan all ingest sources and return the earliest timestamp in ms, or null. */
+function findEarliestTimestamp(saves, manualContent, memoryEntries) {
+  const ts = [
+    ...Object.values(saves         || {}).map((s) => s?.savedAt),
+    ...Object.values(manualContent || {}).map((m) => m?.savedAt),
+    ...Object.values(memoryEntries || {}).map((m) => m?.addedAt),
+  ]
+    .filter(Boolean)
+    .map((iso) => new Date(iso).getTime())
+    .filter((n) => !isNaN(n))
+  return ts.length ? Math.min(...ts) : null
+}
+
+/**
+ * Build daily (≤ 120 days) or weekly (> 120 days) buckets from `startMs` to now.
+ * Buckets are snapped to local midnight; the last bucket always covers today.
+ */
+function buildRangeBuckets(startMs) {
+  const DAY_MS  = 86_400_000
+  const WEEK_MS = 7 * DAY_MS
+
+  // Snap start to local midnight
+  const s0 = new Date(startMs)
+  s0.setHours(0, 0, 0, 0)
+  const snapStart = s0.getTime()
+
+  // Snap end to start of tomorrow so today is fully included
+  const eod = new Date()
+  eod.setHours(0, 0, 0, 0)
+  eod.setDate(eod.getDate() + 1)
+  const snapEnd = eod.getTime()
+
+  const totalDays = Math.ceil((snapEnd - snapStart) / DAY_MS)
+  const useWeekly = totalDays > 120
+  const bucketMs  = useWeekly ? WEEK_MS : DAY_MS
+  const count     = Math.max(2, Math.ceil((snapEnd - snapStart) / bucketMs))
+
+  // Show at most ~8 X-axis labels
+  const labelEvery = Math.max(1, Math.ceil(count / 8))
+
+  return Array.from({ length: count }, (_, i) => {
+    const start  = snapStart + i * bucketMs
+    const end    = start + bucketMs
+    const d      = new Date(start)
+    const isLast = i === count - 1
+
+    const showLabel = i === 0 || i % labelEvery === 0 || isLast
+    const dayLabel  = isLast
+      ? 'Today'
+      : showLabel
+        ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : null
+    const tipLabel  = isLast
+      ? 'Today'
+      : useWeekly
+        ? `Week of ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+        : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+
+    return { dayLabel, hourLabel: null, tipLabel, isDayStart: true, start, end, count: 0 }
+  })
+}
+
 /** Count ISO timestamps (full or YYYY-MM-DD) into pre-built day buckets. */
 function fillBuckets(baseBuckets, timestamps) {
   const slots = baseBuckets.map((b) => ({ ...b, count: 0 }))
@@ -214,16 +276,35 @@ function toCumulative(buckets) {
   return buckets.map((b) => ({ ...b, count: (running += b.count) }))
 }
 
+const RANGE_PRESETS = [
+  { days: 7,    label: '7d'  },
+  { days: 30,   label: '30d' },
+  { days: 90,   label: '90d' },
+  { days: null, label: 'All' },
+]
+
 function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
   const [hoveredIdx, setHoveredIdx] = useState(null)
-  const [tip, setTip] = useState({ x: 0, y: 0, pct: 0 })
+  const [tip,        setTip       ] = useState({ x: 0, y: 0, pct: 0 })
+  const [rangeDays,  setRangeDays ] = useState(30)  // 7 | 30 | 90 | null=all-time
   // Force SVG remount on every component mount so SMIL animations replay on
   // every page visit — including tab-switches that keep the component alive.
   const [mountKey, setMountKey] = useState(0)
   useEffect(() => { setMountKey((k) => k + 1) }, [])
 
-  const { deltaBuckets, cumBuckets, baseMeta, activeSeries, peak, totalCount } = useMemo(() => {
-    const base = build24hBuckets()   // 30 daily slots
+  // Also remount the SVG whenever the range changes so animations replay
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setMountKey((k) => k + 1) }, [rangeDays])
+
+  const { deltaBuckets, cumBuckets, baseMeta, activeSeries, peak, totalCount, rangeStartMs } = useMemo(() => {
+    // Resolve range start
+    const DAY_MS      = 86_400_000
+    const earliestTs  = findEarliestTimestamp(saves, manualContent, memoryEntries)
+    const rangeStartMs = rangeDays != null
+      ? Date.now() - rangeDays * DAY_MS
+      : (earliestTs ?? Date.now() - 30 * DAY_MS)
+
+    const base = buildRangeBuckets(rangeStartMs)
 
     const deltaBuckets = {
       video:       fillBuckets(base, Object.values(saves)
@@ -248,8 +329,8 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
     const allCum = Object.values(cumBuckets).flatMap((bs) => bs.map((b) => b.count))
     const peak   = Math.max(1, ...allCum)
 
-    return { deltaBuckets, cumBuckets, baseMeta: base, activeSeries, peak, totalCount }
-  }, [saves, manualContent, memoryEntries])
+    return { deltaBuckets, cumBuckets, baseMeta: base, activeSeries, peak, totalCount, rangeStartMs }
+  }, [saves, manualContent, memoryEntries, rangeDays])
 
   const N       = baseMeta.length - 1   // 27 intervals across 28 slots
   const isEmpty = totalCount === 0
@@ -274,17 +355,41 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
         <div>
           <h2 className="text-[13px] font-semibold">Knowledge growth</h2>
           <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-0.5">
-            Cumulative ingest · daily · last 30 days
+            {rangeDays != null
+              ? `Cumulative ingest · daily · last ${rangeDays} days`
+              : `Cumulative ingest · all time · since ${new Date(rangeStartMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
           </p>
         </div>
-        <div className="flex items-center gap-4 flex-wrap">
-          {(activeSeries.length > 0 ? activeSeries : SERIES.slice(0, 3)).map((s) => (
-            <span key={s.key} className="flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-secondary)]">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
-              {s.label}
-            </span>
-          ))}
-          {totalCount > 0 && <Pill tone="neutral">{totalCount} ingested</Pill>}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Range picker */}
+          <div className="flex items-center gap-0.5 rounded-lg p-0.5"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+            {RANGE_PRESETS.map(({ days, label }) => (
+              <button
+                key={label}
+                onClick={() => setRangeDays(days)}
+                className="text-[10px] px-2.5 py-[3px] rounded-md transition-colors font-medium"
+                style={
+                  rangeDays === days
+                    ? { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.90)' }
+                    : { color: 'rgba(255,255,255,0.30)' }
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Legend + count */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {(activeSeries.length > 0 ? activeSeries : SERIES.slice(0, 3)).map((s) => (
+              <span key={s.key} className="flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-secondary)]">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
+                {s.label}
+              </span>
+            ))}
+            {totalCount > 0 && <Pill tone="neutral">{totalCount} ingested</Pill>}
+          </div>
         </div>
       </div>
 
@@ -294,7 +399,7 @@ function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
           key={mountKey}
           viewBox={`0 0 ${VB_W} ${VB_H}`}
           style={{ width: '100%', height: 'auto', display: 'block', cursor: 'crosshair' }}
-          aria-label="Knowledge growth over the last 30 days"
+          aria-label={rangeDays != null ? `Knowledge growth over the last ${rangeDays} days` : 'Knowledge growth all time'}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setHoveredIdx(null)}
         >
