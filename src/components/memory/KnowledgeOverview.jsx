@@ -1286,8 +1286,6 @@ function OllamaModels() {
 
 // ─── Storage usage (isometric 3D donut) ──────────────────────────────────────
 
-const LS_TOTAL_BYTES = 5 * 1024 * 1024   // 5 MB typical browser limit
-
 function measureLocalStorage() {
   let bytes = 0
   try {
@@ -1301,23 +1299,38 @@ function measureLocalStorage() {
 }
 
 function fmtBytes(b) {
-  if (b >= 1_048_576) return `${(b / 1_048_576).toFixed(2)} MB`
-  if (b >= 1_024)    return `${(b / 1_024).toFixed(1)} KB`
+  if (b >= 1_073_741_824) return `${(b / 1_073_741_824).toFixed(1)} GB`
+  if (b >= 1_048_576)     return `${(b / 1_048_576).toFixed(2)} MB`
+  if (b >= 1_024)         return `${(b / 1_024).toFixed(1)} KB`
   return `${b} B`
 }
 
 // Isometric ellipse constants
 const ISO_SQ    = 0.42   // ry / rx squash factor
-const ISO_DEPTH = 13     // extrusion depth in SVG px
+const ISO_DEPTH = 15     // extrusion depth in SVG px
 
 function StorageDonut() {
-  const usedBytes = useMemo(() => measureLocalStorage(), [])
-  const pct       = Math.min(1, usedBytes / LS_TOTAL_BYTES)
-  const remBytes  = LS_TOTAL_BYTES - usedBytes
+  const lsBytes = useMemo(() => measureLocalStorage(), [])
+  // Async quota from the browser's Storage API — much more accurate than the
+  // old hardcoded 5 MB limit (modern browsers grant far more, varies by origin).
+  const [est, setEst] = useState(null)   // { usage: number, quota: number }
+  useEffect(() => {
+    if (typeof navigator?.storage?.estimate !== 'function') return
+    navigator.storage.estimate()
+      .then(({ usage = 0, quota = 0 }) => setEst({ usage, quota }))
+      .catch(() => {})
+  }, [])
 
-  // SVG layout
-  const W = 240, H = 160, CX = 100, CY = 76
-  const OR = 62, IR = 36
+  // Prefer navigator.storage (whole-origin: LS + IDB + Cache) once it loads.
+  // Fall back to raw LS measurement until estimate resolves.
+  const usedBytes  = est?.usage  ?? lsBytes
+  const totalBytes = est?.quota  ?? Math.max(lsBytes * 4, 50 * 1024 * 1024)
+  const pct        = totalBytes > 0 ? Math.min(1, usedBytes / totalBytes) : 0
+  const remBytes   = Math.max(0, totalBytes - usedBytes)
+
+  // SVG layout — centred in vertical stack, larger for visual weight
+  const W = 260, H = 172, CX = 130, CY = 86
+  const OR = 72, IR = 42
 
   // Point on isometric ellipse at angle a, radius r
   function pt(r, a) {
@@ -1366,14 +1379,14 @@ function StorageDonut() {
   const fullUsed = pct > 0.995
 
   return (
-    <div className="glass-panel p-5 fm-fade-up" style={{ '--fm-delay': '310ms' }}>
-      <SectionHead title="Local storage" sub="browser quota · 5 MB limit" />
-      <div className="flex items-center gap-6">
+    <div className="glass-panel p-5">
+      <SectionHead title="Local storage" sub={est ? `browser quota · ${fmtBytes(totalBytes)}` : 'browser storage quota'} />
+      <div className="flex flex-col items-center gap-4">
 
         {/* ── Isometric 3D donut ── */}
-        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+        <svg viewBox={`0 0 ${W} ${H}`}
           aria-label={`Local storage: ${Math.round(pct * 100)}% used`}
-          style={{ flex: '0 0 auto', overflow: 'visible' }}>
+          style={{ width: '75%', height: 'auto', overflow: 'visible', display: 'block' }}>
           <defs>
             <linearGradient id="ls-used-top" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#a78bfa" />
@@ -1429,7 +1442,7 @@ function StorageDonut() {
         </svg>
 
         {/* ── Stats panel ── */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="w-full space-y-3">
           {[
             {
               label: 'Used',
@@ -1461,7 +1474,7 @@ function StorageDonut() {
             </div>
           ))}
           <p className="text-[10px] text-[color:var(--color-text-tertiary)]">
-            {localStorage.length} keys · 5 MB browser limit
+            {localStorage.length} LS keys · {est ? fmtBytes(totalBytes) : '…'} total quota
           </p>
         </div>
       </div>
@@ -1578,7 +1591,7 @@ export default function KnowledgeOverview() {
           color={C.signal}  spark={totalSignals / 100}  delay={0.27} />
       </div>
 
-      {/* ── Content mix + Top searches + AI context health ────────────────── */}
+      {/* ── Content mix + Top searches + Local storage ───────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 fm-fade-up" style={{ '--fm-delay': '190ms' }}>
         <div className="glass-panel p-5">
           <ContentMix saves={saves} />
@@ -1587,10 +1600,7 @@ export default function KnowledgeOverview() {
           <SectionHead title="Top searches" sub="your most frequent queries" />
           <TopSearches searches={searches || {}} />
         </div>
-        <div className="glass-panel p-5">
-          <SectionHead title="AI context health" sub="how well FlowAI knows you" />
-          <ContextHealth allMemory={allMemory} follows={follows} userTopics={userTopics} />
-        </div>
+        <StorageDonut />
       </div>
 
       {/* ── Recent captures + Signal pulse ───────────────────────────────── */}
@@ -1605,17 +1615,20 @@ export default function KnowledgeOverview() {
         </div>
       </div>
 
-      {/* ── AI engine (full-width) ────────────────────────────────────────── */}
-      <div className="glass-panel p-5 fm-fade-up" style={{ '--fm-delay': '280ms' }}>
-        <SectionHead
-          title={<span className="flex items-center gap-1.5"><Cpu size={12} className="text-[color:var(--color-tool)]" />AI engine</span>}
-          sub="Ollama models · context windows"
-        />
-        <OllamaModels />
+      {/* ── AI engine + AI context health (side-by-side) ─────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start fm-fade-up" style={{ '--fm-delay': '280ms' }}>
+        <div className="glass-panel p-5">
+          <SectionHead
+            title={<span className="flex items-center gap-1.5"><Cpu size={12} className="text-[color:var(--color-tool)]" />AI engine</span>}
+            sub="Ollama models · context windows"
+          />
+          <OllamaModels />
+        </div>
+        <div className="glass-panel p-5">
+          <SectionHead title="AI context health" sub="how well FlowAI knows you" />
+          <ContextHealth allMemory={allMemory} follows={follows} userTopics={userTopics} />
+        </div>
       </div>
-
-      {/* ── Local storage usage ───────────────────────────────────────────── */}
-      <StorageDonut />
 
     </div>
   )

@@ -33,6 +33,76 @@ function geoToVec3(lat, lng) {
   )
 }
 
+// ── Moon position + phase helpers ─────────────────────────────────────────────
+
+function getMoonPosition() {
+  const now = new Date()
+  const JD  = now.getTime() / 86400000 + 2440587.5   // Julian Date
+  const T   = (JD - 2451545.0) / 36525               // centuries from J2000.0
+  const rad = (d) => (d * Math.PI) / 180
+
+  // Simplified lunar theory (< 1° positional error, Meeus Ch. 47 abridged)
+  const L0 = 218.3164477 + 481267.88123421 * T   // mean longitude
+  const M  = 357.5291092 +  35999.0502909  * T   // sun mean anomaly
+  const Mp = 134.9633964 + 477198.8675055  * T   // moon mean anomaly
+  const F  =  93.2720950 + 483202.0175233  * T   // argument of latitude
+
+  // Ecliptic longitude and latitude (degrees)
+  const λ_ecl = (L0
+    + 6.288774 * Math.sin(rad(Mp))
+    + 1.274027 * Math.sin(rad(2 * L0 - Mp))
+    + 0.658314 * Math.sin(rad(2 * L0))
+    + 0.213618 * Math.sin(rad(2 * Mp))
+    - 0.185116 * Math.sin(rad(M))
+    - 0.114332 * Math.sin(rad(2 * F))) % 360
+
+  const β_ecl = 5.128122 * Math.sin(rad(F))
+    + 0.280602 * Math.sin(rad(Mp + F))
+    + 0.277693 * Math.sin(rad(Mp - F))
+    + 0.173237 * Math.sin(rad(2 * L0 - F))
+
+  // Obliquity of the ecliptic
+  const ε  = 23.439291111 - 0.013004167 * T
+  const λ  = rad(λ_ecl), β = rad(β_ecl), ε0 = rad(ε)
+
+  // Ecliptic → equatorial (declination δ, right ascension α in radians)
+  const sinδ = Math.sin(β) * Math.cos(ε0) + Math.cos(β) * Math.sin(ε0) * Math.sin(λ)
+  const δ    = Math.asin(Math.max(-1, Math.min(1, sinδ)))
+  const α    = Math.atan2(
+    Math.sin(λ) * Math.cos(ε0) - Math.tan(β) * Math.sin(ε0),
+    Math.cos(λ),
+  )
+
+  // Greenwich Mean Sidereal Time (degrees)
+  const JD0  = Math.floor(JD - 0.5) + 0.5
+  const H    = JD - JD0
+  const T0   = (JD0 - 2451545.0) / 36525
+  const GMST = ((100.4606184 + 36000.77004 * T0 + 0.000387933 * T0 * T0) % 360 + 360.98564724 * H) % 360
+
+  // Sub-lunar geographic longitude
+  let geoLng = ((α * 180 / Math.PI) - GMST + 720) % 360
+  if (geoLng > 180) geoLng -= 360
+
+  return { lat: (δ * 180) / Math.PI, lng: geoLng }
+}
+
+function getMoonPhase() {
+  // Reference new moon: 6 Jan 2000 18:14:00 UTC (JD 2451550.26)
+  const REF_NM  = 947182440000     // new Date('2000-01-06T18:14:00Z').getTime()
+  const SYNODIC = 29.53059 * 86400000               // ms per synodic month
+  const phase   = ((Date.now() - REF_NM) % SYNODIC + SYNODIC) % SYNODIC / SYNODIC
+
+  if (phase < 0.025) return { name: 'New Moon',        emoji: '🌑', phase }
+  if (phase < 0.250) return { name: 'Waxing Crescent', emoji: '🌒', phase }
+  if (phase < 0.275) return { name: 'First Quarter',   emoji: '🌓', phase }
+  if (phase < 0.500) return { name: 'Waxing Gibbous',  emoji: '🌔', phase }
+  if (phase < 0.525) return { name: 'Full Moon',       emoji: '🌕', phase }
+  if (phase < 0.750) return { name: 'Waning Gibbous',  emoji: '🌖', phase }
+  if (phase < 0.775) return { name: 'Last Quarter',    emoji: '🌗', phase }
+  if (phase < 0.975) return { name: 'Waning Crescent', emoji: '🌘', phase }
+  return { name: 'New Moon', emoji: '🌑', phase }
+}
+
 // ── Hierarchical zoom helpers ─────────────────────────────────────────────────
 
 // Module-level cache — survives component remounts, loaded once per session.
@@ -109,7 +179,12 @@ export default function FlowGlobe({
   const starsMeshRef    = useRef(null)
   const sunSphereRef    = useRef(null)
   const sunCoronaRef    = useRef(null)
+  const moonSphereRef   = useRef(null)
+  const moonCoronaRef   = useRef(null)
   const ctrlCleanupRef  = useRef(null)
+  const [globeView, setGlobeView] = useState('wire')   // 'wire' | 'normal'
+  const moonPhase = useMemo(() => getMoonPhase(), [])
+  const [celestialPos, setCelestialPos] = useState({ sun: null, moon: null })
   const skipGlobeClick  = useRef(false)   // prevent polygon click → globe click double-fire
   const onLabelClickRef = useRef(onLabelClick)
   useEffect(() => { onLabelClickRef.current = onLabelClick }, [onLabelClick])
@@ -295,6 +370,32 @@ export default function FlowGlobe({
     return () => clearInterval(id)
   }, [])
 
+  // ── Project sun + moon spheres to screen coords every 100 ms ─────────────
+  useEffect(() => {
+    const id = setInterval(() => {
+      const globe = globeRef.current
+      if (!globe) return
+      const camera   = globe.camera?.()
+      const renderer = globe.renderer?.()
+      if (!camera || !renderer) return
+      const cw      = renderer.domElement.clientWidth
+      const ch      = renderer.domElement.clientHeight
+      const camNorm = camera.position.clone().normalize()
+
+      function projectMesh(mesh) {
+        if (!mesh) return null
+        // Cull when the body is on the far side of the globe from the camera
+        if (mesh.position.clone().normalize().dot(camNorm) < 0.08) return null
+        const p = mesh.position.clone().project(camera)
+        return { x: (p.x * 0.5 + 0.5) * cw, y: (-p.y * 0.5 + 0.5) * ch }
+      }
+      setCelestialPos({
+        sun:  projectMesh(sunSphereRef.current),
+        moon: projectMesh(moonSphereRef.current),
+      })
+    }, 100)
+    return () => clearInterval(id)
+  }, [])
 
   // ── Globe surface material ────────────────────────────────────────────────
   // Navy sphere with translucent ocean — the night texture drives the
@@ -332,6 +433,16 @@ export default function FlowGlobe({
       mat.needsUpdate = true
     })
 
+    return mat
+  }, [])
+
+  // "Normal" view — blue-marble texture, no custom shader
+  const normalMaterial = useMemo(() => {
+    const mat = new THREE.MeshPhongMaterial({ shininess: 12 })
+    new THREE.TextureLoader().load(EARTH_DAY, (tex) => {
+      mat.map = tex
+      mat.needsUpdate = true
+    })
     return mat
   }, [])
 
@@ -447,8 +558,10 @@ export default function FlowGlobe({
       sunLightRef.current = sun
 
       // ── Sun visual sphere (core) ──
+      // Placed at 490 units — well past the camera's max orbit of 280 at default
+      // altitude, so it reads as a distant object rather than a nearby orb.
       const sunSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(3.5, 16, 16),
+        new THREE.SphereGeometry(11, 24, 24),
         new THREE.MeshBasicMaterial({ color: 0xfff9e0 }),
       )
       sunSphere.name = 'flowmap-sun-sphere'
@@ -457,22 +570,52 @@ export default function FlowGlobe({
 
       // ── Sun corona glow (outer soft halo) ──
       const corona = new THREE.Mesh(
-        new THREE.SphereGeometry(7, 16, 16),
-        new THREE.MeshBasicMaterial({ color: 0xffe880, transparent: true, opacity: 0.13 }),
+        new THREE.SphereGeometry(22, 24, 24),
+        new THREE.MeshBasicMaterial({ color: 0xffe880, transparent: true, opacity: 0.16 }),
       )
       corona.name = 'flowmap-sun-corona'
       scene.add(corona)
       sunCoronaRef.current = corona
 
-      function updateSunPos() {
-        const { lat, lng } = getSunPosition()
-        const v = geoToVec3(lat, lng)
-        sun.position.set(v.x * 300, v.y * 300, v.z * 300)
-        sunSphere.position.set(v.x * 290, v.y * 290, v.z * 290)
-        corona.position.set(v.x * 290, v.y * 290, v.z * 290)
+      // ── Moon visual sphere — lunar surface texture + Phong shading ──
+      const MOON_TEX = 'https://raw.githubusercontent.com/mrdoob/three.js/r155/examples/textures/planets/moon_1024.jpg'
+      const moonMat = new THREE.MeshPhongMaterial({ shininess: 3 })
+      new THREE.TextureLoader().load(MOON_TEX, (tex) => {
+        moonMat.map = tex
+        moonMat.needsUpdate = true
+      })
+      const moonSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(4.5, 32, 32),
+        moonMat,
+      )
+      moonSphere.name = 'flowmap-moon-sphere'
+      scene.add(moonSphere)
+      moonSphereRef.current = moonSphere
+
+      // ── Moon glow (soft silver halo) ──
+      const moonGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(8, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xe0eaf2, transparent: true, opacity: 0.06 }),
+      )
+      moonGlow.name = 'flowmap-moon-glow'
+      scene.add(moonGlow)
+      moonCoronaRef.current = moonGlow
+
+      function updateBodies() {
+        // Sun — light source at 600 units, visual sphere at 490
+        const { lat: sLat, lng: sLng } = getSunPosition()
+        const sv = geoToVec3(sLat, sLng)
+        sun.position.set(sv.x * 600, sv.y * 600, sv.z * 600)
+        sunSphere.position.set(sv.x * 490, sv.y * 490, sv.z * 490)
+        corona.position.set(sv.x * 490, sv.y * 490, sv.z * 490)
+        // Moon — visual sphere at 440 units
+        const { lat: mLat, lng: mLng } = getMoonPosition()
+        const mv = geoToVec3(mLat, mLng)
+        moonSphere.position.set(mv.x * 440, mv.y * 440, mv.z * 440)
+        moonGlow.position.set(mv.x * 440, mv.y * 440, mv.z * 440)
       }
-      updateSunPos()
-      sunTimerRef.current = setInterval(updateSunPos, 60_000)
+      updateBodies()
+      sunTimerRef.current = setInterval(updateBodies, 60_000)
     }, 600)
 
     return () => {
@@ -485,6 +628,8 @@ export default function FlowGlobe({
           if (starsMeshRef.current) scene.remove(starsMeshRef.current)
           if (sunSphereRef.current) scene.remove(sunSphereRef.current)
           if (sunCoronaRef.current) scene.remove(sunCoronaRef.current)
+          if (moonSphereRef.current) scene.remove(moonSphereRef.current)
+          if (moonCoronaRef.current) scene.remove(moonCoronaRef.current)
         }
       } catch { /* ignore unmount-race */ }
     }
@@ -578,8 +723,8 @@ export default function FlowGlobe({
         width={dims.w  || undefined}
         height={dims.h || undefined}
         backgroundColor="rgba(0,0,0,0)"
-        globeMaterial={globeMaterial}
-        showGraticules={true}
+        globeMaterial={globeView === 'wire' ? globeMaterial : normalMaterial}
+        showGraticules={globeView === 'wire'}
         showAtmosphere={true}
         graticulesColor={GRATICULE_COLOR}
         onGlobeClick={handleGlobeClick}
@@ -618,6 +763,63 @@ export default function FlowGlobe({
         onPolygonHover={(polygon) => setHoveredPolygon(polygon ?? null)}
         onPolygonClick={handlePolygonClick}
       />
+
+      {/* ── Wire / Normal view toggle ────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', top: 10, right: 10, zIndex: 20,
+        display: 'flex', gap: 2,
+        background: 'rgba(0,0,0,0.52)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.09)',
+        borderRadius: 8, padding: 3,
+        pointerEvents: 'auto',
+      }}>
+        {[
+          { id: 'wire',   label: 'Wire' },
+          { id: 'normal', label: 'Normal' },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => setGlobeView(id)}
+            style={{
+              padding: '4px 11px',
+              borderRadius: 5,
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontFamily: 'system-ui, sans-serif',
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+              transition: 'all 0.15s ease',
+              background: globeView === id ? 'rgba(14,210,238,0.18)' : 'transparent',
+              color: globeView === id ? 'rgba(14,210,238,0.92)' : 'rgba(255,255,255,0.32)',
+              boxShadow: globeView === id ? '0 0 10px rgba(14,210,238,0.14)' : 'none',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Moon phase badge ─────────────────────────────────────────────────── */}
+      <div style={{
+        position: 'absolute', bottom: 12, left: 12, zIndex: 20,
+        display: 'flex', alignItems: 'center', gap: 6,
+        background: 'rgba(0,0,0,0.50)',
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 8, padding: '5px 10px',
+        pointerEvents: 'none',
+      }}>
+        <span style={{ fontSize: 15, lineHeight: 1 }}>{moonPhase.emoji}</span>
+        <span style={{
+          fontSize: 11, color: 'rgba(255,255,255,0.60)',
+          fontFamily: 'system-ui, sans-serif', letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+        }}>
+          {moonPhase.name}
+        </span>
+      </div>
 
       {/* ── Label overlay — React-managed divs, no duplication risk ─────────── */}
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
@@ -665,6 +867,56 @@ export default function FlowGlobe({
             </span>
           </div>
         ))}
+
+        {/* ── Sun label ── */}
+        {celestialPos.sun && (
+          <div style={{
+            position:      'absolute',
+            left:          celestialPos.sun.x,
+            top:           celestialPos.sun.y,
+            transform:     'translate(10px, -50%)',
+            display:       'flex',
+            alignItems:    'center',
+            gap:           3,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ width: 4, height: 4, borderRadius: '50%', background: '#ffe87a', flexShrink: 0 }} />
+            <span style={{
+              fontSize:     11,
+              fontWeight:   600,
+              fontFamily:   'system-ui, sans-serif',
+              color:        'rgba(255,232,100,0.92)',
+              letterSpacing: '0.05em',
+              whiteSpace:   'nowrap',
+              textShadow:   '0 0 6px rgba(0,0,0,1),0 0 14px rgba(0,0,0,0.9),0 1px 3px rgba(0,0,0,1)',
+            }}>Sun</span>
+          </div>
+        )}
+
+        {/* ── Moon label ── */}
+        {celestialPos.moon && (
+          <div style={{
+            position:      'absolute',
+            left:          celestialPos.moon.x,
+            top:           celestialPos.moon.y,
+            transform:     'translate(8px, -50%)',
+            display:       'flex',
+            alignItems:    'center',
+            gap:           3,
+            pointerEvents: 'none',
+          }}>
+            <div style={{ width: 3, height: 3, borderRadius: '50%', background: '#b8c9d9', flexShrink: 0 }} />
+            <span style={{
+              fontSize:     11,
+              fontWeight:   500,
+              fontFamily:   'system-ui, sans-serif',
+              color:        'rgba(184,201,217,0.85)',
+              letterSpacing: '0.05em',
+              whiteSpace:   'nowrap',
+              textShadow:   '0 0 6px rgba(0,0,0,1),0 0 12px rgba(0,0,0,0.9),0 1px 3px rgba(0,0,0,1)',
+            }}>Moon</span>
+          </div>
+        )}
       </div>
     </div>
   )
