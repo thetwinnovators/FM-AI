@@ -286,7 +286,7 @@ const RANGE_PRESETS = [
 function KnowledgeGrowthChart({ saves, manualContent, memoryEntries }) {
   const [hoveredIdx, setHoveredIdx] = useState(null)
   const [tip,        setTip       ] = useState({ x: 0, y: 0, pct: 0 })
-  const [rangeDays,  setRangeDays ] = useState(30)  // 7 | 30 | 90 | null=all-time
+  const [rangeDays,  setRangeDays ] = useState(null)  // 7 | 30 | 90 | null=all-time
   // Force SVG remount on every component mount so SMIL animations replay on
   // every page visit — including tab-switches that keep the component alive.
   const [mountKey, setMountKey] = useState(0)
@@ -699,7 +699,7 @@ function ContentMix({ saves }) {
   // Force SVG remount on every component mount so SMIL animations replay on
   // every page visit — including tab-switches that keep the component alive.
   const [mountKey,  setMountKey ] = useState(0)
-  const [rangeDays, setRangeDays] = useState(7)   // 7 | 30 | 90 | null=all-time
+  const [rangeDays, setRangeDays] = useState(null)  // 7 | 30 | 90 | null=all-time
 
   useEffect(() => { setMountKey((k) => k + 1) }, [])
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1284,6 +1284,191 @@ function OllamaModels() {
   )
 }
 
+// ─── Storage usage (isometric 3D donut) ──────────────────────────────────────
+
+const LS_TOTAL_BYTES = 5 * 1024 * 1024   // 5 MB typical browser limit
+
+function measureLocalStorage() {
+  let bytes = 0
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i) ?? ''
+      const v = localStorage.getItem(k) ?? ''
+      bytes += (k.length + v.length) * 2   // UTF-16: 2 bytes per char
+    }
+  } catch {}
+  return bytes
+}
+
+function fmtBytes(b) {
+  if (b >= 1_048_576) return `${(b / 1_048_576).toFixed(2)} MB`
+  if (b >= 1_024)    return `${(b / 1_024).toFixed(1)} KB`
+  return `${b} B`
+}
+
+// Isometric ellipse constants
+const ISO_SQ    = 0.42   // ry / rx squash factor
+const ISO_DEPTH = 13     // extrusion depth in SVG px
+
+function StorageDonut() {
+  const usedBytes = useMemo(() => measureLocalStorage(), [])
+  const pct       = Math.min(1, usedBytes / LS_TOTAL_BYTES)
+  const remBytes  = LS_TOTAL_BYTES - usedBytes
+
+  // SVG layout
+  const W = 240, H = 160, CX = 100, CY = 76
+  const OR = 62, IR = 36
+
+  // Point on isometric ellipse at angle a, radius r
+  function pt(r, a) {
+    return [CX + r * Math.cos(a), CY + r * Math.sin(a) * ISO_SQ]
+  }
+
+  // Top donut sector path: outer arc a1→a2, inner arc a2→a1
+  function topSector(r1, r2, a1, a2) {
+    const span = ((a2 - a1) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI)
+    const lg   = span > Math.PI ? 1 : 0
+    const [ox1, oy1] = pt(r1, a1), [ox2, oy2] = pt(r1, a2)
+    const [ix1, iy1] = pt(r2, a1), [ix2, iy2] = pt(r2, a2)
+    return [
+      `M${ox1.toFixed(1)},${oy1.toFixed(1)}`,
+      `A${r1},${(r1 * ISO_SQ).toFixed(1)} 0 ${lg} 1 ${ox2.toFixed(1)},${oy2.toFixed(1)}`,
+      `L${ix2.toFixed(1)},${iy2.toFixed(1)}`,
+      `A${r2},${(r2 * ISO_SQ).toFixed(1)} 0 ${lg} 0 ${ix1.toFixed(1)},${iy1.toFixed(1)}`,
+      'Z',
+    ].join(' ')
+  }
+
+  // Extruded outer side-wall strip: arc from a1→a2 at radius r, dropped by ISO_DEPTH
+  function sideWall(r, a1, a2) {
+    if (a2 - a1 <= 0.002) return null
+    const span = a2 - a1
+    const lg   = span > Math.PI ? 1 : 0
+    const [x1, y1] = pt(r, a1), [x2, y2] = pt(r, a2)
+    return [
+      `M${x1.toFixed(1)},${y1.toFixed(1)}`,
+      `A${r},${(r * ISO_SQ).toFixed(1)} 0 ${lg} 1 ${x2.toFixed(1)},${y2.toFixed(1)}`,
+      `L${x2.toFixed(1)},${(y2 + ISO_DEPTH).toFixed(1)}`,
+      `A${r},${(r * ISO_SQ).toFixed(1)} 0 ${lg} 0 ${x1.toFixed(1)},${(y1 + ISO_DEPTH).toFixed(1)}`,
+      'Z',
+    ].join(' ')
+  }
+
+  // Angles: start at 12-o'clock (−π/2), go clockwise
+  const S = -Math.PI / 2
+  const U = S + pct * 2 * Math.PI   // used end angle
+
+  // Visible front wall spans [0, π]; compute where used/remaining boundary falls
+  // Formula: wallSplit = clamp(pct*2π − π/2, 0, π)
+  const wallSplit = Math.max(0, Math.min(Math.PI, pct * 2 * Math.PI - Math.PI / 2))
+
+  const hasUsed  = pct > 0.005
+  const fullUsed = pct > 0.995
+
+  return (
+    <div className="glass-panel p-5 fm-fade-up" style={{ '--fm-delay': '310ms' }}>
+      <SectionHead title="Local storage" sub="browser quota · 5 MB limit" />
+      <div className="flex items-center gap-6">
+
+        {/* ── Isometric 3D donut ── */}
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}
+          aria-label={`Local storage: ${Math.round(pct * 100)}% used`}
+          style={{ flex: '0 0 auto', overflow: 'visible' }}>
+          <defs>
+            <linearGradient id="ls-used-top" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#a78bfa" />
+              <stop offset="100%" stopColor="#6d28d9" />
+            </linearGradient>
+            <linearGradient id="ls-used-wall" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#5b21b6" />
+              <stop offset="100%" stopColor="#3b0764" />
+            </linearGradient>
+          </defs>
+
+          {/* Subtle back-edge hint (upper half of outer ellipse) */}
+          <ellipse cx={CX} cy={CY} rx={OR} ry={OR * ISO_SQ}
+            fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="0.7" />
+
+          {/* ── Top donut face ── */}
+          {/* Remaining segment */}
+          {!fullUsed && hasUsed && (
+            <path d={topSector(OR, IR, U, S + 2 * Math.PI)} fill="rgba(255,255,255,0.07)" />
+          )}
+          {/* Full remaining (pct ≈ 0) */}
+          {!hasUsed && (
+            <path d={topSector(OR, IR, S, S + 2 * Math.PI - 0.001)} fill="rgba(255,255,255,0.07)" />
+          )}
+          {/* Used segment */}
+          {hasUsed && !fullUsed && (
+            <path d={topSector(OR, IR, S, U)} fill="url(#ls-used-top)" />
+          )}
+          {/* Full used (pct ≈ 1) */}
+          {fullUsed && (
+            <path d={topSector(OR, IR, S, S + 2 * Math.PI - 0.001)} fill="url(#ls-used-top)" />
+          )}
+
+          {/* ── Front outer side wall [0 → π] split by segment ── */}
+          {wallSplit > 0.002 && (() => {
+            const d = sideWall(OR, 0, wallSplit)
+            return d ? <path d={d} fill="url(#ls-used-wall)" /> : null
+          })()}
+          {wallSplit < Math.PI - 0.002 && (() => {
+            const d = sideWall(OR, wallSplit, Math.PI)
+            return d ? <path d={d} fill="rgba(255,255,255,0.03)" /> : null
+          })()}
+
+          {/* Inner hole — dark cap to give depth */}
+          <ellipse cx={CX} cy={CY} rx={IR} ry={IR * ISO_SQ}
+            fill="#060810" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" />
+
+          {/* Center label */}
+          <text x={CX} y={CY - 1} textAnchor="middle" fontSize="11" fontWeight="700"
+            fill="rgba(255,255,255,0.80)">{Math.round(pct * 100)}%</text>
+          <text x={CX} y={CY + 12} textAnchor="middle" fontSize="6.5"
+            fill="rgba(255,255,255,0.28)">used</text>
+        </svg>
+
+        {/* ── Stats panel ── */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {[
+            {
+              label: 'Used',
+              bytes: usedBytes,
+              pct,
+              gradient: 'linear-gradient(90deg,#a78bfa,#6d28d9)',
+              dot: 'linear-gradient(135deg,#a78bfa,#6d28d9)',
+            },
+            {
+              label: 'Available',
+              bytes: remBytes,
+              pct: 1 - pct,
+              gradient: 'rgba(255,255,255,0.10)',
+              dot: 'rgba(255,255,255,0.12)',
+            },
+          ].map(({ label, bytes, pct: p, gradient, dot }) => (
+            <div key={label}>
+              <div className="flex justify-between items-baseline mb-1.5">
+                <div className="flex items-center gap-1.5 text-[11px] text-[color:var(--color-text-secondary)]">
+                  <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: dot }} />
+                  {label}
+                </div>
+                <span className="text-[12px] font-medium tabular-nums text-white/65">{fmtBytes(bytes)}</span>
+              </div>
+              <div className="h-[3px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${p * 100}%`, background: gradient }} />
+              </div>
+            </div>
+          ))}
+          <p className="text-[10px] text-[color:var(--color-text-tertiary)]">
+            {localStorage.length} keys · 5 MB browser limit
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Root ─────────────────────────────────────────────────────────────────────
 
 export default function KnowledgeOverview() {
@@ -1428,6 +1613,9 @@ export default function KnowledgeOverview() {
         />
         <OllamaModels />
       </div>
+
+      {/* ── Local storage usage ───────────────────────────────────────────── */}
+      <StorageDonut />
 
     </div>
   )
