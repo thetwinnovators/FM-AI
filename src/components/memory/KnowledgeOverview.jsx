@@ -698,148 +698,199 @@ const PLT2_H = VB2_H - PAD2.t - PAD2.b   // 52
 function ContentMix({ saves }) {
   // Force SVG remount on every component mount so SMIL animations replay on
   // every page visit — including tab-switches that keep the component alive.
-  const [mountKey, setMountKey] = useState(0)
-  useEffect(() => { setMountKey((k) => k + 1) }, [])
+  const [mountKey,  setMountKey ] = useState(0)
+  const [rangeDays, setRangeDays] = useState(7)   // 7 | 30 | 90 | null=all-time
 
-  const { dayBuckets, dayLabels, activeSeries, peak, totals, totalAll } = useMemo(() => {
-    const base   = buildDayBuckets()
-    const labels = base.map((b) => b.label)
+  useEffect(() => { setMountKey((k) => k + 1) }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setMountKey((k) => k + 1) }, [rangeDays])
+
+  const { base, dayBuckets, activeSeries, peak, totals, totalAll, rangeStartMs } = useMemo(() => {
+    const DAY_MS      = 86_400_000
+    const earliestTs  = findEarliestTimestamp(saves, {}, {})
+    const rangeStartMs = rangeDays != null
+      ? Date.now() - rangeDays * DAY_MS
+      : (earliestTs ?? Date.now() - 7 * DAY_MS)
+
+    const base   = buildRangeBuckets(rangeStartMs)
     const byType = {
       video:       fillBuckets(base, Object.values(saves).filter((s) => s?.item?.type === 'video').map((s) => s?.savedAt)),
       article:     fillBuckets(base, Object.values(saves).filter((s) => s?.item?.type === 'article').map((s) => s?.savedAt)),
       social_post: fillBuckets(base, Object.values(saves).filter((s) => s?.item?.type === 'social_post').map((s) => s?.savedAt)),
       pdf:         fillBuckets(base, Object.values(saves).filter((s) => s?.item?.type === 'pdf').map((s) => s?.savedAt)),
     }
-    const allCounts    = Object.values(byType).flatMap((bs) => bs.map((b) => b.count))
-    const peak         = Math.max(1, ...allCounts)
-    const totals       = {
-      video:       Object.values(saves).filter((s) => s?.item?.type === 'video').length,
-      article:     Object.values(saves).filter((s) => s?.item?.type === 'article').length,
-      social_post: Object.values(saves).filter((s) => s?.item?.type === 'social_post').length,
-      pdf:         Object.values(saves).filter((s) => s?.item?.type === 'pdf').length,
+
+    const allCounts = Object.values(byType).flatMap((bs) => bs.map((b) => b.count))
+    const peak      = Math.max(1, ...allCounts)
+
+    // Totals filtered to the selected range (not all-time)
+    const inRange = (iso) => iso && new Date(iso).getTime() >= rangeStartMs
+    const totals  = {
+      video:       Object.values(saves).filter((s) => s?.item?.type === 'video'       && inRange(s?.savedAt)).length,
+      article:     Object.values(saves).filter((s) => s?.item?.type === 'article'     && inRange(s?.savedAt)).length,
+      social_post: Object.values(saves).filter((s) => s?.item?.type === 'social_post' && inRange(s?.savedAt)).length,
+      pdf:         Object.values(saves).filter((s) => s?.item?.type === 'pdf'         && inRange(s?.savedAt)).length,
     }
     const totalAll     = Object.values(totals).reduce((a, b) => a + b, 0)
     const activeSeries = MIX.filter((s) => byType[s.key].some((b) => b.count > 0))
-    return { dayBuckets: byType, dayLabels: labels, activeSeries, peak, totals, totalAll }
-  }, [saves])
 
-  const step     = PLT2_W / 6
+    return { base, dayBuckets: byType, activeSeries, peak, totals, totalAll, rangeStartMs }
+  }, [saves, rangeDays])
+
+  // Dynamic step — adapts to any bucket count
+  const N        = Math.max(1, base.length - 1)
+  const step     = PLT2_W / N
   const toMini   = (bs) => bs.map((b, i) => [PAD2.l + i * step, PAD2.t + PLT2_H - (peak > 0 ? (b.count / peak) * PLT2_H : 0)])
   const miniBase = PAD2.t + PLT2_H
   const miniArea = (pts) => pts.length
     ? `${smoothLine(pts)} L ${pts[pts.length - 1][0]} ${miniBase} L ${pts[0][0]} ${miniBase} Z`
     : ''
 
-  if (!totalAll) return (
-    <p className="text-[12px] text-[color:var(--color-text-tertiary)]">Save items to see your content mix.</p>
-  )
-
   const series = activeSeries.length ? activeSeries : MIX
+
+  // Shared range picker (same pill style as KnowledgeGrowthChart)
+  const rangePicker = (
+    <div className="flex items-center gap-0.5 rounded-lg p-0.5"
+      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      {RANGE_PRESETS.map(({ days, label }) => (
+        <button
+          key={label}
+          onClick={() => setRangeDays(days)}
+          className="text-[10px] px-2.5 py-[3px] rounded-md transition-colors font-medium"
+          style={
+            rangeDays === days
+              ? { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.90)' }
+              : { color: 'rgba(255,255,255,0.30)' }
+          }
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
 
   return (
     <div className="space-y-3">
-      {/* Mini line chart — dark inset background */}
-      <div className="rounded-xl overflow-hidden p-3 pb-1" style={{ background: 'rgba(6,8,16,0.75)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <svg key={mountKey} viewBox={`0 0 ${VB2_W} ${VB2_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}
-        aria-label="Content type breakdown over 7 days">
-        <defs>
-          {MIX.map((s) => (
-            <linearGradient key={s.key} id={`cm-${s.key}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor={s.color} stopOpacity=".28" />
-              <stop offset="55%"  stopColor={s.color} stopOpacity=".08" />
-              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
-            </linearGradient>
-          ))}
-          <clipPath id="cm-reveal">
-            <rect x={PAD2.l} y={0} width={PLT2_W} height={VB2_H}>
-              <animate attributeName="width" from="0" to={PLT2_W}
-                dur="1.4s" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" fill="freeze" />
-            </rect>
-          </clipPath>
-        </defs>
-        {/* Y-axis grid lines + left-side metric labels (0, mid, peak) */}
-        {[0, 0.5, 1].map((frac, idx) => {
-          const y   = miniBase - frac * PLT2_H
-          const val = idx === 0 ? 0 : idx === 1 ? Math.round(peak / 2) : peak
-          return (
-            <g key={idx}>
-              {frac > 0 && (
-                <line
-                  x1={PAD2.l} y1={y} x2={PAD2.l + PLT2_W} y2={y}
-                  stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="2 3"
-                />
-              )}
-              <text
-                x={PAD2.l - 2} y={y + (idx === 0 ? -2 : 2.5)}
-                textAnchor="end" fontSize="6" fill="rgba(255,255,255,0.20)"
-              >
-                {val}
-              </text>
-            </g>
-          )
-        })}
-
-        {/* Baseline — drawn on top of dashed grid so it stays solid */}
-        <line x1={PAD2.l} y1={miniBase} x2={PAD2.l + PLT2_W} y2={miniBase}
-          stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
-
-        {/* Fills — revealed by sliding clipPath */}
-        <g clipPath="url(#cm-reveal)">
-          {series.map((s) => {
-            const pts = toMini(dayBuckets[s.key])
-            return <path key={s.key} d={miniArea(pts)} fill={`url(#cm-${s.key})`} />
-          })}
-        </g>
-
-        {/* Lines — drawn via stroke-dashoffset */}
-        {series.map((s) => {
-          const pts = toMini(dayBuckets[s.key])
-          const d   = smoothLine(pts)
-          return (
-            <g key={s.key}>
-              <path d={d} fill="none" stroke={s.color}
-                strokeWidth="2" strokeOpacity=".20" strokeLinecap="round" strokeLinejoin="round"
-                pathLength="1" strokeDasharray="1" strokeDashoffset="1">
-                <animate attributeName="stroke-dashoffset"
-                  from="1" to="0" dur="1.4s"
-                  calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
-                  fill="freeze" />
-              </path>
-              <path d={d} fill="none" stroke={s.color}
-                strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
-                pathLength="1" strokeDasharray="1" strokeDashoffset="1">
-                <animate attributeName="stroke-dashoffset"
-                  from="1" to="0" dur="1.4s"
-                  calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
-                  fill="freeze" />
-              </path>
-            </g>
-          )
-        })}
-
-        {/* X-axis labels — reduced font size */}
-        {dayLabels.map((label, i) => (
-          <text key={i} x={PAD2.l + i * step} y={VB2_H - 4}
-            textAnchor="middle" fontSize="6" fill="rgba(255,255,255,0.22)">{label}</text>
-        ))}
-      </svg>
+      {/* Self-contained header — title + subtitle + range picker */}
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-[13px] font-semibold">Content mix</h2>
+          <p className="text-[10px] text-[color:var(--color-text-tertiary)] mt-0.5">
+            {rangeDays != null
+              ? `last ${rangeDays} days`
+              : `since ${new Date(rangeStartMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+          </p>
+        </div>
+        {rangePicker}
       </div>
 
-      {/* Legend */}
-      <div className="space-y-1.5">
-        {MIX.filter(({ key }) => totals[key] > 0).map(({ key, label, color }) => {
-          const pct = Math.round((totals[key] / totalAll) * 100)
-          return (
-            <div key={key} className="flex items-center gap-2 text-[11px]">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-              <span className="chip text-[10px]">{label}</span>
-              <span className="flex-1 text-right text-[color:var(--color-text-tertiary)] tabular-nums">{pct}%</span>
-              <span className="tabular-nums w-6 text-right text-white/60">{totals[key]}</span>
-            </div>
-          )
-        })}
-        <p className="text-[10px] text-right text-[color:var(--color-text-tertiary)] pt-0.5">{totalAll} total</p>
-      </div>
+      {!totalAll ? (
+        <p className="text-[12px] text-[color:var(--color-text-tertiary)] py-1">
+          {rangeDays != null ? `Nothing saved in the last ${rangeDays} days.` : 'Save items to see your content mix.'}
+        </p>
+      ) : (
+        <>
+          {/* Mini line chart — dark inset background */}
+          <div className="rounded-xl overflow-hidden p-3 pb-1" style={{ background: 'rgba(6,8,16,0.75)', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <svg key={mountKey} viewBox={`0 0 ${VB2_W} ${VB2_H}`} style={{ width: '100%', height: 'auto', display: 'block' }}
+              aria-label={rangeDays != null ? `Content mix over last ${rangeDays} days` : 'Content mix all time'}>
+              <defs>
+                {MIX.map((s) => (
+                  <linearGradient key={s.key} id={`cm-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"   stopColor={s.color} stopOpacity=".28" />
+                    <stop offset="55%"  stopColor={s.color} stopOpacity=".08" />
+                    <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+                  </linearGradient>
+                ))}
+                <clipPath id="cm-reveal">
+                  <rect x={PAD2.l} y={0} width={PLT2_W} height={VB2_H}>
+                    <animate attributeName="width" from="0" to={PLT2_W}
+                      dur="1.4s" calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" fill="freeze" />
+                  </rect>
+                </clipPath>
+              </defs>
+
+              {/* Y-axis grid lines + left-side metric labels (0, mid, peak) */}
+              {[0, 0.5, 1].map((frac, idx) => {
+                const y   = miniBase - frac * PLT2_H
+                const val = idx === 0 ? 0 : idx === 1 ? Math.round(peak / 2) : peak
+                return (
+                  <g key={idx}>
+                    {frac > 0 && (
+                      <line x1={PAD2.l} y1={y} x2={PAD2.l + PLT2_W} y2={y}
+                        stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="2 3" />
+                    )}
+                    <text x={PAD2.l - 2} y={y + (idx === 0 ? -2 : 2.5)}
+                      textAnchor="end" fontSize="6" fill="rgba(255,255,255,0.20)">{val}</text>
+                  </g>
+                )
+              })}
+
+              {/* Baseline */}
+              <line x1={PAD2.l} y1={miniBase} x2={PAD2.l + PLT2_W} y2={miniBase}
+                stroke="rgba(255,255,255,0.10)" strokeWidth="1" />
+
+              {/* Fills — revealed by sliding clipPath */}
+              <g clipPath="url(#cm-reveal)">
+                {series.map((s) => {
+                  const pts = toMini(dayBuckets[s.key])
+                  return <path key={s.key} d={miniArea(pts)} fill={`url(#cm-${s.key})`} />
+                })}
+              </g>
+
+              {/* Lines — drawn via stroke-dashoffset */}
+              {series.map((s) => {
+                const pts = toMini(dayBuckets[s.key])
+                const d   = smoothLine(pts)
+                return (
+                  <g key={s.key}>
+                    <path d={d} fill="none" stroke={s.color}
+                      strokeWidth="2" strokeOpacity=".20" strokeLinecap="round" strokeLinejoin="round"
+                      pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                      <animate attributeName="stroke-dashoffset"
+                        from="1" to="0" dur="1.4s"
+                        calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                        fill="freeze" />
+                    </path>
+                    <path d={d} fill="none" stroke={s.color}
+                      strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round"
+                      pathLength="1" strokeDasharray="1" strokeDashoffset="1">
+                      <animate attributeName="stroke-dashoffset"
+                        from="1" to="0" dur="1.4s"
+                        calcMode="spline" keyTimes="0;1" keySplines="0.25 0.46 0.45 0.94"
+                        fill="freeze" />
+                    </path>
+                  </g>
+                )
+              })}
+
+              {/* X-axis labels — from bucket dayLabel (sparse, ~8 labels) */}
+              {base.map((slot, i) => slot.dayLabel ? (
+                <text key={i} x={PAD2.l + i * step} y={VB2_H - 4}
+                  textAnchor="middle" fontSize="6" fill="rgba(255,255,255,0.22)">
+                  {slot.dayLabel}
+                </text>
+              ) : null)}
+            </svg>
+          </div>
+
+          {/* Legend with range-filtered totals */}
+          <div className="space-y-1.5">
+            {MIX.filter(({ key }) => totals[key] > 0).map(({ key, label, color }) => {
+              const pct = Math.round((totals[key] / totalAll) * 100)
+              return (
+                <div key={key} className="flex items-center gap-2 text-[11px]">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                  <span className="chip text-[10px]">{label}</span>
+                  <span className="flex-1 text-right text-[color:var(--color-text-tertiary)] tabular-nums">{pct}%</span>
+                  <span className="tabular-nums w-6 text-right text-white/60">{totals[key]}</span>
+                </div>
+              )
+            })}
+            <p className="text-[10px] text-right text-[color:var(--color-text-tertiary)] pt-0.5">{totalAll} total</p>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -1345,7 +1396,6 @@ export default function KnowledgeOverview() {
       {/* ── Content mix + Top searches + AI context health ────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 fm-fade-up" style={{ '--fm-delay': '190ms' }}>
         <div className="glass-panel p-5">
-          <SectionHead title="Content mix" sub="breakdown of what you save" />
           <ContentMix saves={saves} />
         </div>
         <div className="glass-panel p-5">

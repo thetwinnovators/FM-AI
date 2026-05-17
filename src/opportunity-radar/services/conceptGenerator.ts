@@ -668,13 +668,18 @@ async function generateWithOllamaFrame(
 
 function cleanEV(raw: string): string {
   if (!raw) return raw
-  return raw
-    .trim()
+  let result = raw.trim()
+  let prev: string
+  do {
+    prev = result
     // Multi-word verb phrases: "appears to be", "wants me to", "needs to", etc.
-    .replace(/\s+(appears?\s+to\s+be|seems?\s+to\s+be|wants?\s+(?:me\s+)?to|needs?\s+to|has\s+to|is\s+(?:a|an|the|not))\s*$/i, '')
-    // Trailing single stop words: prepositions, conjunctions, articles, aux verbs
-    .replace(/\s+(on|in|to|for|with|by|of|and|or|a|an|the|be|is|are|was|that|which|this|when|where|how)\s*$/i, '')
-    .trim()
+    result = result
+      .replace(/\s+(appears?\s+to\s+be|seems?\s+to\s+be|wants?\s+(?:me\s+)?to|needs?\s+to|has\s+to|is\s+(?:a|an|the|not))\s*$/i, '')
+      // Trailing single stop words: prepositions, conjunctions, articles, aux verbs
+      .replace(/\s+(on|in|to|for|with|by|of|and|or|a|an|the|be|is|are|was|that|which|this|when|where|how)\s*$/i, '')
+      .trim()
+  } while (result !== prev && result.length > 0)
+  return result
 }
 
 // ── Candidate builders ────────────────────────────────────────────────────────
@@ -713,7 +718,7 @@ function buildPersonaFirstCandidate(
     rank,
     angleType: 'persona_first',
 
-    title:   ollama?.title   ?? titleFallback,
+    title:   cleanEV(ollama?.title   ?? titleFallback),
     tagline: ollama?.tagline ?? `The focused tool for ${persona} who still struggle with ${workflow}`,
     coreWedge,
 
