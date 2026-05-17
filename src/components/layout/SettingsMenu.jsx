@@ -14,6 +14,8 @@ import { syncState, subscribeSyncStatus, pullSyncedState } from '../../store/use
 import { useConfirm } from '../ui/ConfirmProvider.jsx'
 import LocalOperatorPanel from '../settings/LocalOperatorPanel.jsx'
 
+const ALPACA_LS_KEY = 'fm_alpaca_paper_creds'
+
 const LIQUID_GLASS = {
   background: 'linear-gradient(160deg, rgba(15,17,28,0.96) 0%, rgba(8,10,18,0.98) 100%)',
   backdropFilter: 'blur(40px) saturate(180%)',
@@ -50,7 +52,7 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
     return unsub
   }, [])
 
-  // Reset transient status when reopening
+  // Reset transient status when reopening; pre-fill Alpaca from localStorage
   useEffect(() => {
     if (!open) return
     setStatus(null)
@@ -59,9 +61,18 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
     setVoiceEnabledState(VOICE_CONFIG.enabled)
     setThemeState(getTheme())
     setVtKeyState(VT_CONFIG.apiKey)
-    setAlpacaKey('')
-    setAlpacaSecret('')
     setAlpacaSaveStatus(null)
+
+    // Pre-fill from previously saved credentials so the user never has to retype
+    try {
+      const stored = localStorage.getItem(ALPACA_LS_KEY)
+      const parsed = stored ? JSON.parse(stored) : null
+      setAlpacaKey(parsed?.key ?? '')
+      setAlpacaSecret(parsed?.secret ?? '')
+    } catch {
+      setAlpacaKey('')
+      setAlpacaSecret('')
+    }
   }, [open])
 
   // Load Alpaca key hint from daemon whenever menu opens
@@ -170,9 +181,10 @@ export default function SettingsMenu({ anchorRef, open, onClose }) {
     setAlpacaSaveStatus(null)
     try {
       const result = await flowTradeApi.saveCredentials(key, secret)
+      // Persist so the form is pre-filled on next open — no need to retype
+      localStorage.setItem(ALPACA_LS_KEY, JSON.stringify({ key, secret }))
       setAlpacaHint(key.slice(0, 4) + '…')
-      setAlpacaKey('')
-      setAlpacaSecret('')
+      // Keep inputs populated (user can see what's saved)
       setAlpacaSaveStatus({ ok: true, message: result?.connected ? 'Connected!' : 'Saved.' })
       setTimeout(() => setAlpacaSaveStatus(null), 3000)
     } catch (err) {

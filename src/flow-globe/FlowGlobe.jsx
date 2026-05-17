@@ -106,6 +106,9 @@ export default function FlowGlobe({
   const idleTimerRef    = useRef(null)
   const sunLightRef     = useRef(null)
   const sunTimerRef     = useRef(null)
+  const starsMeshRef    = useRef(null)
+  const sunSphereRef    = useRef(null)
+  const sunCoronaRef    = useRef(null)
   const ctrlCleanupRef  = useRef(null)
   const skipGlobeClick  = useRef(false)   // prevent polygon click → globe click double-fire
   const onLabelClickRef = useRef(onLabelClick)
@@ -398,31 +401,75 @@ export default function FlowGlobe({
     }, IDLE_RESUME_MS)
   }, [viewpoint])
 
-  // ── Sun lighting ──────────────────────────────────────────────────────────
+  // ── Stars + Sun lighting + Sun sphere ────────────────────────────────────
   useEffect(() => {
     const setup = setTimeout(() => {
       const scene = globeRef.current?.scene?.()
       if (!scene) return
 
+      // Kill the default ambient/directional lights react-globe.gl adds
       const ambients     = []
       const directionals = []
       scene.traverse((obj) => {
         if (obj.isAmbientLight)     ambients.push(obj)
         if (obj.isDirectionalLight) directionals.push(obj)
       })
-
-      ambients.forEach((l) => { l.intensity *= 0.02 })  // near-zero so night side is truly dark
+      ambients.forEach((l) => { l.intensity *= 0.02 })  // near-zero → night side truly dark
       directionals.forEach((l) => l.parent?.remove(l))
 
-      const sun = new THREE.DirectionalLight(0xfff8f0, 4.0)  // brighter sun → more contrast
+      // ── Star field ──
+      const STAR_COUNT = 2500
+      const starPositions = new Float32Array(STAR_COUNT * 3)
+      for (let i = 0; i < STAR_COUNT; i++) {
+        // Uniform random point on sphere shell, r ∈ [700, 1100]
+        const theta = Math.random() * Math.PI * 2
+        const phi   = Math.acos(2 * Math.random() - 1)
+        const r     = 700 + Math.random() * 400
+        starPositions[i * 3]     = r * Math.sin(phi) * Math.cos(theta)
+        starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta)
+        starPositions[i * 3 + 2] = r * Math.cos(phi)
+      }
+      const starGeom = new THREE.BufferGeometry()
+      starGeom.setAttribute('position', new THREE.BufferAttribute(starPositions, 3))
+      const starMat  = new THREE.PointsMaterial({
+        color: 0xffffff, size: 0.9, transparent: true, opacity: 0.75,
+        sizeAttenuation: true,
+      })
+      const stars = new THREE.Points(starGeom, starMat)
+      stars.name = 'flowmap-stars'
+      scene.add(stars)
+      starsMeshRef.current = stars
+
+      // ── Directional sun light ──
+      const sun = new THREE.DirectionalLight(0xfff8f0, 4.0)
       sun.name = 'flowmap-sun'
       scene.add(sun)
       sunLightRef.current = sun
+
+      // ── Sun visual sphere (core) ──
+      const sunSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(3.5, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xfff9e0 }),
+      )
+      sunSphere.name = 'flowmap-sun-sphere'
+      scene.add(sunSphere)
+      sunSphereRef.current = sunSphere
+
+      // ── Sun corona glow (outer soft halo) ──
+      const corona = new THREE.Mesh(
+        new THREE.SphereGeometry(7, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffe880, transparent: true, opacity: 0.13 }),
+      )
+      corona.name = 'flowmap-sun-corona'
+      scene.add(corona)
+      sunCoronaRef.current = corona
 
       function updateSunPos() {
         const { lat, lng } = getSunPosition()
         const v = geoToVec3(lat, lng)
         sun.position.set(v.x * 300, v.y * 300, v.z * 300)
+        sunSphere.position.set(v.x * 290, v.y * 290, v.z * 290)
+        corona.position.set(v.x * 290, v.y * 290, v.z * 290)
       }
       updateSunPos()
       sunTimerRef.current = setInterval(updateSunPos, 60_000)
@@ -433,7 +480,12 @@ export default function FlowGlobe({
       clearInterval(sunTimerRef.current)
       try {
         const scene = globeRef.current?.scene?.()
-        if (scene && sunLightRef.current) scene.remove(sunLightRef.current)
+        if (scene) {
+          if (sunLightRef.current)  scene.remove(sunLightRef.current)
+          if (starsMeshRef.current) scene.remove(starsMeshRef.current)
+          if (sunSphereRef.current) scene.remove(sunSphereRef.current)
+          if (sunCoronaRef.current) scene.remove(sunCoronaRef.current)
+        }
       } catch { /* ignore unmount-race */ }
     }
   }, [])
